@@ -75,10 +75,13 @@ echo "[3/6] Running database migrations..."
 alembic upgrade head
 echo "  ✅ Migrations complete"
 
-# --- 4. Seed admin account ---
-echo "[4/6] Seeding admin account..."
+# --- 4. Seed admin & demo accounts ---
+echo "[4/6] Seeding admin & demo accounts..."
 python seed_admin.py
-echo "  ✅ Seed complete"
+if [ -f "seed_demo_accounts.py" ]; then
+    python seed_demo_accounts.py
+fi
+echo "  ✅ Accounts ready"
 
 # --- 5. Seed demo data (only if DB is empty) ---
 echo "[5/6] Checking for demo data..."

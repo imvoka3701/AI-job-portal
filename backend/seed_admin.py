@@ -20,8 +20,8 @@ from app.models.application import Application  # noqa: F401
 from app.models.resume import Resume  # noqa: F401
 from app.models.notification import Notification  # noqa: F401
 
-ADMIN_EMAIL = sys.argv[1] if len(sys.argv) > 1 else "admin@jobportal.com"
-ADMIN_PASSWORD = sys.argv[2] if len(sys.argv) > 2 else "Admin@123"
+ADMIN_EMAIL = sys.argv[1] if len(sys.argv) > 1 else "admin@jobportal.vn"
+ADMIN_PASSWORD = sys.argv[2] if len(sys.argv) > 2 else "Admin@123456"
 
 
 def seed():
