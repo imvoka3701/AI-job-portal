@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.env
+.env.*
+tests/
+*.spec.ts
+playwright.config.ts
+playwright-report/
+test-results/
+.git/
+.gitignore
+README.md

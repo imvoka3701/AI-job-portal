@@ -1,0 +1,39 @@
+# === Core ===
+fastapi==0.115.*
+uvicorn[standard]==0.34.*
+python-multipart==0.0.*
+
+# === Database ===
+sqlalchemy==2.0.*
+psycopg2-binary==2.9.*
+alembic==1.15.*
+pgvector==0.3.*
+
+# === Auth & Security ===
+python-jose[cryptography]==3.3.*
+passlib[bcrypt]==1.7.*
+bcrypt==4.2.*
+authlib==1.7.*
+
+# === Validation & Settings ===
+pydantic==2.11.*
+pydantic-settings==2.9.*
+email-validator==2.2.*
+
+# === AI / LLM ===
+httpx==0.28.*
+
+# === Embedding (local) ===
+sentence-transformers==3.4.*
+torch==2.6.*
+
+# === PDF parsing ===
+pypdf==5.6.*
+
+# === Utilities ===
+python-dotenv==1.1.*
+
+# === Testing ===
+pytest==8.3.*
+pytest-asyncio==0.25.*
+httpx==0.28.*
