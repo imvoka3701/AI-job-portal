@@ -18,6 +18,7 @@ import { InterviewsPage } from "@/pages/employer/InterviewsPage";
 import { EmployerTeamPage } from "@/pages/employer/EmployerTeamPage";
 import { RecruitmentRequestsPage } from "@/pages/employer/RecruitmentRequestsPage";
 import { EmployerInvitationAcceptPage } from "@/pages/employer/EmployerInvitationAcceptPage";
+import { EmployerSettingsPage } from "@/pages/employer/EmployerSettingsPage";
 import { AdminDashboard } from "@/pages/admin/AdminDashboard";
 import { AdminCompanies } from "@/pages/admin/AdminCompanies";
 import { AdminJobs } from "@/pages/admin/AdminJobs";
@@ -150,6 +151,10 @@ function App() {
           <Route
             path="/employer/recruitment-requests"
             element={<ProtectedRoute allowedRoles={["employer"]}><RecruitmentRequestsPage /></ProtectedRoute>}
+          />
+          <Route
+            path="/employer/settings"
+            element={<ProtectedRoute allowedRoles={["employer"]}><EmployerSettingsPage /></ProtectedRoute>}
           />
         </Route>
       </Routes>

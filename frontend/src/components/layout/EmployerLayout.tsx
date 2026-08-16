@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -26,14 +26,32 @@ const NAV_ITEMS = [
   { label: "Lịch phỏng vấn", href: "/employer/interviews", icon: Calendar, permission: "application:view" },
   { label: "Nhu cầu tuyển dụng", href: "/employer/recruitment-requests", icon: ClipboardList, permission: "recruitment_request:view" },
   { label: "Đội ngũ & phân quyền", href: "/employer/team", icon: UserCog, permission: "team:view" },
+  { label: "Cài đặt doanh nghiệp", href: "/employer/settings", icon: Settings },
 ];
 
 function EmployerLayoutContent() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const user = useUser();
   const logout = useAuthStore((s) => s.logout);
   const navigate = useNavigate();
   const { data: companyContext, hasPermission } = useEmployerCompany();
+
+  // Ctrl + K shortcut
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        const searchInput = document.querySelector<HTMLInputElement>("input[placeholder*='Tìm kiếm ứng viên']");
+        if (searchInput) {
+          searchInput.focus();
+          searchInput.select();
+        }
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   const handleLogout = () => {
     logout();
@@ -83,7 +101,7 @@ function EmployerLayoutContent() {
           <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4 px-2">
             Quản lý tuyển dụng
           </div>
-          {NAV_ITEMS.filter((item) => hasPermission(item.permission)).map((item) => (
+          {NAV_ITEMS.filter((item) => !item.permission || hasPermission(item.permission)).map((item) => (
             <NavLink
               key={item.href}
               to={item.href}
@@ -138,10 +156,12 @@ function EmployerLayoutContent() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" className="flex-1 justify-center text-gray-600">
-              <Settings className="w-4 h-4 mr-2" />
-              Cài đặt
-            </Button>
+            <Link to="/employer/settings" className="flex-1">
+              <Button variant="ghost" size="sm" className="w-full justify-center text-gray-600 hover:text-gray-900 hover:bg-gray-100">
+                <Settings className="w-4 h-4 mr-2" />
+                Cài đặt
+              </Button>
+            </Link>
             <Button variant="ghost" size="sm" className="px-2 text-gray-400 hover:text-red-600 hover:bg-red-50" onClick={handleLogout} title="Đăng xuất">
               <LogOut className="w-4 h-4" />
             </Button>
@@ -161,14 +181,30 @@ function EmployerLayoutContent() {
               <Menu className="w-5 h-5" />
             </button>
             
-            {/* Command Palette trigger (Fake for now) */}
-            <div className="hidden sm:flex items-center bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5 text-sm text-gray-400 w-64 cursor-text hover:bg-white transition-colors">
-              <Search className="w-4 h-4 mr-2 text-gray-400" />
-              <span>Tìm kiếm ứng viên...</span>
-              <kbd className="ml-auto hidden sm:inline-block text-[10px] bg-white border border-gray-200 rounded px-1.5 font-sans font-medium text-gray-500 shadow-sm">
+            {/* Interactive Search Bar */}
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (searchQuery.trim()) {
+                  navigate(`/employer/candidates?search=${encodeURIComponent(searchQuery.trim())}`);
+                } else {
+                  navigate(`/employer/candidates`);
+                }
+              }}
+              className="relative hidden sm:flex items-center"
+            >
+              <Search className="w-4 h-4 absolute left-3 text-gray-400 pointer-events-none" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Tìm kiếm ứng viên, kỹ năng..."
+                className="w-72 pl-9 pr-14 py-1.5 bg-gray-50/80 hover:bg-white focus:bg-white border border-gray-200 rounded-lg text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all shadow-sm"
+              />
+              <kbd className="absolute right-2.5 text-[10px] bg-white border border-gray-200 rounded px-1.5 py-0.5 font-sans font-medium text-gray-400 shadow-sm pointer-events-none">
                 Ctrl K
               </kbd>
-            </div>
+            </form>
           </div>
 
           <div className="flex items-center gap-3">
@@ -177,7 +213,12 @@ function EmployerLayoutContent() {
                 <Button variant="outline" size="sm">Đăng tin mới</Button>
               </Link>
             )}
-            <button className="relative p-2 text-gray-500 hover:text-gray-900 rounded-full hover:bg-gray-100 transition-colors">
+            <Link to="/employer/settings">
+              <button className="p-2 text-gray-500 hover:text-gray-900 rounded-full hover:bg-gray-100 transition-colors" title="Cài đặt">
+                <Settings className="w-5 h-5" />
+              </button>
+            </Link>
+            <button className="relative p-2 text-gray-500 hover:text-gray-900 rounded-full hover:bg-gray-100 transition-colors" title="Thông báo">
               <Bell className="w-5 h-5" />
               <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border border-white" />
             </button>

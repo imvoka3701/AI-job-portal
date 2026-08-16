@@ -26,20 +26,20 @@ export function EmployerRoleOverview({ context, stats }: { context: CompanyConte
       ];
 
   return (
-    <Card noPadding className="overflow-hidden">
-      <div className="grid lg:grid-cols-[minmax(0,1.25fr)_minmax(420px,1fr)]">
-        <div className="flex items-start gap-4 p-5">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-primary-light text-primary">
+    <Card noPadding className="overflow-hidden border border-gray-200 shadow-sm">
+      <div className="grid lg:grid-cols-[1fr_360px]">
+        <div className="flex items-start gap-4 p-5 sm:p-6">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
             <RoleIcon className="h-5 w-5" />
           </div>
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <h2 className="text-base font-semibold text-gray-900">
+              <h2 className="text-base font-bold text-gray-900">
                 {isHead ? "Không gian đánh giá chuyên môn" : "Trung tâm vận hành tuyển dụng"}
               </h2>
               <Badge variant="primary" size="sm">{roleLabel}</Badge>
             </div>
-            <p className="mt-1 text-sm text-gray-500">
+            <p className="mt-1 text-sm text-gray-500 leading-relaxed">
               {isHead
                 ? "Tập trung đánh giá ứng viên, ghi đề xuất và phối hợp với Nhân sự. Bạn không thể tự đưa ra quyết định tuyển dụng cuối."
                 : "Theo dõi toàn bộ pipeline, điều phối phỏng vấn và ra quyết định tuyển dụng dựa trên đánh giá của con người."}
@@ -56,7 +56,7 @@ export function EmployerRoleOverview({ context, stats }: { context: CompanyConte
           </div>
         </div>
 
-        <div className="grid grid-cols-3 border-t border-gray-200 bg-gray-50 lg:border-l lg:border-t-0">
+        <div className="grid grid-cols-3 border-t border-gray-200 bg-gray-50/80 lg:border-l lg:border-t-0 divide-x divide-gray-200">
           <RoleMetric label="Phạm vi" value={scopeLabel} />
           <RoleMetric label={isHead ? "Job phụ trách" : "Job hoạt động"} value={String(stats.active_jobs.length)} />
           <RoleMetric label="Ứng viên" value={String(stats.total_applications)} />
@@ -68,9 +68,11 @@ export function EmployerRoleOverview({ context, stats }: { context: CompanyConte
 
 function RoleMetric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex min-w-0 flex-col justify-center border-r border-gray-200 px-4 py-5 last:border-r-0">
+    <div className="flex min-w-0 flex-col justify-center px-3.5 py-5">
       <p className="text-xs font-medium text-gray-500">{label}</p>
-      <p className="mt-1 truncate text-lg font-semibold text-gray-900" title={value}>{value}</p>
+      <p className="mt-1 text-sm sm:text-base font-bold text-gray-900 leading-tight" title={value}>
+        {value}
+      </p>
     </div>
   );
 }

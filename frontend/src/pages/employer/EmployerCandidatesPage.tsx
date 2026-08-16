@@ -73,7 +73,13 @@ export function EmployerCandidatesPage() {
   const [summarizeLoading, setSummarizeLoading] = useState(false);
   const [summarizeError, setSummarizeError] = useState<string | null>(null);
 
-  const [emailTarget, setEmailTarget] = useState<{ candidateName: string; applicationId: number } | null>(null);
+  const [emailTarget, setEmailTarget] = useState<{
+    candidateName: string;
+    candidateEmail: string;
+    applicationId: number;
+    jobTitle?: string;
+    matchScore?: number | null;
+  } | null>(null);
   const [emailResult, setEmailResult] = useState<GenerateEmailResult | null>(null);
   const [emailLoading, setEmailLoading] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
@@ -164,26 +170,34 @@ export function EmployerCandidatesPage() {
   );
 
   useEffect(() => {
+    if (jobs.length === 0) return;
     const jobIdParam = searchParams.get("jobId");
-    if (!jobIdParam) return;
-    const jobId = Number(jobIdParam);
-    if (!Number.isFinite(jobId)) return;
-    const job = jobs.find((item) => item.id === jobId);
-    if (job) {
-      setSelectedJobId(job.id);
-      setSelectedJobTitle(job.title);
-      fetchApplications(job.id);
+    let targetJob = jobs[0];
+    if (jobIdParam) {
+      const jobId = Number(jobIdParam);
+      if (Number.isFinite(jobId)) {
+        const found = jobs.find((item) => item.id === jobId);
+        if (found) targetJob = found;
+      }
     }
-  }, [fetchApplications, jobs, searchParams]);
+    if (targetJob && targetJob.id !== selectedJobId) {
+      setSelectedJobId(targetJob.id);
+      setSelectedJobTitle(targetJob.title);
+      fetchApplications(targetJob.id);
+    }
+  }, [fetchApplications, jobs, searchParams, selectedJobId]);
 
   const handleSelectJob = useCallback(
     (job: { id: number; title: string }) => {
       setSelectedJobId(job.id);
       setSelectedJobTitle(job.title);
-      setSearchParams({ jobId: String(job.id) }, { replace: true });
+      const currentSearch = searchParams.get("search");
+      const nextParams: Record<string, string> = { jobId: String(job.id) };
+      if (currentSearch) nextParams.search = currentSearch;
+      setSearchParams(nextParams, { replace: true });
       fetchApplications(job.id);
     },
-    [fetchApplications, setSearchParams],
+    [fetchApplications, searchParams, setSearchParams],
   );
 
   const replaceApplication = useCallback((updated: EmployerApplication) => {
@@ -205,12 +219,12 @@ export function EmployerCandidatesPage() {
     }
   }, []);
 
-  const requestEmailDraft = useCallback(async (applicationId: number) => {
+  const requestEmailDraft = useCallback(async (applicationId: number, emailType: "invite" | "reject" | "offer" = "invite") => {
     setEmailResult(null);
     setEmailError(null);
     setEmailLoading(true);
     try {
-      setEmailResult(await generateEmail(applicationId, "invite"));
+      setEmailResult(await generateEmail(applicationId, emailType));
     } catch (error) {
       setEmailError(getApiErrorMessage(error));
     } finally {
@@ -220,9 +234,15 @@ export function EmployerCandidatesPage() {
 
   const handleGenerateEmail = useCallback((app: EmployerApplication) => {
     if (!app.resume_id || !app.candidate) return;
-    setEmailTarget({ candidateName: app.candidate.full_name, applicationId: app.id });
-    void requestEmailDraft(app.id);
-  }, [requestEmailDraft]);
+    setEmailTarget({
+      candidateName: app.candidate.full_name,
+      candidateEmail: app.candidate.email,
+      applicationId: app.id,
+      jobTitle: selectedJobTitle || "Vị trí tuyển dụng",
+      matchScore: app.ai_matching_score,
+    });
+    void requestEmailDraft(app.id, "invite");
+  }, [requestEmailDraft, selectedJobTitle]);
 
   const handleGenerateQuestions = useCallback(async () => {
     if (!intvTarget || selectedSkills.length === 0) return;
@@ -461,10 +481,11 @@ export function EmployerCandidatesPage() {
           }}
         />
 
-        {selectedJobId && stats && (
+        {selectedJobId && (
           <EmployerCandidateRadarChart
             skillAnalysis={evalResult?.skill_analysis ?? null}
             jobRequirements={jobs.find((job) => job.id === selectedJobId)?.requirements ?? null}
+            jobTitle={selectedJobTitle}
           />
         )}
       </div>
@@ -580,11 +601,14 @@ export function EmployerCandidatesPage() {
       <EmailDraftModal
         isOpen={emailTarget !== null}
         candidateName={emailTarget?.candidateName ?? ""}
+        candidateEmail={emailTarget?.candidateEmail}
+        jobTitle={emailTarget?.jobTitle}
+        matchScore={emailTarget?.matchScore}
         result={emailResult}
         loading={emailLoading}
         error={emailError}
-        onRetry={() => {
-          if (emailTarget) void requestEmailDraft(emailTarget.applicationId);
+        onRetry={(type) => {
+          if (emailTarget) void requestEmailDraft(emailTarget.applicationId, type || "invite");
         }}
         onClose={handleCloseEmail}
       />

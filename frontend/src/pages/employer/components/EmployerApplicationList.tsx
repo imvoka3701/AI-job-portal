@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   Briefcase,
@@ -18,6 +19,10 @@ import {
   ThumbsUp,
   UserRound,
   XCircle,
+  Copy,
+  Phone,
+  Calendar,
+  Sparkles,
 } from "lucide-react";
 import { Badge, Button, Card, EmptyState, ErrorState, PipelineStepper } from "@/components/ui";
 import { getInitials, cn } from "@/lib/utils";
@@ -98,15 +103,39 @@ export function EmployerApplicationList({
   const [actionLoading, setActionLoading] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
-  
+  const [copiedEmail, setCopiedEmail] = useState(false);
+  const [copiedPhone, setCopiedPhone] = useState(false);
+
+  const handleCopyEmail = (email: string) => {
+    navigator.clipboard.writeText(email);
+    setCopiedEmail(true);
+    setTimeout(() => setCopiedEmail(false), 2000);
+  };
+
+  const handleCopyPhone = (phone: string) => {
+    navigator.clipboard.writeText(phone);
+    setCopiedPhone(true);
+    setTimeout(() => setCopiedPhone(false), 2000);
+  };
+
   // Filters and sorting
-  const [searchKeyword, setSearchKeyword] = useState("");
+  const [urlParams] = useSearchParams();
+  const [searchKeyword, setSearchKeyword] = useState(() => urlParams.get("search") ?? "");
   const [sortMode, setSortMode] = useState<SortMode>("match_score");
   const [filterStatus, setFilterStatus] = useState<FilterStatus>("all");
   const [filterRound, setFilterRound] = useState<FilterRound>("all");
   const [filterMinScore, setFilterMinScore] = useState<number>(0);
   const [showFilters, setShowFilters] = useState(false);
   const [activeTab, setActiveTab] = useState<"overview" | "timeline" | "internal_notes">("overview");
+
+  // Sync URL ?search= param → local filter
+  useEffect(() => {
+    const q = urlParams.get("search") ?? "";
+    if (q) {
+      setSearchKeyword(q);
+      setShowFilters(true); // auto-expand filter panel so user can see the active search
+    }
+  }, [urlParams]);
 
   useEffect(() => {
     if (applications.length === 0) {
@@ -121,14 +150,27 @@ export function EmployerApplicationList({
   // Filter and sort applications
   const filteredAndSortedApplications = useMemo(() => {
     let result = [...applications];
-    
-    // Keyword search (name, email)
+
+    // Keyword search (name, email, phone, note, reason, feedback)
     if (searchKeyword.trim()) {
       const q = searchKeyword.toLowerCase().trim();
       result = result.filter((app) => {
         const name = (app.candidate?.full_name ?? "").toLowerCase();
         const email = (app.candidate?.email ?? "").toLowerCase();
-        return name.includes(q) || email.includes(q);
+        const phone = (app.candidate?.phone ?? "").toLowerCase();
+        const note = (app.recommendation_note ?? "").toLowerCase();
+        const reason = (app.decision_reason ?? "").toLowerCase();
+        const feedback = (app.ai_feedback ?? "").toLowerCase();
+        const cover = (app.cover_letter ?? "").toLowerCase();
+        return (
+          name.includes(q) ||
+          email.includes(q) ||
+          phone.includes(q) ||
+          note.includes(q) ||
+          reason.includes(q) ||
+          feedback.includes(q) ||
+          cover.includes(q)
+        );
       });
     }
 
@@ -147,12 +189,12 @@ export function EmployerApplicationList({
         return appRounds.some((r) => r.round_type === filterRound);
       });
     }
-    
+
     // Score filter
     if (filterMinScore > 0) {
       result = result.filter((app) => (app.ai_matching_score ?? 0) >= filterMinScore);
     }
-    
+
     // Apply sorting
     result.sort((a, b) => {
       if (sortMode === "match_score") {
@@ -176,7 +218,7 @@ export function EmployerApplicationList({
       }
       return 0;
     });
-    
+
     return result;
   }, [applications, searchKeyword, filterStatus, filterRound, filterMinScore, sortMode, roundsMap]);
 
@@ -583,8 +625,40 @@ export function EmployerApplicationList({
                                 </Badge>
                               )}
                             </div>
-                            <p className="mt-1 text-sm text-gray-500">{selectedApplication.candidate?.email ?? "Chưa có email"}</p>
-                            <p className="text-sm text-gray-500">{selectedApplication.candidate?.phone ?? "Chưa có số điện thoại"}</p>
+                            <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-gray-600">
+                              {selectedApplication.candidate?.email && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleCopyEmail(selectedApplication.candidate!.email)}
+                                  className="inline-flex items-center gap-1 hover:text-primary transition-colors text-gray-500 hover:bg-gray-100 px-1.5 py-0.5 rounded"
+                                  title="Nhấp để sao chép email"
+                                >
+                                  <Mail className="w-3.5 h-3.5 text-gray-400" />
+                                  <span>{selectedApplication.candidate.email}</span>
+                                  {copiedEmail ? (
+                                    <span className="text-[10px] text-green-600 font-medium ml-1">✓ Đã chép</span>
+                                  ) : (
+                                    <Copy className="w-3 h-3 text-gray-400 opacity-60" />
+                                  )}
+                                </button>
+                              )}
+                              {selectedApplication.candidate?.phone && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleCopyPhone(selectedApplication.candidate!.phone!)}
+                                  className="inline-flex items-center gap-1 hover:text-primary transition-colors text-gray-500 hover:bg-gray-100 px-1.5 py-0.5 rounded"
+                                  title="Nhấp để sao chép số điện thoại"
+                                >
+                                  <Phone className="w-3.5 h-3.5 text-gray-400" />
+                                  <span>{selectedApplication.candidate.phone}</span>
+                                  {copiedPhone ? (
+                                    <span className="text-[10px] text-green-600 font-medium ml-1">✓ Đã chép</span>
+                                  ) : (
+                                    <Copy className="w-3 h-3 text-gray-400 opacity-60" />
+                                  )}
+                                </button>
+                              )}
+                            </div>
                           </div>
                         </div>
 
@@ -774,6 +848,54 @@ export function EmployerApplicationList({
                                   Từ chối
                                 </Button>
                               </div>
+
+                              {/* Smart Next-Step Assistant */}
+                              {selectedApplication.status === "interview" && (
+                                <div className="mt-2 rounded-lg border border-blue-200 bg-blue-50/80 p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                  <div className="flex items-center gap-2">
+                                    <Sparkles className="w-4 h-4 text-blue-600 shrink-0" />
+                                    <span className="text-xs font-medium text-blue-900">
+                                      Đang ở vòng phỏng vấn. Bạn có muốn lên lịch hoặc gửi email mời ngay?
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-2 shrink-0">
+                                    <Button size="sm" variant="outline" onClick={() => onOpenRounds(selectedApplication)} leftIcon={<Calendar className="w-3.5 h-3.5" />}>
+                                      Lên lịch PV
+                                    </Button>
+                                    <Button size="sm" variant="primary" onClick={() => onGenerateEmail(selectedApplication)} leftIcon={<Mail className="w-3.5 h-3.5" />}>
+                                      Soạn thư mời
+                                    </Button>
+                                  </div>
+                                </div>
+                              )}
+
+                              {selectedApplication.status === "accepted" && (
+                                <div className="mt-2 rounded-lg border border-green-200 bg-green-50/80 p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                  <div className="flex items-center gap-2">
+                                    <Sparkles className="w-4 h-4 text-green-600 shrink-0" />
+                                    <span className="text-xs font-medium text-green-900">
+                                      🎉 Đã trúng tuyển! Hãy soạn thư mời nhận việc (Offer Letter) cho ứng viên.
+                                    </span>
+                                  </div>
+                                  <Button size="sm" variant="primary" onClick={() => onGenerateEmail(selectedApplication)} leftIcon={<Mail className="w-3.5 h-3.5" />}>
+                                    Soạn Offer Letter
+                                  </Button>
+                                </div>
+                              )}
+
+                              {selectedApplication.status === "rejected" && (
+                                <div className="mt-2 rounded-lg border border-gray-200 bg-gray-50 p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                  <div className="flex items-center gap-2">
+                                    <Mail className="w-4 h-4 text-gray-500 shrink-0" />
+                                    <span className="text-xs text-gray-600">
+                                      Gửi thư từ chối lịch sự để duy trì hình ảnh thương hiệu nhà tuyển dụng.
+                                    </span>
+                                  </div>
+                                  <Button size="sm" variant="outline" onClick={() => onGenerateEmail(selectedApplication)} leftIcon={<Mail className="w-3.5 h-3.5" />}>
+                                    Soạn thư từ chối
+                                  </Button>
+                                </div>
+                              )}
                             </div>
                           </Card>
                         )}
@@ -796,15 +918,15 @@ export function EmployerApplicationList({
                                     selectedApplication.hiring_recommendation === "recommended"
                                       ? "success"
                                       : selectedApplication.hiring_recommendation === "not_recommended"
-                                      ? "danger"
-                                      : "warning"
+                                        ? "danger"
+                                        : "warning"
                                   }
                                 >
                                   {selectedApplication.hiring_recommendation === "recommended"
                                     ? "Đề xuất tuyển"
                                     : selectedApplication.hiring_recommendation === "not_recommended"
-                                    ? "Không đề xuất"
-                                    : "Cần đánh giá thêm"}
+                                      ? "Không đề xuất"
+                                      : "Cần đánh giá thêm"}
                                 </Badge>
                               )}
                             </div>
@@ -954,8 +1076,8 @@ export function EmployerApplicationList({
                                   selectedApplication.status === "accepted"
                                     ? "bg-green-600"
                                     : selectedApplication.status === "rejected"
-                                    ? "bg-red-600"
-                                    : "bg-blue-600"
+                                      ? "bg-red-600"
+                                      : "bg-blue-600"
                                 )} />
                                 <div className="min-w-0">
                                   <div className="flex items-center gap-2">
