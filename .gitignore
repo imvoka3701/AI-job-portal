@@ -70,6 +70,18 @@ pnpm-debug.log*
 !frontend/src/lib/**
 
 # --- Testing & Reports ---
+tests/
+backend/tests/
+frontend/tests/
+__tests__/
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
+*.spec.ts.bak
+test-setup.ts
+vitest.config.ts
+playwright.config.ts
 test-results/
 frontend/test-results/
 backend/test-results/
@@ -85,9 +97,10 @@ frontend/debug.log
 backend/debug.log
 
 # --- Storage & Uploads ---
-backend/uploads/*
-!backend/uploads/.gitkeep
 uploads/
+backend/uploads/
+frontend/uploads/
+
 
 # --- Operating System & IDEs ---
 .DS_Store
