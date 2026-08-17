@@ -66,6 +66,15 @@ export async function createJob(payload: JobCreatePayload): Promise<Job> {
   return data;
 }
 
+export async function updateJob(jobId: number, payload: Partial<JobCreatePayload> & { is_active?: boolean }): Promise<Job> {
+  const { data } = await apiClient.put<Job>(`/jobs/${jobId}`, payload);
+  return data;
+}
+
+export async function deleteJob(jobId: number): Promise<void> {
+  await apiClient.delete(`/jobs/${jobId}`);
+}
+
 /**
  * Submit a job application.
  * POST /applications
@@ -88,3 +97,4 @@ export async function getAiMatch(jobId: number, resumeId?: number): Promise<AIMa
   });
   return data;
 }
+

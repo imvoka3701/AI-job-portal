@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Building2,
   Bot,
@@ -22,6 +22,9 @@ import { Button, Input, Card, Badge, PageTransition } from "@/components/ui";
 import { motion, AnimatePresence } from "framer-motion";
 import { useUser } from "@/stores/authStore";
 import { useEmployerCompany } from "@/contexts/EmployerCompanyContext";
+import { getCompanySettings, updateCompanySettings } from "@/lib/api/employer";
+import { getApiErrorMessage } from "@/lib/axios";
+import { Spinner } from "@/components/ui/Spinner";
 
 type SettingsTab = "company" | "ai" | "notifications" | "security";
 
@@ -30,22 +33,23 @@ export function EmployerSettingsPage() {
   const { data: companyContext } = useEmployerCompany();
   const [activeTab, setActiveTab] = useState<SettingsTab>("company");
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [loadingSettings, setLoadingSettings] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [copiedKey, setCopiedKey] = useState(false);
   const [webhookTested, setWebhookTested] = useState(false);
 
   // Form State: Company
-  const [companyName, setCompanyName] = useState(companyContext?.company.name || user?.company_name || "TechCorp VN");
-  const [taxCode, setTaxCode] = useState("0109887766");
-  const [industry, setIndustry] = useState("Công nghệ thông tin & AI");
-  const [scale, setScale] = useState("100-500 nhân viên");
-  const [website, setWebsite] = useState("https://techcorp.vn");
-  const [address, setAddress] = useState("Tầng 12, Tòa nhà Keangnam Landmark 72, Phạm Hùng, Hà Nội");
-  const [contactEmail, setContactEmail] = useState(user?.email || "hr@techcorp.vn");
-  const [contactPhone, setContactPhone] = useState("0902123456");
-  const [description, setDescription] = useState(
-    user?.company_description ||
-      "TechCorp VN là tập đoàn công nghệ hàng đầu chuyên cung cấp giải pháp phần mềm doanh nghiệp, hạ tầng Cloud và ứng dụng AI thông minh cho thị trường Việt Nam và khu vực Đông Nam Á."
-  );
+  const [companyName, setCompanyName] = useState("");
+  const [taxCode, setTaxCode] = useState("");
+  const [industry, setIndustry] = useState("");
+  const [scale, setScale] = useState("");
+  const [website, setWebsite] = useState("");
+  const [address, setAddress] = useState("");
+  const [contactEmail, setContactEmail] = useState("");
+  const [contactPhone, setContactPhone] = useState("");
+  const [contactName, setContactName] = useState("");
+  const [description, setDescription] = useState("");
 
   // Form State: AI Settings
   const [minMatchThreshold, setMinMatchThreshold] = useState(80);
@@ -60,21 +64,71 @@ export function EmployerSettingsPage() {
   const [emailOnHighMatch, setEmailOnHighMatch] = useState(true);
   const [interviewReminder, setInterviewReminder] = useState(true);
   const [weeklyDigest, setWeeklyDigest] = useState(true);
-  const [webhookUrl, setWebhookUrl] = useState("https://hooks.slack.com/services/T00/B00/techcorp-recruitment");
+  const [webhookUrl, setWebhookUrl] = useState("");
 
   // Form State: Security
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [apiKey, setApiKey] = useState("tc_live_9a8b7c6d5e4f3a2b1c0d_sec_2026");
+  const [apiKey, setApiKey] = useState("tc_live_xxxxxxxxxxxxxxxx_sec_2026");
 
   const totalWeight = weightSkills + weightExp + weightEdu + weightCulture;
 
-  const handleSave = (e: React.FormEvent) => {
+  // ── Load settings from API on mount ──────────────────────────────────
+  const loadSettings = useCallback(async () => {
+    setLoadingSettings(true);
+    setLoadError(null);
+    try {
+      const settings = await getCompanySettings();
+      setCompanyName(settings.name || "");
+      setDescription(settings.description || "");
+      setWebsite(settings.website || "");
+      setAddress(settings.address || "");
+      setTaxCode(settings.tax_code || "");
+      setIndustry(settings.industry || "");
+      setScale(settings.company_size || "");
+      setContactName(settings.contact_person_name || "");
+      setContactEmail(settings.contact_person_email || user?.email || "");
+      setContactPhone(settings.contact_person_phone || "");
+    } catch (err) {
+      setLoadError(getApiErrorMessage(err));
+      // Fallback to context data
+      setCompanyName(companyContext?.company.name || "");
+      setContactEmail(user?.email || "");
+    } finally {
+      setLoadingSettings(false);
+    }
+  }, [user, companyContext]);
+
+  useEffect(() => {
+    if (user) loadSettings();
+  }, [user, loadSettings]);
+
+  // ── Save handler — persists to API ──────────────────────────────────
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSavedSuccess(true);
-    setTimeout(() => setSavedSuccess(false), 3000);
+    setSaving(true);
+    try {
+      await updateCompanySettings({
+        name: companyName,
+        description,
+        website,
+        address,
+        tax_code: taxCode,
+        industry,
+        company_size: scale,
+        contact_person_name: contactName,
+        contact_person_email: contactEmail,
+        contact_person_phone: contactPhone,
+      });
+      setSavedSuccess(true);
+      setTimeout(() => setSavedSuccess(false), 3000);
+    } catch (err) {
+      setLoadError(getApiErrorMessage(err));
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleCopyApiKey = () => {
@@ -155,6 +209,18 @@ export function EmployerSettingsPage() {
           );
         })}
       </div>
+
+      {/* Loading & Error Banners */}
+      {loadingSettings && (
+        <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-700 font-medium">
+          <Spinner size="sm" /> Đang tải thông tin doanh nghiệp...
+        </div>
+      )}
+      {loadError && (
+        <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700 font-medium">
+          {loadError}
+        </div>
+      )}
 
       {/* ── Tab Content ── */}
       <form onSubmit={handleSave}>
@@ -321,8 +387,8 @@ export function EmployerSettingsPage() {
               </div>
 
               <div className="flex justify-end pt-4 border-t border-gray-100">
-                <Button type="submit" className="px-6 shadow-sm">
-                  Lưu hồ sơ công ty
+                <Button type="submit" disabled={saving} className="px-6 shadow-sm">
+                  {saving ? "Đang lưu..." : "Lưu hồ sơ công ty"}
                 </Button>
               </div>
             </Card>
@@ -722,8 +788,8 @@ export function EmployerSettingsPage() {
                   </label>
                 </div>
 
-                <Button type="submit" className="px-6 shadow-sm">
-                  Cập nhật bảo mật
+                <Button type="submit" disabled={saving} className="px-6 shadow-sm">
+                  {saving ? "Đang cập nhật..." : "Cập nhật bảo mật"}
                 </Button>
               </div>
             </Card>

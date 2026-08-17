@@ -30,6 +30,7 @@ import type { Job } from "@/types/job";
 import type { ApplicationStatus, EmployerApplication } from "@/types/application";
 import type { RoundItem } from "@/lib/api/rounds";
 import { EmployerAIActionMenu } from "./EmployerAIActionMenu";
+import { EmployerCandidateRadarChart } from "./EmployerCandidateRadarChart";
 
 export type SortMode = "match_score" | "submitted_date" | "status_priority" | "name_asc";
 export type FilterStatus = ApplicationStatus | "all";
@@ -223,9 +224,40 @@ export function EmployerApplicationList({
   }, [applications, searchKeyword, filterStatus, filterRound, filterMinScore, sortMode, roundsMap]);
 
   const selectedApplication = useMemo(
-    () => filteredAndSortedApplications.find((app) => app.id === selectedApplicationId) ?? applications.find((app) => app.id === selectedApplicationId) ?? null,
-    [filteredAndSortedApplications, applications, selectedApplicationId],
+    () => applications.find((app) => app.id === selectedApplicationId) ?? null,
+    [applications, selectedApplicationId],
   );
+
+  const parsedSkillAnalysis = useMemo(() => {
+    if (!selectedApplication?.resume) return null;
+    if (selectedApplication.resume.ai_evaluation_json) {
+      try {
+        const raw = typeof selectedApplication.resume.ai_evaluation_json === "string"
+          ? JSON.parse(selectedApplication.resume.ai_evaluation_json)
+          : selectedApplication.resume.ai_evaluation_json;
+        if (raw?.skill_analysis) return raw.skill_analysis;
+      } catch {
+        // ignore
+      }
+    }
+    if (selectedApplication.resume.parsed_skills) {
+      try {
+        const skills = typeof selectedApplication.resume.parsed_skills === "string"
+          ? JSON.parse(selectedApplication.resume.parsed_skills)
+          : selectedApplication.resume.parsed_skills;
+        if (Array.isArray(skills) && skills.length > 0) {
+          const dict: Record<string, number> = {};
+          skills.slice(0, 6).forEach((s: string, idx: number) => {
+            dict[s] = Math.max(7, 9.5 - idx * 0.4);
+          });
+          return dict;
+        }
+      } catch {
+        // ignore
+      }
+    }
+    return null;
+  }, [selectedApplication]);
 
   useEffect(() => {
     setInternalNoteDraft(selectedApplication?.recommendation_note ?? "");
@@ -264,7 +296,6 @@ export function EmployerApplicationList({
   return (
     <Card className="border-gray-200 shadow-sm overflow-hidden font-sans">
       <div className="grid gap-0 lg:grid-cols-[280px_minmax(0,1fr)]">
-        {/* Left Column: Job Selector */}
         <div className="border-b border-gray-200 bg-bg-secondary lg:border-b-0 lg:border-r">
           <div className="border-b border-gray-200 px-5 py-4">
             <h2 className="text-lg font-semibold text-gray-900">Tuyển dụng đang mở</h2>
@@ -321,9 +352,7 @@ export function EmployerApplicationList({
           </div>
         </div>
 
-        {/* Right Section: Candidate List & Detail Split-Pane */}
         <div className="min-w-0">
-          {/* Header & Filter Controls */}
           <div className="flex flex-col gap-3 border-b border-gray-200 px-5 py-4 bg-white">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div>
@@ -356,7 +385,6 @@ export function EmployerApplicationList({
               </div>
             </div>
 
-            {/* Expandable Filter & Search Controls */}
             {showFilters && (
               <motion.div
                 initial={{ opacity: 0, height: 0 }}
@@ -364,7 +392,6 @@ export function EmployerApplicationList({
                 exit={{ opacity: 0, height: 0 }}
                 className="grid gap-3 pt-3 border-t border-gray-100 sm:grid-cols-2 lg:grid-cols-4"
               >
-                {/* Search candidate keyword */}
                 <div>
                   <label className="text-xs font-medium text-gray-700 mb-1 block">Tìm kiếm</label>
                   <div className="relative">
@@ -379,7 +406,6 @@ export function EmployerApplicationList({
                   </div>
                 </div>
 
-                {/* Filter Status */}
                 <div>
                   <label className="text-xs font-medium text-gray-700 mb-1 block">Trạng thái hồ sơ</label>
                   <select
@@ -397,7 +423,6 @@ export function EmployerApplicationList({
                   </select>
                 </div>
 
-                {/* Filter Round */}
                 <div>
                   <label className="text-xs font-medium text-gray-700 mb-1 block">Vòng phỏng vấn</label>
                   <select
@@ -415,7 +440,6 @@ export function EmployerApplicationList({
                   </select>
                 </div>
 
-                {/* Sort Mode */}
                 <div>
                   <label className="text-xs font-medium text-gray-700 mb-1 block">Sắp xếp theo</label>
                   <select
@@ -430,7 +454,6 @@ export function EmployerApplicationList({
                   </select>
                 </div>
 
-                {/* Min Score & Reset row */}
                 <div className="sm:col-span-2 lg:col-span-4 flex items-center justify-between pt-2 border-t border-gray-100 flex-wrap gap-2">
                   <div className="flex items-center gap-3">
                     <label className="text-xs font-medium text-gray-700">Điểm AI tối thiểu:</label>
@@ -465,9 +488,7 @@ export function EmployerApplicationList({
             )}
           </div>
 
-          {/* Split Pane: Candidate List (Left) & Candidate Detail (Right) */}
           <div className="grid gap-0 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
-            {/* Candidate List Column */}
             <div className="border-b border-gray-200 xl:border-b-0 xl:border-r">
               <div className="max-h-[640px] overflow-y-auto p-4">
                 {appsLoading ? (
@@ -587,7 +608,6 @@ export function EmployerApplicationList({
               </div>
             </div>
 
-            {/* Candidate Detail Column */}
             <div className="min-w-0 bg-bg-secondary">
               <div className="max-h-[640px] overflow-y-auto p-4">
                 {!selectedApplication ? (
@@ -599,7 +619,6 @@ export function EmployerApplicationList({
                   />
                 ) : (
                   <div className="space-y-4">
-                    {/* Candidate Header Profile Card */}
                     <Card className="border-gray-200 shadow-sm">
                       <div className="p-5">
                         <div className="flex items-start gap-4">
@@ -683,7 +702,6 @@ export function EmployerApplicationList({
                       </div>
                     </Card>
 
-                    {/* Tab Navigation for Detail Pane */}
                     <div className="flex border-b border-gray-200 bg-white rounded-lg px-2 shadow-xs">
                       <button
                         type="button"
@@ -727,10 +745,8 @@ export function EmployerApplicationList({
                       </button>
                     </div>
 
-                    {/* Tab 1: Overview & Pipeline */}
                     {activeTab === "overview" && (
                       <div className="space-y-4">
-                        {/* Pipeline Stepper Card */}
                         <Card className="border-gray-200 shadow-sm">
                           <div className="p-5">
                             <div className="flex items-center justify-between gap-3">
@@ -748,7 +764,6 @@ export function EmployerApplicationList({
                           </div>
                         </Card>
 
-                        {/* Quick AI & Resume Actions */}
                         <Card className="border-gray-200 shadow-sm">
                           <div className="p-5 space-y-3">
                             <h4 className="text-sm font-semibold text-gray-900">Hành động hồ sơ & AI</h4>
@@ -801,7 +816,14 @@ export function EmployerApplicationList({
                           </div>
                         </Card>
 
-                        {/* HR Pipeline Decision Controls */}
+                        <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+                          <EmployerCandidateRadarChart
+                            skillAnalysis={parsedSkillAnalysis}
+                            jobRequirements={jobs.find((j) => j.id === selectedJobId)?.requirements ?? null}
+                            jobTitle={selectedJobTitle}
+                          />
+                        </div>
+
                         {canManagePipeline && (
                           <Card className="border-gray-200 shadow-sm">
                             <div className="p-5 space-y-3">
@@ -849,20 +871,36 @@ export function EmployerApplicationList({
                                 </Button>
                               </div>
 
-                              {/* Smart Next-Step Assistant */}
                               {selectedApplication.status === "interview" && (
-                                <div className="mt-2 rounded-lg border border-blue-200 bg-blue-50/80 p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                                  <div className="flex items-center gap-2">
-                                    <Sparkles className="w-4 h-4 text-blue-600 shrink-0" />
-                                    <span className="text-xs font-medium text-blue-900">
-                                      Đang ở vòng phỏng vấn. Bạn có muốn lên lịch hoặc gửi email mời ngay?
-                                    </span>
+                                <div className="mt-3 rounded-xl border border-blue-200 bg-blue-50/90 p-3.5 space-y-2.5 shadow-xs">
+                                  <div className="flex items-start gap-2.5">
+                                    <div className="w-6 h-6 rounded-md bg-blue-100 flex items-center justify-center shrink-0 mt-0.5">
+                                      <Sparkles className="w-3.5 h-3.5 text-blue-600" />
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                      <p className="text-xs font-semibold text-blue-900">Gợi ý tác vụ tuyển dụng</p>
+                                      <p className="text-xs text-blue-700 leading-relaxed mt-0.5">
+                                        Ứng viên đang ở vòng phỏng vấn. Bạn có muốn lên lịch hoặc gửi email mời ngay?
+                                      </p>
+                                    </div>
                                   </div>
-                                  <div className="flex items-center gap-2 shrink-0">
-                                    <Button size="sm" variant="outline" onClick={() => onOpenRounds(selectedApplication)} leftIcon={<Calendar className="w-3.5 h-3.5" />}>
+                                  <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-blue-200/60">
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="flex-1 min-w-[120px] text-xs bg-white hover:bg-blue-50"
+                                      onClick={() => onOpenRounds(selectedApplication)}
+                                      leftIcon={<Calendar className="w-3.5 h-3.5" />}
+                                    >
                                       Lên lịch PV
                                     </Button>
-                                    <Button size="sm" variant="primary" onClick={() => onGenerateEmail(selectedApplication)} leftIcon={<Mail className="w-3.5 h-3.5" />}>
+                                    <Button
+                                      size="sm"
+                                      variant="primary"
+                                      className="flex-1 min-w-[120px] text-xs shadow-xs"
+                                      onClick={() => onGenerateEmail(selectedApplication)}
+                                      leftIcon={<Mail className="w-3.5 h-3.5" />}
+                                    >
                                       Soạn thư mời
                                     </Button>
                                   </div>
@@ -870,28 +908,50 @@ export function EmployerApplicationList({
                               )}
 
                               {selectedApplication.status === "accepted" && (
-                                <div className="mt-2 rounded-lg border border-green-200 bg-green-50/80 p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                                  <div className="flex items-center gap-2">
-                                    <Sparkles className="w-4 h-4 text-green-600 shrink-0" />
-                                    <span className="text-xs font-medium text-green-900">
-                                      🎉 Đã trúng tuyển! Hãy soạn thư mời nhận việc (Offer Letter) cho ứng viên.
-                                    </span>
+                                <div className="mt-3 rounded-xl border border-green-200 bg-green-50/90 p-3.5 space-y-2.5 shadow-xs">
+                                  <div className="flex items-start gap-2.5">
+                                    <div className="w-6 h-6 rounded-md bg-green-100 flex items-center justify-center shrink-0 mt-0.5">
+                                      <Sparkles className="w-3.5 h-3.5 text-green-600" />
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                      <p className="text-xs font-semibold text-green-900">Ứng viên đã Trúng tuyển 🎉</p>
+                                      <p className="text-xs text-green-700 leading-relaxed mt-0.5">
+                                        Chúc mừng! Hãy soạn thư mời nhận việc (Offer Letter) chính thức cho ứng viên.
+                                      </p>
+                                    </div>
                                   </div>
-                                  <Button size="sm" variant="primary" onClick={() => onGenerateEmail(selectedApplication)} leftIcon={<Mail className="w-3.5 h-3.5" />}>
+                                  <Button
+                                    size="sm"
+                                    variant="primary"
+                                    className="w-full text-xs shadow-xs"
+                                    onClick={() => onGenerateEmail(selectedApplication)}
+                                    leftIcon={<Mail className="w-3.5 h-3.5" />}
+                                  >
                                     Soạn Offer Letter
                                   </Button>
                                 </div>
                               )}
 
                               {selectedApplication.status === "rejected" && (
-                                <div className="mt-2 rounded-lg border border-gray-200 bg-gray-50 p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                                  <div className="flex items-center gap-2">
-                                    <Mail className="w-4 h-4 text-gray-500 shrink-0" />
-                                    <span className="text-xs text-gray-600">
-                                      Gửi thư từ chối lịch sự để duy trì hình ảnh thương hiệu nhà tuyển dụng.
-                                    </span>
+                                <div className="mt-3 rounded-xl border border-gray-200 bg-gray-50/90 p-3.5 space-y-2.5 shadow-xs">
+                                  <div className="flex items-start gap-2.5">
+                                    <div className="w-6 h-6 rounded-md bg-gray-200 flex items-center justify-center shrink-0 mt-0.5">
+                                      <Mail className="w-3.5 h-3.5 text-gray-600" />
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                      <p className="text-xs font-semibold text-gray-900">Thông báo từ chối lịch sự</p>
+                                      <p className="text-xs text-gray-600 leading-relaxed mt-0.5">
+                                        Gửi email phản hồi khéo léo để duy trì hình ảnh thương hiệu nhà tuyển dụng.
+                                      </p>
+                                    </div>
                                   </div>
-                                  <Button size="sm" variant="outline" onClick={() => onGenerateEmail(selectedApplication)} leftIcon={<Mail className="w-3.5 h-3.5" />}>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="w-full text-xs bg-white hover:bg-gray-100"
+                                    onClick={() => onGenerateEmail(selectedApplication)}
+                                    leftIcon={<Mail className="w-3.5 h-3.5" />}
+                                  >
                                     Soạn thư từ chối
                                   </Button>
                                 </div>

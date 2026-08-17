@@ -63,6 +63,8 @@ export interface EmployerApplication {
   resume_id: number | null;
   resume: {
     file_url: string | null;
+    parsed_skills?: string | null;
+    ai_evaluation_json?: string | null;
   } | null;
   cv_document_id: number | null;
   cv_document: import("@/types/cvDocument").CvDocument | null;

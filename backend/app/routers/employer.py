@@ -17,7 +17,15 @@ from app.database import get_db
 from app.models.application import Application
 from app.models.job import Job
 from app.models.company import MembershipRole
-from app.schemas.employer import EmployerStatsResponse, ActiveJobSummary, InterviewSummary, EmployerAnalyticsResponse, FunnelStep
+from app.schemas.employer import (
+    EmployerStatsResponse,
+    ActiveJobSummary,
+    InterviewSummary,
+    EmployerAnalyticsResponse,
+    FunnelStep,
+    CompanySettingsRead,
+    CompanySettingsUpdate,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -239,3 +247,48 @@ def get_interviews(
         )
         for r in rows
     ]
+
+
+# ── Employer Settings ─────────────────────────────────────────────────────────
+
+
+@router.get(
+    "/settings",
+    response_model=CompanySettingsRead,
+    summary="Get company profile settings",
+)
+def get_company_settings(
+    context: CompanyContext = Depends(
+        require_company_permission(CompanyPermission.ANALYTICS_VIEW)
+    ),
+) -> CompanySettingsRead:
+    """Return the current company profile for the employer settings page."""
+    return CompanySettingsRead.model_validate(context.company)
+
+
+@router.patch(
+    "/settings",
+    response_model=CompanySettingsRead,
+    summary="Update company profile settings",
+)
+def update_company_settings(
+    data: CompanySettingsUpdate,
+    context: CompanyContext = Depends(
+        require_company_permission(CompanyPermission.TEAM_MANAGE)
+    ),
+    db: Session = Depends(get_db),
+) -> CompanySettingsRead:
+    """Update company profile fields. Only owners / HR can update."""
+    company = context.company
+    update_data = data.model_dump(exclude_unset=True)
+    if not update_data:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Không có trường nào để cập nhật.",
+        )
+    for field, value in update_data.items():
+        setattr(company, field, value)
+    db.add(company)
+    db.commit()
+    db.refresh(company)
+    return CompanySettingsRead.model_validate(company)

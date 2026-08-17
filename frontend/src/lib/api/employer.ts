@@ -43,3 +43,45 @@ export async function getEmployerStats(): Promise<EmployerStats> {
   const { data } = await apiClient.get<EmployerStats>("/employer/stats");
   return data;
 }
+
+
+// ── Company Settings ─────────────────────────────────────────────────────────
+
+export interface CompanySettings {
+  id: number;
+  name: string;
+  description: string | null;
+  logo_url: string | null;
+  website: string | null;
+  address: string | null;
+  tax_code: string | null;
+  industry: string | null;
+  company_size: string | null;
+  social_links: Record<string, string> | null;
+  contact_person_name: string | null;
+  contact_person_email: string | null;
+  contact_person_phone: string | null;
+}
+
+export type CompanySettingsUpdatePayload = Partial<Omit<CompanySettings, "id">>;
+
+/**
+ * GET /employer/settings — Fetch company profile settings.
+ */
+export async function getCompanySettings(): Promise<CompanySettings> {
+  const { data } = await apiClient.get<CompanySettings>("/employer/settings");
+  return data;
+}
+
+/**
+ * PATCH /employer/settings — Update company profile settings.
+ */
+export async function updateCompanySettings(
+  payload: CompanySettingsUpdatePayload,
+): Promise<CompanySettings> {
+  const { data } = await apiClient.patch<CompanySettings>(
+    "/employer/settings",
+    payload,
+  );
+  return data;
+}

@@ -61,3 +61,44 @@ class EmployerAnalyticsResponse(BaseModel):
     funnel: list[FunnelStep] = []
     time_to_hire_avg_days: float | None = None
     total_applications: int = 0
+
+
+# ── Employer Settings schemas ─────────────────────────────────────────────────
+
+
+class CompanySettingsRead(BaseModel):
+    """Response schema for GET /employer/settings."""
+
+    id: int
+    name: str
+    description: str | None = None
+    logo_url: str | None = None
+    website: str | None = None
+    address: str | None = None
+    tax_code: str | None = None
+    industry: str | None = None
+    company_size: str | None = None
+    social_links: dict | None = None
+    contact_person_name: str | None = None
+    contact_person_email: str | None = None
+    contact_person_phone: str | None = None
+
+    model_config = {"from_attributes": True}
+
+
+class CompanySettingsUpdate(BaseModel):
+    """Request schema for PATCH /employer/settings."""
+
+    name: str | None = None
+    description: str | None = None
+    logo_url: str | None = None
+    website: str | None = None
+    address: str | None = None
+    tax_code: str | None = None
+    industry: str | None = None
+    company_size: str | None = None
+    social_links: dict | None = None
+    contact_person_name: str | None = None
+    contact_person_email: str | None = None
+    contact_person_phone: str | None = None
+
