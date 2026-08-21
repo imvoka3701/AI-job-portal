@@ -293,13 +293,23 @@ export function EmployerApplicationList({
     (filterRound !== "all" ? 1 : 0) +
     (filterMinScore > 0 ? 1 : 0);
 
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+
   return (
-    <Card className="border-gray-200 shadow-sm overflow-hidden font-sans">
-      <div className="grid gap-0 lg:grid-cols-[280px_minmax(0,1fr)]">
-        <div className="border-b border-gray-200 bg-bg-secondary lg:border-b-0 lg:border-r">
-          <div className="border-b border-gray-200 px-5 py-4">
-            <h2 className="text-lg font-semibold text-gray-900">Tuyển dụng đang mở</h2>
-            <p className="text-sm text-gray-500">Chọn một job để xem ứng viên theo pipeline.</p>
+    <Card className="border-gray-200 shadow-sm overflow-hidden font-sans bg-white">
+      <div className={cn(
+        "grid gap-0 transition-all duration-300 ease-in-out",
+        isSidebarOpen ? "lg:grid-cols-[300px_minmax(0,1fr)]" : "lg:grid-cols-[0px_minmax(0,1fr)]"
+      )}>
+        <div className={cn(
+          "border-b border-gray-200 bg-gray-50/50 lg:border-b-0 lg:border-r transition-all duration-300 ease-in-out overflow-hidden",
+          isSidebarOpen ? "opacity-100" : "opacity-0 lg:border-r-0"
+        )}>
+          <div className="border-b border-gray-200 px-5 py-4 flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-bold text-gray-900">Tuyển dụng đang mở</h2>
+              <p className="text-[13px] text-gray-500 mt-0.5">Danh sách các job ({jobs.length})</p>
+            </div>
           </div>
           <div className="max-h-[640px] overflow-y-auto p-3">
             {jobsLoading ? (
@@ -355,13 +365,24 @@ export function EmployerApplicationList({
         <div className="min-w-0">
           <div className="flex flex-col gap-3 border-b border-gray-200 px-5 py-4 bg-white">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <h2 className="text-lg font-semibold text-gray-900">
-                  {selectedJobId ? `Ứng viên: ${selectedJobTitle}` : "Chọn một job để xem ứng viên"}
-                </h2>
-                <p className="text-sm text-gray-500">
-                  {filteredAndSortedApplications.length} ứng viên hiển thị {applications.length !== filteredAndSortedApplications.length && `(${applications.length} tổng hồ sơ)`}
-                </p>
+              <div className="flex items-center gap-3">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                  className="hidden lg:flex w-8 h-8 p-0 items-center justify-center rounded-lg hover:bg-gray-100"
+                  title={isSidebarOpen ? "Thu gọn danh sách Job" : "Mở rộng danh sách Job"}
+                >
+                  <SlidersHorizontal className="w-4 h-4 text-gray-500" />
+                </Button>
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900">
+                    {selectedJobId ? `Ứng viên: ${selectedJobTitle}` : "Chọn một job để xem ứng viên"}
+                  </h2>
+                  <p className="text-sm text-gray-500">
+                    {filteredAndSortedApplications.length} ứng viên hiển thị {applications.length !== filteredAndSortedApplications.length && `(${applications.length} tổng hồ sơ)`}
+                  </p>
+                </div>
               </div>
               <div className="flex items-center gap-2 flex-wrap">
                 <Button
@@ -543,12 +564,12 @@ export function EmployerApplicationList({
                           data-testid="application-row"
                           initial={{ opacity: 0, y: 6 }}
                           animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: index * 0.02 }}
+                          transition={{ delay: index * 0.02, ease: [0.16, 1, 0.3, 1] }}
                           className={cn(
-                            "w-full rounded-lg border p-4 text-left transition-colors",
+                            "w-full rounded-xl border p-4 text-left transition-all duration-300",
                             isSelected
-                              ? "border-primary bg-primary-light/30 shadow-xs"
-                              : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50",
+                              ? "border-blue-300 bg-blue-50/40 shadow-sm ring-1 ring-blue-100"
+                              : "border-gray-200 bg-white hover:border-blue-200 hover:shadow-md hover:-translate-y-0.5",
                           )}
                         >
                           <button

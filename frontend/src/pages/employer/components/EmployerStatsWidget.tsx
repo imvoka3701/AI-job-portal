@@ -82,6 +82,8 @@ export function EmployerStatsWidget({ stats, loading, error, scoped = false }: P
       icon: Briefcase,
       accent: "from-blue-500/10 to-indigo-500/5",
       iconColor: "text-blue-600 bg-blue-50",
+      sparkline: [12, 14, 13, 16, 18, 20, 24],
+      sparklineColor: "#3b82f6"
     },
     {
       title: "Tổng ứng viên",
@@ -92,6 +94,8 @@ export function EmployerStatsWidget({ stats, loading, error, scoped = false }: P
       icon: Users,
       accent: "from-emerald-500/10 to-teal-500/5",
       iconColor: "text-emerald-600 bg-emerald-50",
+      sparkline: [30, 40, 35, 50, 49, 60, 75],
+      sparklineColor: "#10b981"
     },
     {
       title: "Điểm AI trung bình",
@@ -102,6 +106,8 @@ export function EmployerStatsWidget({ stats, loading, error, scoped = false }: P
       icon: Activity,
       accent: "from-purple-500/10 to-pink-500/5",
       iconColor: "text-purple-600 bg-purple-50",
+      sparkline: [70, 72, 75, 74, 79, 81, 83],
+      sparklineColor: "#8b5cf6"
     },
     {
       title: "Thời gian tuyển",
@@ -112,42 +118,62 @@ export function EmployerStatsWidget({ stats, loading, error, scoped = false }: P
       icon: Clock,
       accent: "from-amber-500/10 to-orange-500/5",
       iconColor: "text-amber-600 bg-amber-50",
+      sparkline: [20, 19, 18, 17, 15, 14, 14],
+      sparklineColor: "#f59e0b"
     }
   ];
 
   return (
     <div className="space-y-6">
-      {/* KPI Cards */}
+      {/* Tier 2: Insights Grid */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {cards.map((card, idx) => (
           <motion.div
             key={card.title}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: idx * 0.08 }}
+            transition={{ delay: idx * 0.08, ease: [0.16, 1, 0.3, 1] }}
           >
-            <Card hoverable className="p-5 h-full flex flex-col justify-between group overflow-hidden relative border-gray-200 shadow-sm bg-white hover:shadow-md transition-all">
-              <div className={`absolute -right-6 -top-6 w-28 h-28 bg-gradient-to-br ${card.accent} rounded-full blur-xl group-hover:scale-110 transition-transform`} />
+            <Card hoverable className="p-5 h-full flex flex-col justify-between group overflow-hidden relative border-gray-200 shadow-sm bg-white hover:shadow-md transition-all rounded-2xl">
+              <div className={`absolute -right-6 -top-6 w-28 h-28 bg-gradient-to-br ${card.accent} rounded-full blur-xl group-hover:scale-110 transition-transform duration-500`} />
               
-              <div className="flex justify-between items-start mb-3">
-                <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+              <div className="flex justify-between items-start mb-4">
+                <p className="text-[13px] font-bold text-gray-500 uppercase tracking-wider">
                   {card.title}
                 </p>
-                <div className={`p-2.5 rounded-xl ${card.iconColor} shadow-xs`}>
+                <div className={`p-2 rounded-lg ${card.iconColor} shadow-sm backdrop-blur-sm border border-white/50`}>
                   <card.icon className="w-4 h-4" />
                 </div>
               </div>
               
-              <div>
-                <div className="flex items-baseline gap-2.5">
-                  <h3 className="text-3xl font-extrabold text-gray-900 tracking-tight">
-                    {card.value}
-                  </h3>
-                  <span className="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200/60">
-                    {card.trend}
-                  </span>
+              <div className="relative z-10 flex flex-col justify-end">
+                <div className="flex items-end justify-between gap-4">
+                  <div>
+                    <h3 className="text-3xl font-extrabold text-gray-900 tracking-tight">
+                      {card.value}
+                    </h3>
+                    <div className="flex items-center gap-2 mt-2">
+                      <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full border ${card.trendPositive ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : 'text-red-700 bg-red-50 border-red-200'}`}>
+                        {card.trend}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  {/* Sparkline (Mock SVG) */}
+                  <div className="w-20 h-10 opacity-70 group-hover:opacity-100 transition-opacity">
+                    <svg viewBox="0 0 100 40" className="w-full h-full overflow-visible">
+                      <polyline
+                        fill="none"
+                        stroke={card.sparklineColor}
+                        strokeWidth="3"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        points={card.sparkline.map((val, i) => `${i * (100 / (card.sparkline.length - 1))},${40 - (val - Math.min(...card.sparkline)) * (40 / (Math.max(...card.sparkline) - Math.min(...card.sparkline) || 1))}`).join(' ')}
+                      />
+                    </svg>
+                  </div>
                 </div>
-                <p className="mt-1.5 text-xs text-gray-500 font-medium">
+                <p className="mt-3 text-xs text-gray-500 font-medium border-t border-gray-100 pt-3">
                   {card.subtext}
                 </p>
               </div>

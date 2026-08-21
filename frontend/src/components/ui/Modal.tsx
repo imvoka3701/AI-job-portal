@@ -1,6 +1,7 @@
 import { useEffect, useCallback, useId, useRef, type ReactNode } from "react";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { AnimatePresence, motion } from "framer-motion";
 
 export interface ModalProps {
   isOpen: boolean;
@@ -67,46 +68,56 @@ export function Modal({ isOpen, onClose, title, children, size = "lg" }: ModalPr
     };
   }, [isOpen, handleKeyDown]);
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/50"
-        onClick={onClose}
-        aria-hidden="true"
-      />
-      {/* Panel */}
-      <div
-        ref={panelRef}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={title ? titleId : undefined}
-        aria-label={title ? undefined : "Hộp thoại"}
-        tabIndex={-1}
-        className={cn(
-          "relative max-h-[85vh] w-full overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-xl outline-none",
-          MODAL_SIZE[size],
-        )}
-      >
-        {/* Header */}
-        {title && (
-          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-            <h2 id={titleId} className="text-lg font-semibold text-gray-900">{title}</h2>
-            <button
-              type="button"
-              onClick={onClose}
-              className="p-1.5 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
-              aria-label="Đóng"
-            >
-              <X className="h-5 w-5" aria-hidden="true" />
-            </button>
-          </div>
-        )}
-        {/* Body */}
-        <div className="px-6 py-4">{children}</div>
-      </div>
-    </div>
+    <AnimatePresence>
+      {isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          {/* Backdrop */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            onClick={onClose}
+            aria-hidden="true"
+          />
+          {/* Panel */}
+          <motion.div
+            ref={panelRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={title ? titleId : undefined}
+            aria-label={title ? undefined : "Hộp thoại"}
+            tabIndex={-1}
+            initial={{ opacity: 0, scale: 0.96, y: 10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.96, y: 10 }}
+            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+            className={cn(
+              "relative max-h-[85vh] w-full overflow-y-auto rounded-xl border border-white/20 bg-white shadow-[0_20px_40px_rgb(0,0,0,0.1)] outline-none",
+              MODAL_SIZE[size],
+            )}
+          >
+            {/* Header */}
+            {title && (
+              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-white/80 backdrop-blur-md sticky top-0 z-10">
+                <h2 id={titleId} className="text-lg font-bold text-gray-900 tracking-tight">{title}</h2>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="p-1.5 rounded-md text-gray-400 hover:text-gray-900 hover:bg-gray-100 transition-colors"
+                  aria-label="Đóng"
+                >
+                  <X className="h-5 w-5" aria-hidden="true" />
+                </button>
+              </div>
+            )}
+            {/* Body */}
+            <div className="px-6 py-4">{children}</div>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
   );
 }

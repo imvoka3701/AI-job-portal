@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { getEmployerStats, type EmployerStats, type ActiveJobSummary } from "@/lib/api/employer";
 import { useUser, useAuthStore } from "@/stores/authStore";
 import { tokenStorage } from "@/lib/axios";
-import { Badge, Button, Card, EmptyState, ErrorState, PageTransition } from "@/components/ui";
+import { Button, Card, EmptyState, ErrorState, PageTransition } from "@/components/ui";
 import { EmployerStatsWidget } from "./components/EmployerStatsWidget";
 import { ActiveJobsTable } from "./components/ActiveJobsTable";
 import { EmployerRoleOverview } from "./components/EmployerRoleOverview";
@@ -87,63 +87,76 @@ export function EmployerDashboard() {
   }
 
   return (
-    <PageTransition className="space-y-6 pb-12 max-w-7xl mx-auto">
+    <PageTransition className="space-y-8 pb-16 max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 mt-6">
+      {/* Tier 1: Overview Header */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-8"
+        className="relative bg-white border border-gray-200 rounded-3xl p-8 shadow-sm overflow-hidden"
       >
-        <div>
-          <div className="mb-1 flex flex-wrap items-center gap-2">
-            <p className="text-sm font-medium text-primary">Dashboard Nhà tuyển dụng</p>
-            {companyContext && (
-              <Badge variant={companyContext.membership.is_owner ? "primary" : "default"} size="sm">
-                {companyContext.membership.is_owner
-                  ? "Owner · Nhân sự"
-                  : companyContext.membership.member_role === "hr"
-                    ? "Nhân sự"
-                    : `Trưởng bộ phận${companyContext.membership.department_name ? ` · ${companyContext.membership.department_name}` : ""}`}
-              </Badge>
-            )}
-          </div>
-          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
-            Chào mừng trở lại, {companyContext?.company.name || user.company_name || user.full_name}
-          </h1>
-          <p className="text-sm text-gray-500 mt-1">
-            {isDepartmentHead
-              ? `Dữ liệu thuộc ${companyContext?.membership.department_name ?? "phòng ban"} và các job được phân công trong 30 ngày qua.`
-              : "Dữ liệu tuyển dụng toàn doanh nghiệp trong 30 ngày qua."}
-          </p>
-        </div>
-
-        {stats && stats.active_jobs.length > 0 && (
-          <Card className="px-4 py-3 border-blue-100 bg-blue-50/50 shadow-sm">
-            <div className="flex items-center gap-3">
-              <span className="relative flex h-2.5 w-2.5">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-75" />
-                <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-blue-500" />
+        <div className="absolute top-0 right-0 -mt-16 -mr-16 w-64 h-64 bg-gradient-to-bl from-blue-500/10 to-purple-500/5 rounded-full blur-3xl pointer-events-none" />
+        
+        <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+          <div className="max-w-2xl">
+            <div className="mb-3 flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200/60">
+                Dashboard
               </span>
-              <span className="text-sm text-blue-900 font-medium">
-                Có <strong>{stats.total_applications}</strong> ứng viên trong phạm vi của bạn
-              </span>
-              <Link to="/employer/candidates" className="text-sm font-semibold text-blue-700 inline-flex items-center hover:text-blue-800 transition-colors">
-                Xem ngay <ArrowRight className="w-3.5 h-3.5 ml-1" />
-              </Link>
+              {companyContext && (
+                <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border ${companyContext.membership.is_owner ? 'bg-indigo-50 text-indigo-700 border-indigo-200/60' : 'bg-gray-100 text-gray-700 border-gray-200/60'}`}>
+                  {companyContext.membership.is_owner
+                    ? "Owner · Nhân sự"
+                    : companyContext.membership.member_role === "hr"
+                      ? "Nhân sự"
+                      : `Trưởng bộ phận${companyContext.membership.department_name ? ` · ${companyContext.membership.department_name}` : ""}`}
+                </span>
+              )}
             </div>
-          </Card>
-        )}
+            <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">
+              Chào mừng trở lại, {companyContext?.company.name || user.company_name || user.full_name}
+            </h1>
+            <p className="text-base text-gray-500 mt-2 leading-relaxed">
+              {isDepartmentHead
+                ? `Dữ liệu thuộc ${companyContext?.membership.department_name ?? "phòng ban"} và các job được phân công trong 30 ngày qua.`
+                : "Theo dõi tổng quan hiệu suất tuyển dụng toàn doanh nghiệp trong 30 ngày qua."}
+            </p>
+          </div>
+
+          {stats && stats.active_jobs.length > 0 && (
+            <div className="shrink-0 bg-blue-50/50 border border-blue-100 rounded-2xl p-5 shadow-sm">
+              <div className="flex items-start gap-4">
+                <div className="relative flex h-3 w-3 mt-1.5 shrink-0">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-75" />
+                  <span className="relative inline-flex h-3 w-3 rounded-full bg-blue-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-blue-900/80 mb-1">Ứng viên mới cần xử lý</p>
+                  <p className="text-2xl font-bold text-blue-900 mb-3">{stats.total_applications}</p>
+                  <Link to="/employer/candidates" className="inline-flex items-center justify-center w-full px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors shadow-sm">
+                    Xử lý ngay <ArrowRight className="w-4 h-4 ml-1.5" />
+                  </Link>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       </motion.div>
 
       {statsError ? (
         <ErrorState title="Không tải được dashboard" message={statsError} onRetry={() => window.location.reload()} />
       ) : stats ? (
-        <>
+        <div className="space-y-8">
           {companyContext && <EmployerRoleOverview context={companyContext} stats={stats} />}
+          
+          {/* Tier 2: Insights Grid is inside EmployerStatsWidget */}
           <EmployerStatsWidget stats={stats} loading={statsLoading} error={null} scoped={Boolean(isDepartmentHead)} />
+          
+          {/* Tier 3: Workspace */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
+            className="pt-4"
           >
             <ActiveJobsTable
               jobs={stats.active_jobs}
@@ -153,13 +166,13 @@ export function EmployerDashboard() {
               scoped={Boolean(isDepartmentHead)}
             />
           </motion.div>
-        </>
+        </div>
       ) : (
         <EmptyState
           icon={<AlertCircle className="w-7 h-7 text-gray-400" />}
           title={statsLoading ? "Đang tải dashboard" : "Chưa có dữ liệu"}
           description="Tổng quan tuyển dụng sẽ hiện ở đây sau khi dữ liệu được tải."
-          className="py-16"
+          className="py-16 bg-white rounded-3xl border border-gray-200"
         />
       )}
     </PageTransition>
