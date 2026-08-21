@@ -11,6 +11,7 @@ from app.core.company_permissions import (
     CompanyPermission,
     build_company_context,
     require_application_scope,
+    require_job_scope,
 )
 from app.crud.job import crud_job
 from app.crud.resume import crud_resume
@@ -74,29 +75,64 @@ def _authorize_resume_access(
     resume,
     job_id: int | None = None,
 ) -> None:
+    # 1. Candidate Validation: Verify ownership
     if current_user.role == UserRole.CANDIDATE:
         if resume.user_id != current_user.id:
-            raise HTTPException(status_code=403, detail="Bạn không có quyền dùng CV này.")
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, 
+                detail="Bạn không có quyền truy cập CV này."
+            )
         return
+
+    # 2. Employer Validation: Role & AI Permission
     if current_user.role != UserRole.EMPLOYER:
-        raise HTTPException(status_code=403, detail="Bạn không có quyền dùng CV này.")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, 
+            detail="Bạn không có quyền truy cập CV này."
+        )
+        
     context = build_company_context(db, current_user)
     if not context.has(CompanyPermission.AI_RECRUITMENT):
-        raise HTTPException(status_code=403, detail="Bạn không có quyền sử dụng AI tuyển dụng.")
-    applications = (
-        [crud_application.get_by_resume_and_job(db, resume_id=resume.id, job_id=job_id)]
-        if job_id is not None
-        else crud_application.get_by_resume(db, resume_id=resume.id)
-    )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, 
+            detail="Bạn không có quyền sử dụng tính năng AI tuyển dụng. Vui lòng liên hệ Admin."
+        )
+
+    # 3. Target Job Verification (if specific job_id is provided)
+    # Check if the employer has access to the specific department associated with the target job
+    if job_id is not None:
+        target_job = crud_job.get_by_id(db, job_id=job_id)
+        if not target_job:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, 
+                detail="Công việc yêu cầu không tồn tại."
+            )
+        require_job_scope(db, context=context, job=target_job)
+
+    # 4. Tenant Isolation & Department Scope for the Resume
+    # Ensure the resume was explicitly submitted to a job belonging to the current employer's company
+    applications = crud_application.get_by_resume(db, resume_id=resume.id)
+    if not applications:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, 
+            detail="CV này chưa được nộp cho công việc nào thuộc công ty của bạn."
+        )
+
+    has_valid_scope = False
     for application in applications:
-        if application is None:
-            continue
         try:
+            # This verifies the employer has access to the specific department associated with the application's job
             require_application_scope(db, context=context, application=application)
-            return
+            has_valid_scope = True
+            break
         except HTTPException:
             continue
-    raise HTTPException(status_code=403, detail="CV nằm ngoài phạm vi tuyển dụng của bạn.")
+
+    if not has_valid_scope:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, 
+            detail="CV nằm ngoài phạm vi phòng ban hoặc dữ liệu tuyển dụng được phân công của bạn."
+        )
 
 
 @router.post("/cv/suggest-summary", response_model=CvSummarySuggestionResponse)

@@ -518,11 +518,27 @@ export function EmployerCandidatesPage() {
         title={`Đánh giá CV chuyên sâu — ${evalTarget?.candidateName ?? ""}`}
       >
         {evalLoading && (
-          <div className="flex flex-col items-center justify-center gap-4 py-16">
-            <Spinner size="lg" color="blue" label="Đang đánh giá CV bằng AI..." />
-            <div className="text-center space-y-1">
-              <p className="text-sm font-semibold text-gray-800">AI đang phân tích hồ sơ và so sánh với JD</p>
-              <p className="text-xs text-gray-500">Đang trích xuất 6 trục kỹ năng, điểm mạnh và gợi ý phỏng vấn...</p>
+          <div className="flex flex-col items-center justify-center gap-6 py-20 relative overflow-hidden">
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-blue-50/50 via-white to-white opacity-60" />
+            
+            <div className="relative z-10 flex flex-col items-center">
+              <div className="relative">
+                <div className="absolute inset-0 bg-blue-400 rounded-full blur-xl opacity-20 animate-pulse" />
+                <Spinner size="xl" color="blue" />
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+                  <Sparkles className="w-5 h-5 text-blue-600 animate-bounce" />
+                </div>
+              </div>
+              <h3 className="text-lg font-bold text-gray-900 mt-6 mb-1">AI đang đánh giá CV...</h3>
+              <p className="text-sm font-medium text-gray-500 max-w-[280px] text-center">
+                Đang phân tích 6 trục kỹ năng, điểm mạnh và trích xuất gợi ý phỏng vấn chuyên sâu.
+              </p>
+              
+              <div className="mt-8 flex gap-2">
+                <span className="w-1.5 h-1.5 bg-blue-600 rounded-full animate-bounce [animation-delay:-0.3s]" />
+                <span className="w-1.5 h-1.5 bg-blue-600 rounded-full animate-bounce [animation-delay:-0.15s]" />
+                <span className="w-1.5 h-1.5 bg-blue-600 rounded-full animate-bounce" />
+              </div>
             </div>
           </div>
         )}
@@ -698,9 +714,28 @@ export function EmployerCandidatesPage() {
         title={`Tóm tắt hồ sơ CV — ${summarizeTarget?.candidateName ?? ""}`}
       >
         {summarizeLoading && (
-          <div className="flex flex-col items-center justify-center gap-3 py-10">
-            <Spinner size="lg" color="blue" label="Đang tóm tắt CV..." />
-            <span className="text-sm text-gray-500">AI đang trích xuất các ý chính, có thể mất 5-10 giây...</span>
+          <div className="flex flex-col items-center justify-center gap-6 py-20 relative overflow-hidden">
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-blue-50/50 via-white to-white opacity-60" />
+            
+            <div className="relative z-10 flex flex-col items-center">
+              <div className="relative">
+                <div className="absolute inset-0 bg-blue-400 rounded-full blur-xl opacity-20 animate-pulse" />
+                <Spinner size="xl" color="blue" />
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+                  <Sparkles className="w-5 h-5 text-blue-600 animate-bounce" />
+                </div>
+              </div>
+              <h3 className="text-lg font-bold text-gray-900 mt-6 mb-1">Đang tóm tắt CV...</h3>
+              <p className="text-sm font-medium text-gray-500 max-w-[280px] text-center">
+                AI đang trích xuất các ý chính về năng lực và kinh nghiệm, có thể mất 5-10 giây.
+              </p>
+              
+              <div className="mt-8 flex gap-2">
+                <span className="w-1.5 h-1.5 bg-blue-600 rounded-full animate-bounce [animation-delay:-0.3s]" />
+                <span className="w-1.5 h-1.5 bg-blue-600 rounded-full animate-bounce [animation-delay:-0.15s]" />
+                <span className="w-1.5 h-1.5 bg-blue-600 rounded-full animate-bounce" />
+              </div>
+            </div>
           </div>
         )}
         {!summarizeLoading && summarizeError && (
