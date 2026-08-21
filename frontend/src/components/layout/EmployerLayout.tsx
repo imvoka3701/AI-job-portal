@@ -16,6 +16,7 @@ import {
 import { useAuthStore, useUser } from "@/stores/authStore";
 import { getInitials, getFileUrl, cn } from "@/lib/utils";
 import { Badge, Button } from "@/components/ui";
+import { Container } from "@/components/layout/Container";
 import { motion, AnimatePresence } from "framer-motion";
 import { EmployerCompanyProvider, useEmployerCompany } from "@/contexts/EmployerCompanyContext";
 
@@ -226,8 +227,10 @@ function EmployerLayoutContent() {
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
-          <Outlet />
+        <main className="flex-1 overflow-y-auto bg-gray-50/30">
+          <Container className="py-6 sm:py-8 lg:py-10">
+            <Outlet />
+          </Container>
         </main>
       </div>
     </div>

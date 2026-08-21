@@ -6,7 +6,8 @@ Log entries include:
   - user_id / user_role: WHO made the request
   - endpoint: WHICH AI feature was invoked
   - model: WHICH LLM model was called
-  - input_summary: truncated preview of the input (no PII beyond 200 chars)
+  - input_summary: NON-PII metadata about the input only (e.g. role, language,
+    resume_id, text_len). NEVER pass raw CV/resume text or other personal data.
   - output_summary: truncated preview of the AI output
   - latency_ms: how long the call took
   - success: whether the call succeeded
@@ -29,7 +30,7 @@ Usage:
             user_role=current_user.role.value,
             endpoint="evaluate",
             model=settings.LLM_MODEL,
-            input_summary=resume_text[:200],
+            input_summary=f"resume_id={resume.id}, text_len={len(resume_text)}",
             output_summary=f"score={result.overall_score}, skills={len(result.skill_analysis)}",
             started_at=started,
         )
@@ -39,7 +40,7 @@ Usage:
             user_role=current_user.role.value,
             endpoint="evaluate",
             model=settings.LLM_MODEL,
-            input_summary=resume_text[:200],
+            input_summary=f"resume_id={resume.id}, text_len={len(resume_text)}",
             exc=exc,
             started_at=started,
         )

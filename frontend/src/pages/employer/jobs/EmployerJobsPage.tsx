@@ -1,5 +1,6 @@
-import { useEffect, useState, useMemo } from "react";
+import { useCallback, useEffect, useState, useMemo } from "react";
 import { Link } from "react-router-dom";
+import { motion } from "framer-motion";
 import { getCompanyJobs } from "@/lib/api/company";
 import { updateJob, deleteJob } from "@/lib/api/jobs";
 import {
@@ -73,7 +74,7 @@ export function EmployerJobsPage() {
   // Delete Job State
   const [deletingJobId, setDeletingJobId] = useState<number | null>(null);
 
-  const fetchJobs = () => {
+  const fetchJobs = useCallback(() => {
     if (!companyId) return;
     setIsLoading(true);
     setError(null);
@@ -81,11 +82,11 @@ export function EmployerJobsPage() {
       .then((res) => setJobs(res))
       .catch(() => setError("Không thể tải danh sách tin tuyển dụng. Vui lòng thử lại."))
       .finally(() => setIsLoading(false));
-  };
+  }, [companyId]);
 
   useEffect(() => {
     fetchJobs();
-  }, [companyId, membershipId]);
+  }, [fetchJobs, membershipId]);
 
   const handleOpenEdit = (job: Job) => {
     setEditingJob(job);
@@ -267,7 +268,18 @@ export function EmployerJobsPage() {
           }
         />
       ) : (
-        <div className="grid gap-4">
+        <motion.div 
+          className="grid gap-4"
+          initial="hidden"
+          animate="visible"
+          variants={{
+            hidden: { opacity: 0 },
+            visible: {
+              opacity: 1,
+              transition: { staggerChildren: 0.05 },
+            },
+          }}
+        >
           {filteredJobs.map((job) => {
             const salaryText =
               job.salary_min && job.salary_max
@@ -277,103 +289,110 @@ export function EmployerJobsPage() {
                 : "Thỏa thuận";
 
             return (
-              <Card
+              <motion.div
                 key={job.id}
-                className={`p-5 transition-all border ${
-                  job.is_active ? "border-gray-200 hover:border-primary/40 hover:shadow-sm" : "border-gray-200 bg-gray-50/70 opacity-80"
-                }`}
+                variants={{
+                  hidden: { opacity: 0, y: 10 },
+                  visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } },
+                }}
               >
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                  {/* Job Main Info */}
-                  <div className="space-y-2 flex-1">
-                    <div className="flex items-center gap-2.5 flex-wrap">
-                      <h2 className="text-base font-bold text-gray-900 hover:text-primary transition-colors">
-                        <Link to={`/jobs/${job.id}`}>{job.title}</Link>
-                      </h2>
-                      {job.is_active ? (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                          <CheckCircle2 className="w-3 h-3" /> Đang tuyển
+                <Card
+                  className={`p-5 transition-all border ${
+                    job.is_active ? "border-gray-200 hover:border-primary/40 hover:shadow-md hover:-translate-y-0.5" : "border-gray-200 bg-gray-50/70 opacity-80"
+                  }`}
+                >
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                    {/* Job Main Info */}
+                    <div className="space-y-2 flex-1">
+                      <div className="flex items-center gap-2.5 flex-wrap">
+                        <h2 className="text-base font-bold text-gray-900 hover:text-primary transition-colors">
+                          <Link to={`/jobs/${job.id}`}>{job.title}</Link>
+                        </h2>
+                        {job.is_active ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            <CheckCircle2 className="w-3 h-3" /> Đang tuyển
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-600 border border-gray-300">
+                            <XCircle className="w-3 h-3" /> Tạm đóng
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-gray-500">
+                        <span className="flex items-center gap-1">
+                          <MapPin className="w-3.5 h-3.5 text-gray-400" />
+                          {job.location || "Toàn quốc"}
                         </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-600 border border-gray-300">
-                          <XCircle className="w-3 h-3" /> Tạm đóng
+                        <span className="flex items-center gap-1">
+                          <DollarSign className="w-3.5 h-3.5 text-emerald-500" />
+                          <span className="font-semibold text-gray-700">{salaryText}</span>
                         </span>
+                        <span className="flex items-center gap-1">
+                          <Calendar className="w-3.5 h-3.5 text-gray-400" />
+                          Đăng ngày: {new Date(job.created_at).toLocaleDateString("vi-VN")}
+                        </span>
+                      </div>
+
+                      <div className="flex flex-wrap gap-2 pt-1">
+                        <ExperienceBadge level={job.experience_level} />
+                        <JobTypeBadge type={job.job_type} />
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex items-center gap-2 pt-3 border-t border-gray-100 lg:pt-0 lg:border-0">
+                      <Link to={`/jobs/${job.id}`}>
+                        <Button variant="outline" size="sm" className="flex items-center gap-1.5 text-xs">
+                          <Eye className="w-3.5 h-3.5" />
+                          Xem trang JD
+                        </Button>
+                      </Link>
+
+                      {hasPermission("job:manage") && (
+                        <>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleOpenEdit(job)}
+                            className="flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-700 hover:border-blue-300"
+                          >
+                            <Edit className="w-3.5 h-3.5" />
+                            Sửa tin
+                          </Button>
+
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleToggleActive(job)}
+                            className={`flex items-center gap-1 text-xs ${
+                              job.is_active
+                                ? "text-amber-600 hover:text-amber-700 hover:border-amber-300"
+                                : "text-emerald-600 hover:text-emerald-700 hover:border-emerald-300"
+                            }`}
+                          >
+                            {job.is_active ? "Tạm đóng" : "Mở lại"}
+                          </Button>
+
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDeleteJob(job.id)}
+                            disabled={deletingJobId === job.id}
+                            className="flex items-center gap-1 text-xs text-red-600 hover:text-red-700 hover:border-red-300"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            Xóa
+                          </Button>
+                        </>
                       )}
                     </div>
-
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-gray-500">
-                      <span className="flex items-center gap-1">
-                        <MapPin className="w-3.5 h-3.5 text-gray-400" />
-                        {job.location || "Toàn quốc"}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <DollarSign className="w-3.5 h-3.5 text-emerald-500" />
-                        <span className="font-semibold text-gray-700">{salaryText}</span>
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Calendar className="w-3.5 h-3.5 text-gray-400" />
-                        Đăng ngày: {new Date(job.created_at).toLocaleDateString("vi-VN")}
-                      </span>
-                    </div>
-
-                    <div className="flex flex-wrap gap-2 pt-1">
-                      <ExperienceBadge level={job.experience_level} />
-                      <JobTypeBadge type={job.job_type} />
-                    </div>
                   </div>
-
-                  {/* Actions */}
-                  <div className="flex items-center gap-2 pt-3 border-t border-gray-100 lg:pt-0 lg:border-0">
-                    <Link to={`/jobs/${job.id}`}>
-                      <Button variant="outline" size="sm" className="flex items-center gap-1.5 text-xs">
-                        <Eye className="w-3.5 h-3.5" />
-                        Xem trang JD
-                      </Button>
-                    </Link>
-
-                    {hasPermission("job:manage") && (
-                      <>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleOpenEdit(job)}
-                          className="flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-700 hover:border-blue-300"
-                        >
-                          <Edit className="w-3.5 h-3.5" />
-                          Sửa tin
-                        </Button>
-
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleToggleActive(job)}
-                          className={`flex items-center gap-1 text-xs ${
-                            job.is_active
-                              ? "text-amber-600 hover:text-amber-700 hover:border-amber-300"
-                              : "text-emerald-600 hover:text-emerald-700 hover:border-emerald-300"
-                          }`}
-                        >
-                          {job.is_active ? "Tạm đóng" : "Mở lại"}
-                        </Button>
-
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleDeleteJob(job.id)}
-                          disabled={deletingJobId === job.id}
-                          className="flex items-center gap-1 text-xs text-red-600 hover:text-red-700 hover:border-red-300"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                          Xóa
-                        </Button>
-                      </>
-                    )}
-                  </div>
-                </div>
-              </Card>
+                </Card>
+              </motion.div>
             );
           })}
-        </div>
+        </motion.div>
       )}
 
       {/* Edit Job Modal */}

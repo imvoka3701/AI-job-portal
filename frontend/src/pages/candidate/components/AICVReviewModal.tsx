@@ -2,7 +2,7 @@ import { X, Target, Lightbulb, Zap } from "lucide-react";
 import { useEffect } from "react";
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Tooltip } from "recharts";
 
-interface CVEvaluationResponse {
+export interface CVEvaluationResponse {
   overall_score: number;
   summary: string;
   suggestions: string[];

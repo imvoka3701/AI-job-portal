@@ -56,7 +56,7 @@ export function LoginPage() {
       } else {
         navigate("/dashboard");
       }
-    } catch (err) {
+    } catch {
       // Error handled by store
     } finally {
       setIsSubmitting(false);
@@ -95,7 +95,8 @@ export function LoginPage() {
             <button 
               type="button"
               onClick={() => {
-                window.location.href = "http://localhost:8000/auth/google/login";
+                const apiBase = import.meta.env.VITE_API_URL || "/api";
+                window.location.href = `${apiBase}/auth/google/login`;
               }}
               className="w-full h-[52px] flex items-center justify-center border border-[#E2E8F0] bg-white text-[#334155] font-semibold rounded-[10px] hover:bg-[#F8FAFC] hover:border-gray-300 transition-all shadow-sm"
             >

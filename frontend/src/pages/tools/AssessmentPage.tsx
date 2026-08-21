@@ -149,7 +149,7 @@ export function AssessmentPage() {
   const [autoAdvance, setAutoAdvance] = useState(true);
   const advanceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -170,11 +170,11 @@ export function AssessmentPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [type, storageKey]);
 
   useEffect(() => {
     void load();
-  }, [type]);
+  }, [load]);
 
   useEffect(() => {
     if (questionnaire && !result) {
@@ -222,7 +222,7 @@ export function AssessmentPage() {
     setShowQuestionMap(false);
   };
 
-  const submit = async () => {
+  const submit = useCallback(async () => {
     if (!questionnaire || Object.keys(answers).length !== questionnaire.questions.length) return;
     setSubmitting(true);
     setError(null);
@@ -240,7 +240,7 @@ export function AssessmentPage() {
     } finally {
       setSubmitting(false);
     }
-  };
+  }, [questionnaire, answers, user, type, storageKey]);
 
   // Keyboard navigation: 1-5 keys, Arrow keys, Enter key
   useEffect(() => {
@@ -267,7 +267,7 @@ export function AssessmentPage() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [result, questionnaire, canNext, isLastQuestion, totalQuestions, answers, handleSelectScore, handleNext, handlePrev]);
+  }, [result, questionnaire, canNext, isLastQuestion, totalQuestions, answers, handleSelectScore, handleNext, handlePrev, submit]);
 
   const reset = () => {
     setAnswers({});

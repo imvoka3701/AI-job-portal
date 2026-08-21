@@ -15,7 +15,7 @@ import type { Job } from "@/types/job";
 import { Briefcase, FileText, UploadCloud, ArrowRight, Target, TrendingUp, CheckCircle, Clock, MapPin, Camera, Rocket, FileCheck } from "lucide-react";
 import { CVCard } from "./components/CVCard";
 import { CVPreviewModal } from "./components/CVPreviewModal";
-import { AICVReviewModal } from "./components/AICVReviewModal";
+import { AICVReviewModal, type CVEvaluationResponse } from "./components/AICVReviewModal";
 import { RadarChartWidget } from "./components/RadarChartWidget";
 
 // ─── Constants ──────────────────────────────────────────────────────────────────
@@ -40,7 +40,7 @@ export const CandidateDashboard = () => {
   const [uploadState, setUploadState] = useState<UploadState>("idle");
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [evaluatingResumeId, setEvaluatingResumeId] = useState<number | null>(null);
-  const [reviewModalData, setReviewModalData] = useState<any | null>(null);
+  const [reviewModalData, setReviewModalData] = useState<CVEvaluationResponse | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -177,8 +177,8 @@ export const CandidateDashboard = () => {
       await deleteResume(resumeId);
       setResumes((prev) => prev.filter((r) => r.id !== resumeId));
       setUploadState("idle");
-    } catch (err: any) {
-      alert(err.response?.data?.detail || "Không thể xoá CV. Vui lòng thử lại.");
+    } catch (err) {
+      alert(getApiErrorMessage(err) || "Không thể xoá CV. Vui lòng thử lại.");
     }
   };
 
@@ -197,8 +197,8 @@ export const CandidateDashboard = () => {
       if (updatedResume.ai_evaluation_json) {
         setReviewModalData(JSON.parse(updatedResume.ai_evaluation_json));
       }
-    } catch (err: any) {
-      alert("Lỗi khi phân tích CV: " + (err.response?.data?.detail || err.message));
+    } catch (err) {
+      alert("Lỗi khi phân tích CV: " + getApiErrorMessage(err));
     } finally {
       setEvaluatingResumeId(null);
     }

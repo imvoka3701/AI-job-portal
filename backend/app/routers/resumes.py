@@ -155,6 +155,8 @@ def get_resume(
     resume = crud_resume.get_by_id(db, resume_id=resume_id)
     if not resume:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume not found")
+    if resume.user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not your resume")
     return ResumeRead.model_validate(resume)
 
 

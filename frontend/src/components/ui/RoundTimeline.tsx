@@ -1,6 +1,6 @@
 /** Vertical round timeline with schedule form, quick-pick presets, live preview. */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { getRounds, createRound, updateRound, type RoundItem } from "@/lib/api/rounds";
 import { apiClient } from "@/lib/axios";
 
@@ -79,14 +79,14 @@ export function RoundTimeline({ applicationId }: Props) {
     finally { setScoreLoading(false); }
   };
 
-  const fetch = () => {
+  const fetch = useCallback(() => {
     setLoading(true); setError(null);
     getRounds(applicationId)
       .then(setRounds)
       .catch(() => setError("Không thể tải danh sách vòng."))
       .finally(() => setLoading(false));
-  };
-  useEffect(() => { fetch(); }, [applicationId]);
+  }, [applicationId]);
+  useEffect(() => { fetch(); }, [fetch]);
 
   // ── Optimistic status ────────────────────────────────────────────────────
   const handleStatus = async (roundId: number, status: string, idx: number) => {

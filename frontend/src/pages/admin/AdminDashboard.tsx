@@ -605,7 +605,7 @@ export function AdminDashboard() {
                                       boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
                                       fontSize: "12px",
                                     }}
-                                    formatter={(value: any) => [`${value} người dùng`, "Đăng ký mới"]}
+                                    formatter={(value?: number | string | readonly (number | string)[]) => [`${value} người dùng`, "Đăng ký mới"]}
                                   />
                                   <Area
                                     type="monotone"
@@ -699,7 +699,7 @@ export function AdminDashboard() {
                                       boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
                                       fontSize: "12px",
                                     }}
-                                    formatter={(value: any) => [`${value} hồ sơ`, "Lượt ứng tuyển"]}
+                                    formatter={(value?: number | string | readonly (number | string)[]) => [`${value} hồ sơ`, "Lượt ứng tuyển"]}
                                   />
                                   <Area
                                     type="monotone"
