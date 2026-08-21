@@ -1,4 +1,5 @@
 import axios, { type AxiosError, type AxiosResponse, type InternalAxiosRequestConfig } from "axios";
+import { toast } from "sonner";
 
 const BASE_URL = import.meta.env.VITE_API_URL || "/api";
 
@@ -26,7 +27,9 @@ apiClient.interceptors.request.use(
 // ─── Response interceptor: unwrap data, handle 401 ───────────────────────────
 apiClient.interceptors.response.use(
   (response: AxiosResponse) => response,
-  (error: AxiosError<{ detail: string }>) => {
+  (error: AxiosError<any>) => {
+    const silent = error.config?.headers?.["X-Silent-Error"] === "true";
+
     if (error.response?.status === 401) {
       // Clear stale token and redirect to login
       localStorage.removeItem(TOKEN_KEY);
@@ -34,7 +37,13 @@ apiClient.interceptors.response.use(
       if (!window.location.pathname.startsWith("/login")) {
         window.location.href = "/login";
       }
+      if (!silent) toast.error("Phiên đăng nhập hết hạn, vui lòng đăng nhập lại.");
+    } else if (!silent && error.response?.status !== 404) {
+      // Show toast for other errors (except 404 which is often expected for checking existence)
+      const message = getApiErrorMessage(error);
+      toast.error(message);
     }
+    
     return Promise.reject(error);
   }
 );
@@ -49,10 +58,19 @@ export const tokenStorage = {
 // ─── Typed API error extractor ────────────────────────────────────────────────
 export function getApiErrorMessage(error: unknown): string {
   if (axios.isAxiosError(error)) {
-    const detail = (error as AxiosError<{ detail: string | { msg: string }[] | { code?: string; message?: string; retryable?: boolean } }>).response?.data?.detail;
+    const data = error.response?.data as any;
+    
+    // Support new standard error schema: { error: { code, message, details } }
+    if (data?.error?.message) {
+      return data.error.message;
+    }
+
+    // Fallback to FastAPI's default 'detail' field
+    const detail = data?.detail;
     if (typeof detail === "string") return detail;
-    if (Array.isArray(detail)) return detail.map((d) => d.msg).join(", ");
+    if (Array.isArray(detail)) return detail.map((d: any) => d.msg).join(", ");
     if (detail && typeof detail === "object" && "message" in detail && typeof detail.message === "string") return detail.message;
+    
     if (error.code === "ECONNABORTED") return "Dịch vụ AI phản hồi quá thời gian. Vui lòng thử lại.";
     return error.message;
   }

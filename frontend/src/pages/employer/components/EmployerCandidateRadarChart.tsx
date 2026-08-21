@@ -112,7 +112,7 @@ export function EmployerCandidateRadarChart({
                   boxShadow: "0 10px 25px -5px rgb(0 0 0 / 0.08)",
                   fontSize: "12px",
                 }}
-                formatter={(value: any, name: any) => [
+                formatter={(value?: number | string | readonly (number | string)[], name?: unknown) => [
                   `${value ?? 0}/10`,
                   name === "candidate" ? "Ứng viên" : "Yêu cầu JD",
                 ]}

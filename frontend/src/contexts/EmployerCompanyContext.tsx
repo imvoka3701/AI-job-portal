@@ -75,6 +75,9 @@ export function EmployerCompanyProvider({ children }: { children: ReactNode }) {
   );
 }
 
+// Hook và Provider được giữ chung file vì các test (mock theo đường dẫn này)
+// và nhiều nơi đang import từ đây; tách file sẽ phá vỡ import/mock hiện có.
+// eslint-disable-next-line react-refresh/only-export-components
 export function useEmployerCompany(): EmployerCompanyContextValue {
   const value = useContext(EmployerCompanyContext);
   if (!value) {

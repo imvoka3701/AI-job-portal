@@ -36,4 +36,8 @@ python-dotenv==1.1.*
 # === Testing ===
 pytest==8.3.*
 pytest-asyncio==0.25.*
+pytest-cov==6.0.*
 httpx==0.28.*
+
+# === Observability ===
+sentry-sdk==2.22.*

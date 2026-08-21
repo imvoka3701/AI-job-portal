@@ -69,7 +69,7 @@ export function RegisterPage() {
       if (data.role !== "employer") {
         navigate("/dashboard");
       }
-    } catch (err) {
+    } catch {
       // Error handled in authStore
     } finally {
       setIsSubmitting(false);

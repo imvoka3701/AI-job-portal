@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { apiClient, getApiErrorMessage } from "@/lib/axios";
 import { useUser, useAuthStore } from "@/stores/authStore";
@@ -69,7 +69,7 @@ export function AdminInterviewsPage() {
     }
   }, [user]);
 
-  const fetchRounds = async (page = 1) => {
+  const fetchRounds = useCallback(async (page = 1) => {
     if (!user || user.role !== "admin") return;
     
     setLoading(true);
@@ -97,13 +97,13 @@ export function AdminInterviewsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user, pagination.pageSize, resultFilter, roundTypeFilter, needsReviewOnly]);
 
   useEffect(() => {
     const pageParam = searchParams.get("page");
     const page = pageParam ? parseInt(pageParam, 10) : 1;
     fetchRounds(page);
-  }, [user, searchParams, resultFilter, roundTypeFilter, needsReviewOnly]);
+  }, [fetchRounds, searchParams]);
 
   const handlePageChange = (newPage: number) => {
     setSearchParams({ page: String(newPage) }, { replace: true });

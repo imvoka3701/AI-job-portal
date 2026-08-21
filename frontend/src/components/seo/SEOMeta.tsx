@@ -4,7 +4,7 @@ interface SEOMetaProps {
   title: string;
   description: string;
   canonicalUrl?: string;
-  schemaMarkup?: Record<string, any>;
+  schemaMarkup?: Record<string, unknown>;
 }
 
 export function SEOMeta({ title, description, canonicalUrl, schemaMarkup }: SEOMetaProps) {

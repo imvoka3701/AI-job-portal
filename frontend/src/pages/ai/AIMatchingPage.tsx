@@ -47,8 +47,8 @@ export const AIMatchingPage = () => {
       .then((data) => {
         if (!cancelled) {
           setResumes(data);
-          if (data.length > 0 && !selectedResumeId) {
-            setSelectedResumeId(data[0].id);
+          if (data.length > 0) {
+            setSelectedResumeId((prev) => prev ?? data[0].id);
           }
         }
       })

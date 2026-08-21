@@ -54,7 +54,12 @@ export function EmailDraftModal({
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const copiedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Sync result to form
+  // Sync result to form.
+  // Cố ý chỉ phụ thuộc [result, candidateName, jobTitle]: effect này dùng để đồng bộ
+  // nội dung từ kết quả AI, hoặc nạp template mặc định KHI CHƯA có kết quả (lúc mở modal).
+  // selectedType/selectedTone đã được xử lý riêng qua handleTypeChange/handleToneChange;
+  // nếu thêm chúng vào deps, khi đã có `result` mà người dùng đổi tone/type thì effect sẽ
+  // ghi đè template do handler nạp bằng nội dung `result` — sai nghiệp vụ. Vì vậy giữ nguyên deps.
   useEffect(() => {
     if (result) {
       setSubject(result.subject ?? "");
@@ -64,6 +69,7 @@ export function EmailDraftModal({
       // Default initial templates when starting
       loadDefaultTemplate(selectedType, selectedTone);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [result, candidateName, jobTitle]);
 
   useEffect(() => () => {
@@ -343,7 +349,7 @@ export function EmailDraftModal({
 
         {/* ── Error Box ── */}
         {!loading && error && (
-          <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700 flex items-center justify-between">
+          <div role="alert" className="p-4 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700 flex items-center justify-between">
             <span>{error}</span>
             <Button size="sm" variant="outline" onClick={() => onRetry(selectedType === "test" ? "invite" : selectedType)}>
               Thử lại
@@ -355,10 +361,12 @@ export function EmailDraftModal({
         {!loading && (
           <div className="space-y-4">
             <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">
+              <label htmlFor="email-subject" className="block text-xs font-semibold text-gray-700 mb-1">
                 Tiêu đề Email (Subject Line)
               </label>
               <Input
+                id="email-subject"
+                aria-label="Tiêu đề email"
                 value={subject}
                 onChange={(e) => setSubject(e.target.value)}
                 placeholder="Tiêu đề email..."
@@ -368,12 +376,14 @@ export function EmailDraftModal({
 
             <div>
               <div className="flex justify-between items-center mb-1">
-                <label className="block text-xs font-semibold text-gray-700">
+                <label htmlFor="email-body" className="block text-xs font-semibold text-gray-700">
                   Nội dung Email
                 </label>
                 <span className="text-[11px] text-gray-400">{body.length} ký tự</span>
               </div>
               <textarea
+                id="email-body"
+                aria-label="Nội dung email"
                 ref={textareaRef}
                 rows={10}
                 value={body}
@@ -382,6 +392,19 @@ export function EmailDraftModal({
                 placeholder="Nội dung thư..."
               />
             </div>
+
+            {/* Trạng thái chỉnh sửa so với bản AI gốc */}
+            {result && (
+              <p
+                className={`text-[11px] font-medium ${
+                  hasChanges ? "text-amber-600" : "text-gray-400"
+                }`}
+              >
+                {hasChanges
+                  ? "Bạn đang dùng phiên bản đã chỉnh sửa."
+                  : "Nội dung đang giữ nguyên bản AI."}
+              </p>
+            )}
 
             {/* Custom AI Instruction Bar */}
             <AnimatePresence>
@@ -423,10 +446,17 @@ export function EmailDraftModal({
             {hasChanges && (
               <button
                 type="button"
-                onClick={() => loadDefaultTemplate(selectedType, selectedTone)}
+                onClick={() => {
+                  if (result) {
+                    setSubject(result.subject ?? "");
+                    setBody(result.body ?? "");
+                  } else {
+                    loadDefaultTemplate(selectedType, selectedTone);
+                  }
+                }}
                 className="text-xs text-gray-500 hover:text-gray-800 flex items-center gap-1 py-1"
               >
-                <RotateCcw className="w-3.5 h-3.5" /> Khôi phục
+                <RotateCcw className="w-3.5 h-3.5" /> Khôi phục bản AI
               </button>
             )}
           </div>
@@ -442,7 +472,7 @@ export function EmailDraftModal({
               className="gap-1.5"
             >
               {copied ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
-              {copied ? "Đã sao chép" : "Sao chép"}
+              {copied ? "Đã sao chép" : "Sao chép email"}
             </Button>
             <Button
               size="sm"

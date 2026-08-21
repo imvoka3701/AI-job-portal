@@ -51,7 +51,7 @@ export function CVPreviewModal({ url, onClose }: CVPreviewModalProps) {
         Accept: "application/pdf",
       }
     })
-      .then((res: any) => {
+      .then((res: { data: ArrayBuffer }) => {
         if (!isMounted) return;
         const pdfBlob = new Blob([res.data], { type: "application/pdf" });
         objectUrl = URL.createObjectURL(pdfBlob);

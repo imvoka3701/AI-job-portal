@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     APP_NAME: str = "AI Job Portal"
     DEBUG: bool = False
     LOG_LEVEL: str = "INFO"  # DEBUG | INFO | WARNING | ERROR
+    SENTRY_DSN: str = ""
     # When set, ai_audit logger writes to this file instead of stdout
     AI_AUDIT_LOG_FILE: str = ""  # e.g. "/var/log/ai_audit.jsonl"
 

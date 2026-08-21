@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { getCompanies, approveCompany, rejectCompany, type CompanySummary } from "@/lib/api/admin";
 import { getApiErrorMessage } from "@/lib/axios";
@@ -19,7 +19,7 @@ export function AdminCompanies() {
   const [statusFilter, setStatusFilter] = useState("");
   const [actionId, setActionId] = useState<number | null>(null);
 
-  const fetch = () => {
+  const fetch = useCallback(() => {
     let c = false;
     setLoading(true); setError(null);
     getCompanies({
@@ -28,13 +28,13 @@ export function AdminCompanies() {
     }).then((d) => { if (!c) { setCompanies(d); setLoading(false); } })
       .catch(() => { if (!c) { setError("Không thể tải danh sách."); setLoading(false); } });
     return () => { c = true; };
-  };
+  }, [keyword, statusFilter]);
 
   useEffect(() => {
     if (!user && tokenStorage.get()) { useAuthStore.getState().fetchMe().catch(() => {}); return; }
     if (!user) { setLoading(false); return; }
     return fetch();
-  }, [user, keyword, statusFilter]);
+  }, [user, fetch]);
 
   const handleApprove = async (id: number) => {
     setActionId(id);

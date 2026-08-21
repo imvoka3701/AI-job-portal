@@ -54,7 +54,9 @@ export const JobDetailPage = () => {
     try {
       const saved = localStorage.getItem(`saved_job_${jobId}`);
       if (saved === "true") setIsSaved(true);
-    } catch {}
+    } catch {
+      // localStorage không khả dụng — bỏ qua
+    }
   }, [jobId]);
 
   const toggleSaveJob = () => {
@@ -62,7 +64,9 @@ export const JobDetailPage = () => {
     setIsSaved(nextState);
     try {
       localStorage.setItem(`saved_job_${jobId}`, String(nextState));
-    } catch {}
+    } catch {
+      // localStorage không khả dụng — bỏ qua
+    }
   };
 
   const handleShare = async () => {
@@ -115,7 +119,7 @@ export const JobDetailPage = () => {
             setSimilarJobs(others);
           })
           .catch(() => {});
-      } catch (err) {
+      } catch {
         setError("Không thể tải chi tiết công việc. Vui lòng thử lại sau.");
       } finally {
         setIsLoading(false);
@@ -181,7 +185,7 @@ export const JobDetailPage = () => {
             ? "Ứng tuyển thành công! Hồ sơ CV của bạn đã được chuyển tới nhà tuyển dụng."
             : "Ứng tuyển thành công! Bạn nên đính kèm CV để tăng điểm phù hợp khi AI đánh giá.",
       });
-    } catch (err) {
+    } catch {
       setApplyMessage({ type: "error", text: "Ứng tuyển thất bại. Vui lòng thử lại sau hoặc kiểm tra kết nối." });
     } finally {
       setIsApplying(false);

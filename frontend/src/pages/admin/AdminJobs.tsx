@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { getAdminJobs, setAdminJobStatus, type AdminJobItem } from "@/lib/api/admin";
 import { getApiErrorMessage } from "@/lib/axios";
 import { useUser, useAuthStore } from "@/stores/authStore";
@@ -19,7 +19,7 @@ export function AdminJobs() {
   const [msg, setMsg] = useState<string | null>(null);
   const [actionId, setActionId] = useState<number | null>(null);
 
-  const fetch = () => {
+  const fetch = useCallback(() => {
     let c = false; setLoading(true); setError(null);
     getAdminJobs({
       keyword: keyword || undefined,
@@ -30,13 +30,13 @@ export function AdminJobs() {
       .then((d) => { if (!c) { setData(d); setLoading(false); } })
       .catch(() => { if (!c) { setError("Không thể tải danh sách."); setLoading(false); } });
     return () => { c = true; };
-  };
+  }, [keyword, statusFilter, page]);
 
   useEffect(() => {
     if (!user && tokenStorage.get()) { useAuthStore.getState().fetchMe().catch(() => {}); return; }
     if (!user) { setLoading(false); return; }
     return fetch();
-  }, [user, page, keyword, statusFilter]);
+  }, [user, fetch]);
 
   const handleStatus = async (job: AdminJobItem) => {
     const nextActive = !job.is_active;

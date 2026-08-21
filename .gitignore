@@ -69,19 +69,7 @@ pnpm-debug.log*
 !frontend/src/lib/
 !frontend/src/lib/**
 
-# --- Testing & Reports ---
-tests/
-backend/tests/
-frontend/tests/
-__tests__/
-*.test.ts
-*.test.tsx
-*.spec.ts
-*.spec.tsx
-*.spec.ts.bak
-test-setup.ts
-vitest.config.ts
-playwright.config.ts
+# --- Testing Cache & Reports (do not track reports, keep test code) ---
 test-results/
 frontend/test-results/
 backend/test-results/
@@ -89,6 +77,7 @@ playwright-report/
 blob-report/
 playwright/.cache/
 *.lcov
+*.spec.ts.bak
 
 # --- Logs & Runtime ---
 *.log

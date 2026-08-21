@@ -17,6 +17,38 @@ MAX_IMAGE_SIZE_MB = 5
 # Minimum text length extracted from PDF to consider it readable
 MIN_EXTRACTED_TEXT_LENGTH = 50
 
+# Magic bytes (file signatures) used to verify real file content, independent of
+# the (client-controlled) filename extension and Content-Type header.
+PDF_MAGIC = b"%PDF-"
+IMAGE_MAGIC_SIGNATURES: tuple[bytes, ...] = (
+    b"\x89PNG\r\n\x1a\n",  # PNG
+    b"\xff\xd8\xff",       # JPEG / JPG
+    b"RIFF",              # WEBP (RIFF....WEBP container)
+)
+
+
+def _enforce_max_size(content: bytes, max_mb: int, label: str = "File") -> None:
+    """Raise ValueError if the byte content exceeds the allowed size."""
+    if len(content) > max_mb * 1024 * 1024:
+        raise ValueError(f"{label} quá lớn. Dung lượng tối đa là {max_mb}MB.")
+
+
+def _verify_pdf_magic(content: bytes) -> None:
+    """Verify the content really starts with the PDF signature."""
+    if not content.startswith(PDF_MAGIC):
+        raise ValueError(
+            "Nội dung file không phải PDF hợp lệ (chữ ký file không khớp). "
+            "Vui lòng tải lên đúng file PDF."
+        )
+
+
+def _verify_image_magic(content: bytes) -> None:
+    """Verify the content matches a supported image signature."""
+    if content.startswith(b"RIFF") and content[8:12] != b"WEBP":
+        raise ValueError("Nội dung ảnh không hợp lệ (chữ ký file không khớp).")
+    if not any(content.startswith(sig) for sig in IMAGE_MAGIC_SIGNATURES):
+        raise ValueError("Nội dung ảnh không hợp lệ (chữ ký file không khớp).")
+
 
 def extract_text_from_pdf(file_stream: IO[bytes]) -> str:
     """Extract text content from a PDF file stream using PyPDF2.
@@ -99,11 +131,15 @@ async def save_file_upload(file, user_id: int) -> str:
             f"(Nhận được: {os.path.splitext(filename)[1] or 'không rõ'})"
         )
 
+    # Early reject oversized uploads using the reported size (avoids buffering
+    # a huge payload in memory before checking).
+    reported_size = getattr(file, "size", None)
+    if reported_size is not None and reported_size > MAX_FILE_SIZE_MB * 1024 * 1024:
+        raise ValueError(f"File quá lớn. Dung lượng tối đa là {MAX_FILE_SIZE_MB}MB.")
+
     file_content = await file.read()
-    if len(file_content) > MAX_FILE_SIZE_MB * 1024 * 1024:
-        raise ValueError(
-            f"File quá lớn. Dung lượng tối đa là {MAX_FILE_SIZE_MB}MB."
-        )
+    _enforce_max_size(file_content, MAX_FILE_SIZE_MB)
+    _verify_pdf_magic(file_content)
 
     upload_path = generate_user_upload_path(filename, user_id)
     upload_path.write_bytes(file_content)
@@ -123,10 +159,8 @@ async def save_upload_file(file_content: bytes, filename: str) -> str:
             f"(Nhận được: {os.path.splitext(filename)[1] or 'không rõ'})"
         )
 
-    if len(file_content) > MAX_FILE_SIZE_MB * 1024 * 1024:
-        raise ValueError(
-            f"File quá lớn. Dung lượng tối đa là {MAX_FILE_SIZE_MB}MB."
-        )
+    _enforce_max_size(file_content, MAX_FILE_SIZE_MB)
+    _verify_pdf_magic(file_content)
 
     upload_path = generate_upload_path(filename)
     upload_path.write_bytes(file_content)
@@ -143,11 +177,13 @@ async def save_avatar_upload(file, user_id: int) -> str:
             f"(Nhận được: {ext or 'không rõ'})"
         )
 
+    reported_size = getattr(file, "size", None)
+    if reported_size is not None and reported_size > MAX_IMAGE_SIZE_MB * 1024 * 1024:
+        raise ValueError(f"Ảnh quá lớn. Dung lượng tối đa là {MAX_IMAGE_SIZE_MB}MB.")
+
     file_content = await file.read()
-    if len(file_content) > MAX_IMAGE_SIZE_MB * 1024 * 1024:
-        raise ValueError(
-            f"Ảnh quá lớn. Dung lượng tối đa là {MAX_IMAGE_SIZE_MB}MB."
-        )
+    _enforce_max_size(file_content, MAX_IMAGE_SIZE_MB, label="Ảnh")
+    _verify_image_magic(file_content)
 
     unique_name = f"avatar_{uuid.uuid4().hex}{ext}"
     upload_path = UPLOAD_DIR / str(user_id) / unique_name
