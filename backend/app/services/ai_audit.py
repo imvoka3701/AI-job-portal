@@ -51,8 +51,10 @@ import json
 import logging
 import time
 from datetime import datetime, timezone
+from typing import Any
 
 from app.services.ai_errors import normalize_ai_error
+from app.services.pii_redactor import pii_redactor
 
 # Dedicated logger — configure a separate file handler in production to isolate
 # AI audit logs from the main application log stream.
@@ -75,6 +77,8 @@ class AIAuditLogger:
         input_summary: str,
         output_summary: str,
         started_at: float,
+        raw_input_payload: Any = None,
+        raw_output_payload: Any = None,
     ) -> None:
         """Log a successful AI call."""
         self._emit(
@@ -87,6 +91,8 @@ class AIAuditLogger:
                 "model": model,
                 "input_summary": input_summary[:200],
                 "output_summary": output_summary[:300],
+                "raw_input_payload": pii_redactor.redact_json(raw_input_payload) if raw_input_payload else None,
+                "raw_output_payload": pii_redactor.redact_json(raw_output_payload) if raw_output_payload else None,
                 "latency_ms": round((time.monotonic() - started_at) * 1000),
                 "success": True,
                 "error_code": None,
@@ -103,6 +109,7 @@ class AIAuditLogger:
         input_summary: str,
         exc: Exception,
         started_at: float,
+        raw_input_payload: Any = None,
     ) -> None:
         """Log a failed AI call with the normalized error code."""
         err = normalize_ai_error(exc)
@@ -116,6 +123,7 @@ class AIAuditLogger:
                 "model": model,
                 "input_summary": input_summary[:200],
                 "output_summary": None,
+                "raw_input_payload": pii_redactor.redact_json(raw_input_payload) if raw_input_payload else None,
                 "latency_ms": round((time.monotonic() - started_at) * 1000),
                 "success": False,
                 "error_code": err.code,
