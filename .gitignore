@@ -4,14 +4,20 @@
 
 # --- Environment & Sensitive Variables ---
 .env
-.env.local
-.env.*.local
-.env.docker.local
+.env.*
+!.env.example
+!.env.*.example
 backend/.env
 frontend/.env
 *.pem
 *.key
 *.cert
+
+# --- Database Dumps & Backups ---
+*.sql
+*.dump
+*.tar
+backup.sql
 
 # --- Python & Virtual Environments ---
 __pycache__/
@@ -90,7 +96,6 @@ uploads/
 backend/uploads/
 frontend/uploads/
 
-
 # --- Operating System & IDEs ---
 .DS_Store
 .DS_Store?
@@ -105,9 +110,17 @@ Desktop.ini
 *.sublime-workspace
 *.sublime-project
 
-# --- Internal Documentation & Agent Artifacts ---
+# --- Third-party Tools & Metadata Cache ---
+.postman/
+
+# --- Internal Documentation & Academic Reports ---
+BAO_CAO_DO_AN.md
+HUONG_DAN_DEMO_GIANG_DUONG.md
+HE_THONG_AI_VA_CAU_HINH_CHI_TIET.md
+DESIGN_AI_ADMIN_CONTROL.md
+implementation_plan.md
+walkthrough.md
 .claude/
 .agents/
 MDfiles/
 docs/
-
