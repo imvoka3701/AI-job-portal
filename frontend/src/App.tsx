@@ -88,20 +88,16 @@ function App() {
               element={<ProtectedRoute allowedRoles={["candidate"]}><AssessmentHistoryPage /></ProtectedRoute>}
             />
 
+            {/* Public AI Hubs */}
+            <Route path="/ai/matching" element={<AIMatchingPage />} />
+            <Route path="/ai/roadmap" element={<RoadmapPage />} />
+
             {/* Dashboard Routes with Layout */}
             <Route element={<DashboardLayout />}>
               {/* Candidate Dashboard */}
               <Route 
                 path="/dashboard" 
                 element={<ProtectedRoute allowedRoles={["candidate"]}><CandidateDashboard /></ProtectedRoute>} 
-              />
-              <Route 
-                path="/ai/matching" 
-                element={<ProtectedRoute allowedRoles={["candidate"]}><AIMatchingPage /></ProtectedRoute>} 
-              />
-              <Route 
-                path="/ai/roadmap" 
-                element={<ProtectedRoute allowedRoles={["candidate"]}><RoadmapPage /></ProtectedRoute>} 
               />
               <Route path="/cv" element={<ProtectedRoute allowedRoles={["candidate"]}><CVListPage /></ProtectedRoute>} />
               <Route path="/cv/new" element={<ProtectedRoute allowedRoles={["candidate"]}><CVEditorPage /></ProtectedRoute>} />
