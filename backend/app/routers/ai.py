@@ -272,7 +272,7 @@ async def evaluate_cv(
 
     started = time.monotonic()
     try:
-        result = await cv_evaluator_service.evaluate(resume_text=resume.raw_text)
+        result = await cv_evaluator_service.evaluate(resume_text=resume.raw_text, db=db)
         ai_audit.log_success(
             user_id=current_user.id,
             user_role=current_user.role.value,
@@ -326,6 +326,7 @@ async def suggest_roadmap(
             resume_text=resume.raw_text,
             parsed_skills=[],
             target_role=data.target_role,
+            db=db,
         )
         ai_audit.log_success(
             user_id=current_user.id,
@@ -385,7 +386,7 @@ async def summarize_cv(
 
     try:
         return await cv_summarizer_service.summarize(
-            cv_text=resume.raw_text, job_description=jd_text,
+            cv_text=resume.raw_text, job_description=jd_text, db=db,
         )
     except Exception as exc:
         logger.exception("CV summarization failed for resume %s, job %s", data.resume_id, data.job_id)
@@ -441,6 +442,7 @@ async def generate_interview_questions(
             cv_text=resume.raw_text,
             job_description=jd_text,
             skills_to_assess=data.skills_to_assess,
+            db=db,
         )
     except Exception as exc:
         logger.exception(
@@ -502,6 +504,7 @@ async def generate_email(
             job_title=job_title,
             company_name=company_name,
             cv_summary=cv_summary,
+            db=db,
         )
     except Exception as exc:
         logger.exception(
