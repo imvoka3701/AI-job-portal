@@ -497,8 +497,9 @@ async def generate_email(
     if app.resume and app.resume.raw_text:
         cv_summary = app.resume.raw_text[:500]  # enough context, not the whole CV
 
+    started = time.monotonic()
     try:
-        return await email_generator_service.generate(
+        result = await email_generator_service.generate(
             email_type=data.email_type,
             candidate_name=candidate_name,
             job_title=job_title,
@@ -506,12 +507,32 @@ async def generate_email(
             cv_summary=cv_summary,
             db=db,
         )
+        ai_audit.log_success(
+            user_id=current_user.id,
+            user_role=current_user.role.value,
+            endpoint="generate_email",
+            model=settings.LLM_MODEL,
+            input_summary=f"application_id={data.application_id}, type={data.email_type}, job={job_title[:60]}",
+            output_summary=f"subject_len={len(result.subject)}, body_len={len(result.body)}",
+            started_at=started,
+        )
+        return result
     except Exception as exc:
         logger.exception(
             "Email generation failed for application %s, type=%s",
             data.application_id, data.email_type,
         )
+        ai_audit.log_failure(
+            user_id=current_user.id,
+            user_role=current_user.role.value,
+            endpoint="generate_email",
+            model=settings.LLM_MODEL,
+            input_summary=f"application_id={data.application_id}, type={data.email_type}",
+            exc=exc,
+            started_at=started,
+        )
         raise ai_http_exception(exc)
+
 
 
 @router.post(
