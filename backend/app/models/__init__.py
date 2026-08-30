@@ -21,3 +21,5 @@ from app.models.recruitment_request import (  # noqa: F401
     RecruitmentRequestStatus,
 )
 from app.models.assessment import AssessmentAttempt  # noqa: F401
+from app.models.ai_call_log import AICallLog, AIFeature, AICallStatus  # noqa: F401
+from app.models.ai_prompt_config import AIPromptConfig  # noqa: F401
