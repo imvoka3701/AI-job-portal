@@ -26,7 +26,7 @@ except ImportError:
 from app.database import get_db
 
 from app.config import settings
-from app.routers import admin, ai, applications, assessments, auth, company_team, criteria_scores, cv_documents, email_webhooks, employer, interview_rounds, jobs, notifications, recruitment_requests, resumes, users
+from app.routers import admin, admin_ai, ai, applications, assessments, auth, company_team, criteria_scores, cv_documents, email_webhooks, employer, interview_rounds, jobs, notifications, recruitment_requests, resumes, users
 
 
 import logging
@@ -178,6 +178,7 @@ app.include_router(recruitment_requests.router)
 app.include_router(email_webhooks.router)
 app.include_router(notifications.router)
 app.include_router(admin.router)
+app.include_router(admin_ai.router)
 app.include_router(assessments.router)
 
 # --- Mount Static Files ---
