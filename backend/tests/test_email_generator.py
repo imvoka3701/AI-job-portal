@@ -1,5 +1,7 @@
 """Tests for AI Email Generator service and endpoint."""
 
+import os
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
@@ -7,6 +9,10 @@ from sqlalchemy.orm import Session
 from app.services.email_generator import email_generator_service
 
 
+@pytest.mark.skipif(
+    not os.getenv("RUN_REAL_LLM"),
+    reason="Set RUN_REAL_LLM=1 to run live Deepseek LLM tests (needs network + API key).",
+)
 class TestEmailGeneratorService:
     @pytest.mark.asyncio
     async def test_fallback_invite_email(self):
