@@ -5,10 +5,14 @@ Retries up to 2 times if JSON parsing fails. Raises RuntimeError if all attempts
 
 import logging
 
+from sqlalchemy.orm import Session
+
 from app.config import settings
+from app.models.ai_call_log import AIFeature
 from app.schemas.ai import CVEvaluationResponse
 from app.services.deepseek_client import deepseek_client
 from app.services.ai_errors import normalize_ai_error
+from app.services.prompt_loader import get_system_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -19,15 +23,13 @@ class CVEvaluatorService:
     def __init__(self):
         self.client = deepseek_client
 
-    async def evaluate(self, *, resume_text: str) -> CVEvaluationResponse:
-        system_prompt = (
-            "Bạn là một chuyên gia đánh giá CV. Hãy phân tích CV được cung cấp và đưa ra đánh giá toàn diện, bao gồm:\n"
-            "- overall_score: Điểm tổng thể từ 0.0 đến 10.0.\n"
-            "- summary: Tóm tắt ngắn gọn về điểm mạnh và điểm yếu của CV.\n"
-            "- suggestions: Các gợi ý cụ thể để cải thiện CV.\n"
-            "- skill_analysis: object với key là tên kỹ năng, value là điểm số từ 0.0 đến 10.0.\n"
-            "QUAN TRỌNG: Phản hồi PHẢI là JSON hợp lệ, không được thêm markdown hay text bên ngoài JSON."
-        )
+    async def evaluate(
+        self,
+        *,
+        resume_text: str,
+        db: Session | None = None,
+    ) -> CVEvaluationResponse:
+        system_prompt = get_system_prompt(AIFeature.CV_EVALUATE, db=db)
 
         user_prompt = f"Hãy đánh giá CV sau:\n{resume_text}"
 
@@ -66,11 +68,16 @@ class CVEvaluatorService:
 
     async def validate_is_cv(self, resume_text: str) -> bool:
         """Thực hiện một cuộc gọi LLM nhanh để xác định xem văn bản có phải là CV không."""
+        # NOTE: This prompt is intentionally hardcoded — NOT managed via Admin AI Control Panel.
+        # validate_is_cv is a binary safety gate (YES/NO). Allowing admin to edit this
+        # prompt introduces risk of accidentally blocking all CV uploads or accepting spam.
+        # See: docs/DESIGN_AI_ADMIN_CONTROL.md for the list of 5 managed features.
         system_prompt = (
             "Bạn là một hệ thống kiểm duyệt tài liệu. "
             "Nhiệm vụ của bạn là kiểm tra xem đoạn văn bản sau đây có phải là một hồ sơ xin việc (CV/Resume) hợp lệ hay không. "
             "Chỉ trả lời chính xác 'YES' hoặc 'NO' (không có dấu câu hoặc văn bản nào khác)."
         )
+
         
         # Chỉ lấy 1500 ký tự đầu tiên để kiểm tra cho nhanh
         user_prompt = f"Văn bản:\n{resume_text[:1500]}"

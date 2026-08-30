@@ -10,30 +10,32 @@ Retries up to 2 times if JSON parsing fails.
 
 import logging
 
+from sqlalchemy.orm import Session
+
 from app.config import settings
+from app.models.ai_call_log import AIFeature
 from app.schemas.ai import CVSummarizeResponse
 from app.services.deepseek_client import deepseek_client
 from app.services.ai_errors import normalize_ai_error
+from app.services.prompt_loader import get_system_prompt
 
 logger = logging.getLogger(__name__)
 
 MAX_RETRIES = 2
-
-SYSTEM_PROMPT = (
-    "Bạn là trợ lý tuyển dụng. Tóm tắt dựa trên hồ sơ được cung cấp, "
-    "không suy diễn thông tin cá nhân, không đưa quyết định tuyển dụng.\n"
-    "Trả về JSON có cấu trúc:\n"
-    '{"fit_points": ["danh sách các điểm phù hợp cụ thể"], '
-    '"questions": ["danh sách các điểm cần hỏi thêm trong phỏng vấn"], '
-    '"summary": "tóm tắt ngắn gọn 2-3 câu đánh giá mức độ phù hợp của ứng viên với vị trí này"}'
-)
 
 
 class CVSummarizerService:
     def __init__(self):
         self.client = deepseek_client
 
-    async def summarize(self, *, cv_text: str, job_description: str) -> CVSummarizeResponse:
+    async def summarize(
+        self,
+        *,
+        cv_text: str,
+        job_description: str,
+        db: Session | None = None,
+    ) -> CVSummarizeResponse:
+        system_prompt = get_system_prompt(AIFeature.SUMMARIZE_CV, db=db)
         user_prompt = (
             f"Mô tả vị trí: {job_description}\n"
             f"CV ứng viên: {cv_text}\n"
@@ -46,7 +48,7 @@ class CVSummarizerService:
             try:
                 response = await self.client.create_chat_completion(
                     messages=[
-                        {"role": "system", "content": SYSTEM_PROMPT},
+                        {"role": "system", "content": system_prompt},
                         {"role": "user", "content": user_prompt},
                     ],
                     model=settings.LLM_MODEL,

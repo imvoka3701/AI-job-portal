@@ -5,10 +5,14 @@ Retries up to 2 times if JSON parsing fails. Raises RuntimeError if all attempts
 
 import logging
 
+from sqlalchemy.orm import Session
+
 from app.config import settings
+from app.models.ai_call_log import AIFeature
 from app.schemas.ai import RoadmapResponse, RoadmapStep
 from app.services.deepseek_client import deepseek_client
 from app.services.ai_errors import normalize_ai_error
+from app.services.prompt_loader import get_system_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -25,21 +29,9 @@ class RoadmapSuggestService:
         resume_text: str,
         parsed_skills: list[str],
         target_role: str,
+        db: Session | None = None,
     ) -> RoadmapResponse:
-        system_prompt = (
-            "Bạn là một chuyên gia tư vấn sự nghiệp AI. Tạo lộ trình phát triển sự nghiệp dựa trên CV và vai trò mục tiêu.\n"
-            "Phản hồi PHẢI là JSON hợp lệ với cấu trúc:\n"
-            "- target_role: string\n"
-            "- current_level: string (ví dụ: Junior, Mid-level, Senior)\n"
-            "- steps: mảng các bước, mỗi bước có:\n"
-            "    - order: số thứ tự\n"
-            "    - title: tiêu đề\n"
-            "    - description: mô tả chi tiết\n"
-            "    - skills_to_learn: mảng các kỹ năng cần học\n"
-            "    - resources: mảng tài nguyên gợi ý\n"
-            "- estimated_months: số tháng ước tính\n"
-            "QUAN TRỌNG: Phản hồi PHẢI là JSON hợp lệ, không được thêm markdown hay text bên ngoài JSON."
-        )
+        system_prompt = get_system_prompt(AIFeature.ROADMAP, db=db)
 
         user_prompt = (
             f"CV hiện tại của tôi: {resume_text}\n"

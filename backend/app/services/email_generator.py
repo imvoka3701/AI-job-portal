@@ -7,61 +7,58 @@ Generates three types:
 
 All outputs are DRAFTS — HR must review and send manually.
 Retries up to 2 times if JSON parsing fails.
+
+ARCHITECTURE NOTE — Persona + Hardcoded rules:
+  The system prompt sent to Deepseek = Persona (from DB) + EMAIL_TYPE_SYSTEM_RULES (hardcoded).
+  - Persona: editable by Admin via UI (/admin/ai/prompts). Controls tone, language, style.
+  - EMAIL_TYPE_SYSTEM_RULES: NOT in DB, NOT editable via Admin UI. Hardcoded in this file.
+    Ensures type-specific rules — especially reject safety constraints (no reasons, no
+    discriminatory language) — are ALWAYS in system prompt position and cannot be removed
+    by Admin accidentally. This is intentional design, not a missing feature.
 """
 
 import logging
 
+from sqlalchemy.orm import Session
+
 from app.config import settings
+from app.models.ai_call_log import AIFeature
 from app.schemas.ai import GenerateEmailResponse
 from app.services.deepseek_client import deepseek_client
 from app.services.ai_errors import normalize_ai_error
+from app.services.prompt_loader import get_system_prompt
 
 logger = logging.getLogger(__name__)
 
 MAX_RETRIES = 2
 
-INVITE_SYSTEM_PROMPT = (
-    "Bạn là trợ lý nhân sự chuyên nghiệp. Hãy soạn email mời phỏng vấn bằng tiếng Việt.\n\n"
-    "Yêu cầu:\n"
-    "- Xưng hô 'bạn' với ứng viên (trung tính, không đoán giới tính từ tên).\n"
-    "- Giọng điệu chuyên nghiệp, thân thiện.\n"
-    "- Đề cập tên ứng viên và vị trí ứng tuyển từ dữ liệu được cung cấp.\n"
-    "- Dùng placeholder [Ngày giờ], [Địa điểm/Hình thức] cho thông tin lịch phỏng vấn (KHÔNG tự bịa thời gian cụ thể).\n"
-    "- Kết thúc với lời nhắn mong phản hồi xác nhận.\n\n"
-    "QUAN TRỌNG: Phản hồi PHẢI là JSON hợp lệ với cấu trúc:\n"
-    '{"subject": "tiêu đề email", "body": "nội dung email (có thể nhiều dòng, dùng \\\\n ngăn cách)"}'
-)
+# NOTE: INVITE_SYSTEM_PROMPT, REJECT_SYSTEM_PROMPT, OFFER_SYSTEM_PROMPT gốc đã được
+# tách thành Persona chung (DB) + EMAIL_TYPE_SYSTEM_RULES bên dưới (hardcode).
 
-REJECT_SYSTEM_PROMPT = (
-    "Bạn là trợ lý nhân sự chuyên nghiệp. Hãy soạn email từ chối ứng viên bằng tiếng Việt.\n\n"
-    "Yêu cầu TUYỆT ĐỐI:\n"
-    "- Xưng hô 'bạn' với ứng viên (trung tính, không đoán giới tính từ tên).\n"
-    "- KHÔNG nêu lý do cụ thể nào (tránh rủi ro pháp lý về phân biệt đối xử).\n"
-    "- KHÔNG đề cập đến tuổi tác, giới tính, dân tộc, tôn giáo, tình trạng hôn nhân, hoặc bất kỳ đặc điểm cá nhân nào.\n"
-    "- Giọng điệu lịch sự, tôn trọng, giữ thiện chí.\n"
-    "- Bày tỏ mong muốn giữ liên lạc và mời ứng tuyển các vị trí phù hợp trong tương lai.\n"
-    "- Đề cập tên ứng viên và vị trí đã ứng tuyển.\n\n"
-    "QUAN TRỌNG: Phản hồi PHẢI là JSON hợp lệ với cấu trúc:\n"
-    '{"subject": "tiêu đề email", "body": "nội dung email (có thể nhiều dòng, dùng \\\\n ngăn cách)"}'
-)
-
-OFFER_SYSTEM_PROMPT = (
-    "Bạn là trợ lý nhân sự chuyên nghiệp. Hãy soạn email thông báo trúng tuyển bằng tiếng Việt.\n\n"
-    "Yêu cầu:\n"
-    "- Xưng hô 'bạn' với ứng viên (trung tính, không đoán giới tính từ tên).\n"
-    "- Giọng điệu chúc mừng, phấn khởi, chuyên nghiệp.\n"
-    "- Đề cập tên ứng viên và vị trí trúng tuyển.\n"
-    "- Dùng placeholder [Ngày bắt đầu], [Mức lương và chế độ] cho thông tin cụ thể (KHÔNG tự bịa số liệu).\n"
-    "- Hướng dẫn các bước tiếp theo: xác nhận nhận việc, liên hệ HR, chuẩn bị hồ sơ.\n"
-    "- Kết thúc với lời chúc thành công.\n\n"
-    "QUAN TRỌNG: Phản hồi PHẢI là JSON hợp lệ với cấu trúc:\n"
-    '{"subject": "tiêu đề email", "body": "nội dung email (có thể nhiều dòng, dùng \\\\n ngăn cách)"}'
-)
-
-TYPE_PROMPTS = {
-    "invite": INVITE_SYSTEM_PROMPT,
-    "reject": REJECT_SYSTEM_PROMPT,
-    "offer": OFFER_SYSTEM_PROMPT,
+# ── Type-specific rules — HARDCODED, luôn gắn vào system prompt ──────────────────
+# QUAN TRỌNG: "reject" chứa ràng buộc pháp lý — KHÔNG được chuyển vào DB hay user_prompt.
+EMAIL_TYPE_SYSTEM_RULES: dict[str, str] = {
+    "invite": (
+        "\n\nLoại email: MỜI PHỎNG VẤN.\n"
+        "- Đề cập tên ứng viên và vị trí ứng tuyển từ dữ liệu được cung cấp.\n"
+        "- Dùng placeholder [Ngày giờ], [Địa điểm/Hình thức] — KHÔNG tự bịa thời gian cụ thể.\n"
+        "- Kết thúc bằng lời nhắn mong phản hồi xác nhận."
+    ),
+    "reject": (
+        "\n\nLoại email: TỪ CHỐI ỨNG VIÊN.\n"
+        "RÀNG BUỘC AN TOÀN — BẮT BUỘC TUYỆT ĐỐI:\n"
+        "- KHÔNG nêu lý do cụ thể nào (tránh rủi ro pháp lý về phân biệt đối xử).\n"
+        "- KHÔNG đề cập đến tuổi tác, giới tính, dân tộc, tôn giáo, tình trạng hôn nhân, "
+        "hoặc bất kỳ đặc điểm cá nhân nào.\n"
+        "- Giữ thiện chí, mời ứng tuyển các vị trí phù hợp trong tương lai."
+    ),
+    "offer": (
+        "\n\nLoại email: THÔNG BÁO TRÚNG TUYỂN.\n"
+        "- Giọng điệu chúc mừng, phấn khởi, chuyên nghiệp.\n"
+        "- Đề cập tên ứng viên và vị trí trúng tuyển.\n"
+        "- Dùng placeholder [Ngày bắt đầu], [Mức lương và chế độ] — KHÔNG tự bịa số liệu.\n"
+        "- Hướng dẫn bước tiếp theo: xác nhận nhận việc, liên hệ HR, chuẩn bị hồ sơ."
+    ),
 }
 
 
@@ -77,11 +74,18 @@ class EmailGeneratorService:
         job_title: str,
         company_name: str,
         cv_summary: str | None = None,
+        db: Session | None = None,
     ) -> GenerateEmailResponse:
-        if email_type not in TYPE_PROMPTS:
-            raise ValueError(f"Invalid email_type: {email_type}. Must be one of: {list(TYPE_PROMPTS.keys())}")
+        if email_type not in EMAIL_TYPE_SYSTEM_RULES:
+            raise ValueError(
+                f"Invalid email_type: {email_type}. "
+                f"Must be one of: {list(EMAIL_TYPE_SYSTEM_RULES.keys())}"
+            )
 
-        system_prompt = TYPE_PROMPTS[email_type]
+        # Persona từ DB (Admin chỉnh được) + type rules hardcode (không qua Admin UI)
+        # Cả hai đều nằm trong system prompt — đảm bảo ràng buộc reject có authority cao nhất.
+        persona = get_system_prompt(AIFeature.GENERATE_EMAIL, db=db)
+        effective_system = persona + EMAIL_TYPE_SYSTEM_RULES[email_type]
 
         user_prompt = (
             f"Thông tin:\n"
@@ -100,10 +104,12 @@ class EmailGeneratorService:
             try:
                 response = await self.client.create_chat_completion(
                     messages=[
-                        {"role": "system", "content": system_prompt},
+                        {"role": "system", "content": effective_system},
                         {"role": "user", "content": user_prompt},
                     ],
                     model=settings.LLM_MODEL,
+                    feature=AIFeature.GENERATE_EMAIL,
+                    db=db,
                 )
 
                 content = response.get("choices", [])[0].get("message", {}).get("content", "")
