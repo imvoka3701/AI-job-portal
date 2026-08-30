@@ -54,7 +54,6 @@ from datetime import datetime, timezone
 from typing import Any
 
 from app.services.ai_errors import normalize_ai_error
-from app.services.pii_redactor import pii_redactor
 
 # Dedicated logger — configure a separate file handler in production to isolate
 # AI audit logs from the main application log stream.
@@ -91,8 +90,8 @@ class AIAuditLogger:
                 "model": model,
                 "input_summary": input_summary[:200],
                 "output_summary": output_summary[:300],
-                "raw_input_payload": pii_redactor.redact_json(raw_input_payload) if raw_input_payload else None,
-                "raw_output_payload": pii_redactor.redact_json(raw_output_payload) if raw_output_payload else None,
+                "raw_input_payload": raw_input_payload,
+                "raw_output_payload": raw_output_payload,
                 "latency_ms": round((time.monotonic() - started_at) * 1000),
                 "success": True,
                 "error_code": None,
@@ -123,7 +122,7 @@ class AIAuditLogger:
                 "model": model,
                 "input_summary": input_summary[:200],
                 "output_summary": None,
-                "raw_input_payload": pii_redactor.redact_json(raw_input_payload) if raw_input_payload else None,
+                "raw_input_payload": raw_input_payload,
                 "latency_ms": round((time.monotonic() - started_at) * 1000),
                 "success": False,
                 "error_code": err.code,

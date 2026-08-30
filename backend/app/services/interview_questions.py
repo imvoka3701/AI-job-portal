@@ -13,32 +13,21 @@ Retries up to 2 times if JSON parsing fails.
 
 import logging
 
+from sqlalchemy.orm import Session
+
 from app.config import settings
+from app.models.ai_call_log import AIFeature
 from app.schemas.ai import InterviewQuestionsResponse
 from app.services.deepseek_client import deepseek_client
 from app.services.ai_errors import normalize_ai_error
+from app.services.prompt_loader import get_system_prompt
 
 logger = logging.getLogger(__name__)
 
 MAX_RETRIES = 2
 
-SYSTEM_PROMPT = (
-    "Bạn là chuyên gia phỏng vấn kỹ thuật giàu kinh nghiệm. "
-    "Nhiệm vụ của bạn là tạo câu hỏi phỏng vấn CHUYÊN SÂU, bám sát vào các kỹ năng cụ thể được yêu cầu.\n\n"
-    "Nguyên tắc:\n"
-    "- Mỗi câu hỏi phải tập trung vào MỘT kỹ năng cụ thể trong danh sách skills_to_assess.\n"
-    "- Câu hỏi phải kiểm tra được năng lực THỰC TẾ (không hỏi lý thuyết thuộc lòng).\n"
-    "- Dựa vào CV để điều chỉnh độ khó: nếu CV thể hiện kinh nghiệm với kỹ năng đó → hỏi sâu hơn. "
-    "Nếu CV không đề cập đến kỹ năng đó → hỏi để đánh giá mức độ hiểu biết cơ bản.\n"
-    "- purpose phải nêu rõ mục đích: câu hỏi này nhằm kiểm tra ĐIỀU GÌ.\n\n"
-    "Trả về JSON có cấu trúc:\n"
-    '{"questions": [\n'
-    '  {"question": "nội dung câu hỏi",\n'
-    '   "purpose": "mục đích đánh giá (1 câu ngắn gọn)",\n'
-    '   "skill_related": "tên kỹ năng trong danh sách"}\n'
-    ']}\n'
-    "QUAN TRỌNG: Phản hồi PHẢI là JSON hợp lệ, không thêm markdown hoặc text bên ngoài JSON."
-)
+# NOTE: Prompt gốc đã được chuyển sang prompt_loader.py::HARDCODED_FALLBACK_PROMPTS[AIFeature.INTERVIEW_QUESTIONS]
+# để làm fallback tập trung. Không cần định nghĩa lại ở đây.
 
 
 class InterviewQuestionsService:
@@ -51,7 +40,10 @@ class InterviewQuestionsService:
         cv_text: str,
         job_description: str,
         skills_to_assess: list[str],
+        db: Session | None = None,
     ) -> InterviewQuestionsResponse:
+        system_prompt = get_system_prompt(AIFeature.INTERVIEW_QUESTIONS, db=db)
+
         skills_list = ", ".join(skills_to_assess)
         user_prompt = (
             f"Mô tả vị trí tuyển dụng:\n{job_description}\n\n"
@@ -68,10 +60,12 @@ class InterviewQuestionsService:
             try:
                 response = await self.client.create_chat_completion(
                     messages=[
-                        {"role": "system", "content": SYSTEM_PROMPT},
+                        {"role": "system", "content": system_prompt},
                         {"role": "user", "content": user_prompt},
                     ],
                     model=settings.LLM_MODEL,
+                    feature=AIFeature.INTERVIEW_QUESTIONS,
+                    db=db,
                 )
 
                 content = response.get("choices", [])[0].get("message", {}).get("content", "")
