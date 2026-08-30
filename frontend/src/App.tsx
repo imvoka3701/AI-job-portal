@@ -42,6 +42,8 @@ const AdminJobs = lazy(() => import("@/pages/admin/AdminJobs").then(m => ({ defa
 const AdminUsers = lazy(() => import("@/pages/admin/AdminUsers").then(m => ({ default: m.AdminUsers })));
 const AdminInterviewsPage = lazy(() => import("@/pages/admin/AdminInterviewsPage").then(m => ({ default: m.AdminInterviewsPage })));
 const AdminAuditLogs = lazy(() => import("@/pages/admin/AdminAuditLogs").then(m => ({ default: m.AdminAuditLogs })));
+const AIPromptsPage = lazy(() => import("@/pages/admin/AIPromptsPage").then(m => ({ default: m.AIPromptsPage })));
+const AdminAILogsPage = lazy(() => import("@/pages/admin/AdminAILogsPage").then(m => ({ default: m.AdminAILogsPage })));
 
 const ToolsLandingPage = lazy(() => import("@/pages/tools/ToolsLandingPage").then(m => ({ default: m.ToolsLandingPage })));
 const AssessmentPage = lazy(() => import("@/pages/tools/AssessmentPage").then(m => ({ default: m.AssessmentPage })));
@@ -130,6 +132,14 @@ function App() {
               <Route
                 path="/admin/audit-logs"
                 element={<ProtectedRoute allowedRoles={["admin"]}><AdminAuditLogs /></ProtectedRoute>}
+              />
+              <Route
+                path="/admin/ai/prompts"
+                element={<ProtectedRoute allowedRoles={["admin"]}><AIPromptsPage /></ProtectedRoute>}
+              />
+              <Route
+                path="/admin/ai/logs"
+                element={<ProtectedRoute allowedRoles={["admin"]}><AdminAILogsPage /></ProtectedRoute>}
               />
             </Route>
 

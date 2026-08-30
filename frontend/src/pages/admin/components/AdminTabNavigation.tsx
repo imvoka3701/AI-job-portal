@@ -1,6 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import { Card } from "@/components/ui";
-import { BarChart3, Building2, Briefcase, Calendar, ClipboardList, Users } from "lucide-react";
+import { BarChart3, Brain, Building2, Briefcase, Calendar, ClipboardList, ScrollText, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const tabs = [
@@ -10,7 +10,10 @@ const tabs = [
   { path: "/admin/users", label: "Người dùng", icon: Users },
   { path: "/admin/interviews", label: "Phỏng vấn", icon: Calendar },
   { path: "/admin/audit-logs", label: "Nhật ký", icon: ClipboardList },
+  { path: "/admin/ai/prompts", label: "AI Prompt", icon: Brain },
+  { path: "/admin/ai/logs", label: "AI Logs", icon: ScrollText },
 ];
+
 
 export function AdminTabNavigation() {
   const location = useLocation();
