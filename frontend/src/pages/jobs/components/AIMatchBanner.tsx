@@ -1,4 +1,4 @@
-import { Sparkles, ArrowRight } from "lucide-react";
+import { Sparkles, ArrowRight, Compass } from "lucide-react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 
@@ -19,22 +19,33 @@ export function AIMatchBanner() {
         </div>
         <div>
           <h3 className="font-bold text-[#0F172A] text-base flex items-center gap-2">
-            ✦ AI Matching Score
+            <Sparkles className="w-4 h-4 text-emerald-600" />
+            <span>AI Matching Score & Lộ Trình Kỹ Năng</span>
             <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-[#E8F8F1] text-[#00995C] border border-emerald-200 uppercase tracking-wider">
-              BETA
+              2026
             </span>
           </h3>
           <p className="text-[14px] text-[#64748B] mt-0.5">
-            Tải lên hồ sơ CV của bạn để AI tự động phân tích kỹ năng và đề xuất các vị trí việc làm có tỷ lệ phù hợp nhất!
+            Tải lên hồ sơ CV của bạn để AI tự động phân tích kỹ năng, so khớp việc làm theo ngữ nghĩa và kiến tạo lộ trình thăng tiến sự nghiệp!
           </p>
         </div>
       </div>
 
-      {/* Action button */}
-      <div className="relative z-10 shrink-0 w-full sm:w-auto">
-        <Link to="/ai/matching" className="block w-full sm:w-auto">
+      {/* Action buttons */}
+      <div className="relative z-10 shrink-0 w-full sm:w-auto flex flex-wrap sm:flex-nowrap items-center gap-2.5">
+        <Link to="/ai/roadmap" className="w-full sm:w-auto">
           <motion.button
-            className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 bg-[#00B86B] hover:bg-[#00995C] text-white text-sm font-semibold rounded-xl shadow-xs transition-all"
+            className="w-full sm:w-auto flex items-center justify-center gap-1.5 px-4 py-2.5 bg-white hover:bg-emerald-50 text-slate-800 hover:text-emerald-700 text-sm font-semibold rounded-xl border border-emerald-200/80 shadow-2xs transition-all cursor-pointer"
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+          >
+            <Compass className="w-4 h-4 text-emerald-600" />
+            <span>Lộ trình Kỹ năng</span>
+          </motion.button>
+        </Link>
+        <Link to="/ai/matching" className="w-full sm:w-auto">
+          <motion.button
+            className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 bg-[#00B86B] hover:bg-[#00995C] text-white text-sm font-semibold rounded-xl shadow-xs transition-all cursor-pointer"
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
           >
