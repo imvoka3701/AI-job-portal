@@ -176,7 +176,7 @@ async def evaluate_resume(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Resume has no text content")
         
     try:
-        evaluation = await cv_evaluator_service.evaluate(resume_text=resume.raw_text)
+        evaluation = await cv_evaluator_service.evaluate(resume_text=resume.raw_text, db=db)
         updated_resume = crud_resume.update(
             db, 
             resume=resume, 
