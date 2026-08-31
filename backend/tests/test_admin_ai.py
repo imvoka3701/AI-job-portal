@@ -9,13 +9,10 @@ Covers:
 - RBAC: non-admin gets 403
 """
 
-import pytest
 from unittest.mock import AsyncMock, patch
-from fastapi.testclient import TestClient
-from sqlalchemy.orm import Session
 
 from app.core.security import hash_password
-from app.models.ai_call_log import AICallLog, AIFeature, AICallStatus
+from app.models.ai_call_log import AICallLog, AICallStatus, AIFeature
 from app.models.ai_prompt_config import AIPromptConfig
 from app.models.user import User, UserRole
 

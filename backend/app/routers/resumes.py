@@ -3,18 +3,22 @@
 import logging
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
-from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
 
 from app.core.dependencies import get_current_user
 from app.crud.resume import crud_resume
 from app.database import get_db
 from app.models.user import User
 from app.schemas.resume import ResumeCreate, ResumeRead
-from app.services.embedding_service import generate_embedding
-from app.services.cv_evaluator import cv_evaluator_service
 from app.services.ai_errors import ai_http_exception
-from app.utils.file_upload import MAX_FILE_SIZE_MB, MIN_EXTRACTED_TEXT_LENGTH, extract_text_from_pdf, save_file_upload
+from app.services.cv_evaluator import cv_evaluator_service
+from app.services.embedding_service import generate_embedding
+from app.utils.file_upload import (
+    MIN_EXTRACTED_TEXT_LENGTH,
+    extract_text_from_pdf,
+    save_file_upload,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -174,12 +178,12 @@ async def evaluate_resume(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not your resume")
     if not resume.raw_text:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Resume has no text content")
-        
+
     try:
         evaluation = await cv_evaluator_service.evaluate(resume_text=resume.raw_text, db=db)
         updated_resume = crud_resume.update(
-            db, 
-            resume=resume, 
+            db,
+            resume=resume,
             obj_in={"ai_evaluation_json": evaluation.model_dump_json()}
         )
         return ResumeRead.model_validate(updated_resume)
@@ -189,7 +193,9 @@ async def evaluate_resume(
 
 
 import os
+
 from fastapi.responses import FileResponse
+
 
 @router.get("/{resume_id}/content", summary="Get resume raw file content safely")
 def get_resume_content(
@@ -205,11 +211,11 @@ def get_resume_content(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not your resume")
     if not resume.file_url:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume file not found")
-        
+
     file_path = resume.file_url
     if not os.path.exists(file_path):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found on server")
-        
+
     return FileResponse(
         path=file_path,
         media_type="application/octet-stream",
@@ -228,12 +234,12 @@ def delete_resume(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume not found")
     if resume.user_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not your resume")
-    
+
     try:
         crud_resume.delete(db, resume_id=resume_id)
     except IntegrityError:
         db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, 
+            status_code=status.HTTP_400_BAD_REQUEST,
             detail="Không thể xoá CV này vì bạn đã dùng nó để ứng tuyển."
         )

@@ -4,7 +4,7 @@ import logging
 from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import func, text
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.core.company_permissions import (
@@ -12,19 +12,14 @@ from app.core.company_permissions import (
     CompanyPermission,
     require_company_permission,
 )
-from app.crud.job import crud_job
 from app.database import get_db
-from app.models.application import Application
-from app.models.job import Job
 from app.models.company import MembershipRole
 from app.schemas.employer import (
-    EmployerStatsResponse,
     ActiveJobSummary,
-    InterviewSummary,
-    EmployerAnalyticsResponse,
-    FunnelStep,
     CompanySettingsRead,
     CompanySettingsUpdate,
+    EmployerStatsResponse,
+    InterviewSummary,
 )
 
 logger = logging.getLogger(__name__)

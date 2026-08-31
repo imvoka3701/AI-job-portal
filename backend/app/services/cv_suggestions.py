@@ -1,7 +1,7 @@
 """AI suggestions for structured CV Builder sections."""
 
-import logging
 import json
+import logging
 import re
 from time import perf_counter
 from typing import TypeVar
@@ -9,9 +9,13 @@ from typing import TypeVar
 from pydantic import BaseModel
 
 from app.config import settings
-from app.schemas.ai import CvExperienceSuggestionResponse, CvSkillsSuggestionResponse, CvSummarySuggestionResponse
-from app.services.deepseek_client import deepseek_client
+from app.schemas.ai import (
+    CvExperienceSuggestionResponse,
+    CvSkillsSuggestionResponse,
+    CvSummarySuggestionResponse,
+)
 from app.services.ai_errors import normalize_ai_error
+from app.services.deepseek_client import deepseek_client
 
 logger = logging.getLogger(__name__)
 T = TypeVar("T", bound=BaseModel)

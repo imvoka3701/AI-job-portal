@@ -1,7 +1,6 @@
 """Schemas for company tenancy and employer team management."""
 
 from datetime import datetime
-
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator

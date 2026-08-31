@@ -1,6 +1,7 @@
 """Tests for JobPortal AI Copilot Assistant endpoints."""
 
 from unittest.mock import AsyncMock, patch
+
 from fastapi.testclient import TestClient
 
 

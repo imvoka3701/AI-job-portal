@@ -10,7 +10,6 @@ from html import escape
 from app.config import settings
 from app.models.company import CompanyInvitation, InvitationDeliveryStatus
 
-
 logger = logging.getLogger(__name__)
 
 

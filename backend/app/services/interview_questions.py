@@ -18,8 +18,8 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.models.ai_call_log import AIFeature
 from app.schemas.ai import InterviewQuestionsResponse
-from app.services.deepseek_client import deepseek_client
 from app.services.ai_errors import normalize_ai_error
+from app.services.deepseek_client import deepseek_client
 from app.services.prompt_loader import get_system_prompt
 
 logger = logging.getLogger(__name__)

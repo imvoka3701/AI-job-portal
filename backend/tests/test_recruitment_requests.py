@@ -15,7 +15,6 @@ from app.services.invitation_email_service import (
     invitation_email_service,
 )
 
-
 PASSWORD = "StrongPass123!"
 
 

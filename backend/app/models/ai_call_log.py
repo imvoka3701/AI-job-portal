@@ -1,9 +1,8 @@
 """AI Call Log model — records every Deepseek API call for admin monitoring."""
 
 import enum
-from datetime import datetime
 
-from sqlalchemy import Column, DateTime, Enum, Float, ForeignKey, Integer, String, Text, func
+from sqlalchemy import Column, DateTime, Enum, Float, ForeignKey, Integer, String, func
 
 from app.database import Base
 

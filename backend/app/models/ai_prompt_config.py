@@ -1,11 +1,9 @@
 """AI Prompt Config model — admin-editable system prompts per AI feature."""
 
-from datetime import datetime
 
 from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Text, func
 
 from app.database import Base
-from app.models.ai_call_log import AIFeature
 
 
 class AIPromptConfig(Base):

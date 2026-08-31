@@ -3,7 +3,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.core.dependencies import get_current_user
 from app.core.company_permissions import (
     CompanyContext,
     CompanyPermission,
@@ -11,6 +10,7 @@ from app.core.company_permissions import (
     require_application_scope,
     require_company_permission,
 )
+from app.core.dependencies import get_current_user
 from app.crud.application import crud_application
 from app.crud.interview_round import crud_interview_round
 from app.database import get_db

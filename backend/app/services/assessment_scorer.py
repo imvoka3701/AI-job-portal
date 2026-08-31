@@ -1,14 +1,9 @@
 """Deterministic scoring engine for MBTI and MI assessments."""
 
-from typing import Literal
 
 from app.schemas.assessment import (
-    AssessmentQuestion,
     AssessmentQuestionnaire,
-    AssessmentResult,
-    QuestionChoice,
 )
-
 
 # ── MBTI Questionnaire (mbti-v1) ──────────────────────────────────────────────
 # 40 questions total: 10 per dimension (E/I, S/N, T/F, J/P)
@@ -17,7 +12,7 @@ from app.schemas.assessment import (
 def get_mbti_v1_questionnaire() -> AssessmentQuestionnaire:
     """Return MBTI v1 questionnaire (40 questions)."""
     questions = []
-    
+
     # E/I dimension (Extraversion vs Introversion)
     ei_questions = [
         "Trong các buổi gặp mặt, bạn thường chủ động bắt chuyện với nhiều người mới.",

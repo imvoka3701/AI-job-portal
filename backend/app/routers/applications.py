@@ -5,7 +5,6 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.core.dependencies import get_current_user, require_role
 from app.core.company_permissions import (
     CompanyContext,
     CompanyPermission,
@@ -14,11 +13,12 @@ from app.core.company_permissions import (
     require_company_permission,
     require_job_scope,
 )
+from app.core.dependencies import get_current_user, require_role
 from app.crud.application import crud_application
+from app.crud.cv_document import crud_cv_document
 from app.crud.interview_round import crud_interview_round
 from app.crud.job import crud_job
 from app.crud.notification import crud_notification
-from app.crud.cv_document import crud_cv_document
 from app.crud.resume import crud_resume
 from app.database import get_db
 from app.models.interview_round import RoundType
