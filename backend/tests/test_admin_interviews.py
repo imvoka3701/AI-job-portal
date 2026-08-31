@@ -23,18 +23,25 @@ def _create_admin_and_login(client: TestClient, db_session: Session) -> dict[str
     db_session.refresh(admin)
 
     # In our tests, login checks email + password, but we can register/login or mock
-    client.post("/auth/register", json={
-        "email": "admin_real@test.com",
-        "password": "Password123!",
-        "full_name": "Admin Real",
-        "role": "admin",
-    })
-    resp = client.post("/auth/login", json={"email": "admin_real@test.com", "password": "Password123!"})
+    client.post(
+        "/auth/register",
+        json={
+            "email": "admin_real@test.com",
+            "password": "Password123!",
+            "full_name": "Admin Real",
+            "role": "admin",
+        },
+    )
+    resp = client.post(
+        "/auth/login", json={"email": "admin_real@test.com", "password": "Password123!"}
+    )
     token = resp.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
 
 
-def _setup_recruitment_data(db_session: Session) -> tuple[User, User, Job, Application, InterviewRound]:
+def _setup_recruitment_data(
+    db_session: Session,
+) -> tuple[User, User, Job, Application, InterviewRound]:
     employer = User(
         email="employer_io@test.com",
         hashed_password="hashed_pwd",
@@ -139,10 +146,14 @@ class TestAdminInterviewOversight:
         assert updated["review_reason"] == "Suspicious feedback quality"
 
         # Check DB audit log
-        audit = db_session.query(AdminAuditLog).filter(
-            AdminAuditLog.action == "interview_round.mark_review",
-            AdminAuditLog.target_id == str(round_obj.id),
-        ).first()
+        audit = (
+            db_session.query(AdminAuditLog)
+            .filter(
+                AdminAuditLog.action == "interview_round.mark_review",
+                AdminAuditLog.target_id == str(round_obj.id),
+            )
+            .first()
+        )
         assert audit is not None
         assert audit.details_json["review_reason"] == "Suspicious feedback quality"
 
@@ -158,23 +169,33 @@ class TestAdminInterviewOversight:
         assert cleared["review_reason"] is None
 
         # Check clear audit log
-        audit_clear = db_session.query(AdminAuditLog).filter(
-            AdminAuditLog.action == "interview_round.clear_review",
-            AdminAuditLog.target_id == str(round_obj.id),
-        ).first()
+        audit_clear = (
+            db_session.query(AdminAuditLog)
+            .filter(
+                AdminAuditLog.action == "interview_round.clear_review",
+                AdminAuditLog.target_id == str(round_obj.id),
+            )
+            .first()
+        )
         assert audit_clear is not None
 
     def test_non_admin_forbidden(self, client: TestClient, db_session: Session):
-        client.post("/auth/register", json={
-            "email": "candidate_unauth@test.com",
-            "password": "Password123!",
-            "full_name": "Unauthorized Candidate",
-            "role": "candidate",
-        })
-        login_resp = client.post("/auth/login", json={
-            "email": "candidate_unauth@test.com",
-            "password": "Password123!",
-        })
+        client.post(
+            "/auth/register",
+            json={
+                "email": "candidate_unauth@test.com",
+                "password": "Password123!",
+                "full_name": "Unauthorized Candidate",
+                "role": "candidate",
+            },
+        )
+        login_resp = client.post(
+            "/auth/login",
+            json={
+                "email": "candidate_unauth@test.com",
+                "password": "Password123!",
+            },
+        )
         token = login_resp.json()["access_token"]
         cand_headers = {"Authorization": f"Bearer {token}"}
 

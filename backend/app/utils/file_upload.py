@@ -22,8 +22,8 @@ MIN_EXTRACTED_TEXT_LENGTH = 50
 PDF_MAGIC = b"%PDF-"
 IMAGE_MAGIC_SIGNATURES: tuple[bytes, ...] = (
     b"\x89PNG\r\n\x1a\n",  # PNG
-    b"\xff\xd8\xff",       # JPEG / JPG
-    b"RIFF",              # WEBP (RIFF....WEBP container)
+    b"\xff\xd8\xff",  # JPEG / JPG
+    b"RIFF",  # WEBP (RIFF....WEBP container)
 )
 
 
@@ -74,8 +74,7 @@ def extract_text_from_pdf(file_stream: IO[bytes]) -> str:
 
         if len(full_text) < MIN_EXTRACTED_TEXT_LENGTH:
             raise ValueError(
-                "Không đọc được nội dung CV. "
-                "Vui lòng dùng file PDF có text, không phải ảnh scan."
+                "Không đọc được nội dung CV. Vui lòng dùng file PDF có text, không phải ảnh scan."
             )
 
         return full_text

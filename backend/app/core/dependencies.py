@@ -83,4 +83,3 @@ def get_optional_user(
         return None
     except Exception:
         return None
-

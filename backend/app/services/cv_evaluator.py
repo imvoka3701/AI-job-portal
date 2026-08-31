@@ -78,7 +78,6 @@ class CVEvaluatorService:
             "Chỉ trả lời chính xác 'YES' hoặc 'NO' (không có dấu câu hoặc văn bản nào khác)."
         )
 
-
         # Chỉ lấy 1500 ký tự đầu tiên để kiểm tra cho nhanh
         user_prompt = f"Văn bản:\n{resume_text[:1500]}"
 
@@ -91,7 +90,9 @@ class CVEvaluatorService:
                 model=settings.LLM_MODEL,
                 response_format=None,
             )
-            response_content = response.get("choices", [])[0].get("message", {}).get("content", "").strip().upper()
+            response_content = (
+                response.get("choices", [])[0].get("message", {}).get("content", "").strip().upper()
+            )
 
             # Nếu LLM trả lời rõ ràng là NO thì coi là không hợp lệ
             if "NO" in response_content and "YES" not in response_content:

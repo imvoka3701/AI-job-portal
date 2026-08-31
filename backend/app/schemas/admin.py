@@ -88,6 +88,7 @@ class AdminAuditLogSummary(BaseModel):
 
 # ── Interview Rounds Oversight Schemas ─────────────────────────────────────────
 
+
 class InterviewRoundAdminItem(BaseModel):
     id: int
     application_id: int
@@ -113,6 +114,7 @@ class InterviewRoundMarkReviewRequest(BaseModel):
 
 
 # ── System Alerts Schemas ──────────────────────────────────────────────────────
+
 
 class StaleJobAlert(BaseModel):
     job_id: int

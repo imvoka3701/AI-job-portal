@@ -64,7 +64,9 @@ class Company(Base):
     contact_person_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
     contact_person_phone: Mapped[str | None] = mapped_column(String(50), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-    created_by_user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
+    created_by_user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id"), nullable=False, index=True
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
@@ -82,7 +84,9 @@ class Department(Base):
     __tablename__ = "departments"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    company_id: Mapped[int] = mapped_column(ForeignKey("companies.id", ondelete="CASCADE"), index=True)
+    company_id: Mapped[int] = mapped_column(
+        ForeignKey("companies.id", ondelete="CASCADE"), index=True
+    )
     name: Mapped[str] = mapped_column(String(150), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
@@ -93,16 +97,16 @@ class Department(Base):
 
     company: Mapped[Company] = relationship(back_populates="departments")
 
-    __table_args__ = (
-        UniqueConstraint("company_id", "name", name="uq_department_company_name"),
-    )
+    __table_args__ = (UniqueConstraint("company_id", "name", name="uq_department_company_name"),)
 
 
 class CompanyMembership(Base):
     __tablename__ = "company_memberships"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    company_id: Mapped[int] = mapped_column(ForeignKey("companies.id", ondelete="CASCADE"), index=True)
+    company_id: Mapped[int] = mapped_column(
+        ForeignKey("companies.id", ondelete="CASCADE"), index=True
+    )
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     member_role: Mapped[MembershipRole] = mapped_column(
         pg_enum(MembershipRole, "membershiprole"), nullable=False
@@ -116,7 +120,9 @@ class CompanyMembership(Base):
         nullable=False,
     )
     is_owner: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    invited_by: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    invited_by: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
     membership_version: Mapped[int] = mapped_column(default=1, nullable=False)
     joined_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -130,7 +136,9 @@ class CompanyMembership(Base):
 
     __table_args__ = (
         UniqueConstraint("company_id", "user_id", name="uq_company_membership_user"),
-        Index("ix_company_membership_scope", "company_id", "department_id", "member_role", "status"),
+        Index(
+            "ix_company_membership_scope", "company_id", "department_id", "member_role", "status"
+        ),
     )
 
 
@@ -138,7 +146,9 @@ class CompanyInvitation(Base):
     __tablename__ = "company_invitations"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    company_id: Mapped[int] = mapped_column(ForeignKey("companies.id", ondelete="CASCADE"), index=True)
+    company_id: Mapped[int] = mapped_column(
+        ForeignKey("companies.id", ondelete="CASCADE"), index=True
+    )
     email: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     member_role: Mapped[MembershipRole] = mapped_column(
         pg_enum(MembershipRole, "membershiprole"), nullable=False
@@ -173,9 +183,7 @@ class CompanyInvitation(Base):
     company: Mapped[Company] = relationship()
     department: Mapped[Department | None] = relationship()
 
-    __table_args__ = (
-        Index("ix_company_invitation_lookup", "company_id", "email", "status"),
-    )
+    __table_args__ = (Index("ix_company_invitation_lookup", "company_id", "email", "status"),)
 
 
 class JobAssignment(Base):

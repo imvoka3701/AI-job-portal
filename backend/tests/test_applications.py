@@ -71,9 +71,13 @@ def _create_job(client: TestClient, emp_headers: dict[str, str]) -> int:
 class TestApplicationsCRUD:
     def test_create_application(self, client: TestClient, db_session: Session):
         cand = _register_and_login(client, db_session, "ac@t.com", "p", "Cand")
-        emp = _register_and_login(client, db_session, "ae@t.com", "p", "Emp", role="employer", company_name="TestCorp")
+        emp = _register_and_login(
+            client, db_session, "ae@t.com", "p", "Emp", role="employer", company_name="TestCorp"
+        )
         job_id = _create_job(client, emp)
-        resp = client.post("/applications", json={"job_id": job_id, "cover_letter": "I am a fit."}, headers=cand)
+        resp = client.post(
+            "/applications", json={"job_id": job_id, "cover_letter": "I am a fit."}, headers=cand
+        )
         assert resp.status_code == 201, resp.text
         data = resp.json()
         assert data["job_id"] == job_id
@@ -85,24 +89,39 @@ class TestApplicationsCRUD:
         from app.schemas.resume import ResumeCreate
 
         cand = _register_and_login(client, db_session, "cv@t.com", "p", "CV")
-        emp = _register_and_login(client, db_session, "cv_e@t.com", "p", "E", role="employer", company_name="T")
+        emp = _register_and_login(
+            client, db_session, "cv_e@t.com", "p", "E", role="employer", company_name="T"
+        )
         job_id = _create_job(client, emp)
         me = client.get("/users/me", headers=cand)
         uid = me.json()["id"]
-        resume = crud_resume.create(db_session, obj_in=ResumeCreate(
-            title="cv.pdf", file_url="u/cv.pdf", raw_text="Dev...", embedding=[0.05]*384
-        ), user_id=uid)
-        resp = client.post("/applications", json={"job_id": job_id, "resume_id": resume.id}, headers=cand)
+        resume = crud_resume.create(
+            db_session,
+            obj_in=ResumeCreate(
+                title="cv.pdf", file_url="u/cv.pdf", raw_text="Dev...", embedding=[0.05] * 384
+            ),
+            user_id=uid,
+        )
+        resp = client.post(
+            "/applications", json={"job_id": job_id, "resume_id": resume.id}, headers=cand
+        )
         assert resp.status_code == 201, resp.text
         assert resp.json()["resume_id"] == resume.id
 
-    def test_create_application_with_owned_cv_document(self, client: TestClient, db_session: Session):
+    def test_create_application_with_owned_cv_document(
+        self, client: TestClient, db_session: Session
+    ):
         cand = _register_and_login(client, db_session, "builder@t.com", "p", "Builder")
-        emp = _register_and_login(client, db_session, "builder_e@t.com", "p", "E", role="employer", company_name="T")
+        emp = _register_and_login(
+            client, db_session, "builder_e@t.com", "p", "E", role="employer", company_name="T"
+        )
         job_id = _create_job(client, emp)
         cv_document = client.post(
             "/cv-documents",
-            json={"title": "Backend CV", "content_json": {"version": 1, "personal": {"full_name": "Builder"}}},
+            json={
+                "title": "Backend CV",
+                "content_json": {"version": 1, "personal": {"full_name": "Builder"}},
+            },
             headers=cand,
         ).json()
 
@@ -121,7 +140,9 @@ class TestApplicationsCRUD:
     def test_cannot_apply_with_another_candidates_cv(self, client: TestClient, db_session: Session):
         owner = _register_and_login(client, db_session, "builder_owner@t.com", "p", "Owner")
         other = _register_and_login(client, db_session, "builder_other@t.com", "p", "Other")
-        emp = _register_and_login(client, db_session, "builder_owner_e@t.com", "p", "E", role="employer", company_name="T")
+        emp = _register_and_login(
+            client, db_session, "builder_owner_e@t.com", "p", "E", role="employer", company_name="T"
+        )
         job_id = _create_job(client, emp)
         cv_document = client.post("/cv-documents", json={"title": "Private"}, headers=owner).json()
 
@@ -135,7 +156,9 @@ class TestApplicationsCRUD:
     def test_apply_twice_allowed(self, client: TestClient, db_session: Session):
         """Applying twice creates two applications (dedup is not enforced yet)."""
         cand = _register_and_login(client, db_session, "tw@t.com", "p", "Tw")
-        emp = _register_and_login(client, db_session, "tw_e@t.com", "p", "TE", role="employer", company_name="TI")
+        emp = _register_and_login(
+            client, db_session, "tw_e@t.com", "p", "TE", role="employer", company_name="TI"
+        )
         job_id = _create_job(client, emp)
         r1 = client.post("/applications", json={"job_id": job_id}, headers=cand)
         assert r1.status_code == 201
@@ -151,7 +174,9 @@ class TestApplicationsCRUD:
 class TestApplicationStatusFlow:
     def test_employer_updates_to_reviewed(self, client: TestClient, db_session: Session):
         cand = _register_and_login(client, db_session, "f1@t.com", "p", "F1")
-        emp = _register_and_login(client, db_session, "f1e@t.com", "p", "FE", role="employer", company_name="FC")
+        emp = _register_and_login(
+            client, db_session, "f1e@t.com", "p", "FE", role="employer", company_name="FC"
+        )
         job_id = _create_job(client, emp)
         app_id = client.post("/applications", json={"job_id": job_id}, headers=cand).json()["id"]
         resp = client.patch(f"/applications/{app_id}", json={"status": "reviewed"}, headers=emp)
@@ -160,7 +185,9 @@ class TestApplicationStatusFlow:
 
     def test_employer_updates_to_shortlisted(self, client: TestClient, db_session: Session):
         cand = _register_and_login(client, db_session, "sh@t.com", "p", "Sh")
-        emp = _register_and_login(client, db_session, "she@t.com", "p", "SE", role="employer", company_name="SC")
+        emp = _register_and_login(
+            client, db_session, "she@t.com", "p", "SE", role="employer", company_name="SC"
+        )
         job_id = _create_job(client, emp)
         app_id = client.post("/applications", json={"job_id": job_id}, headers=cand).json()["id"]
         resp = client.patch(f"/applications/{app_id}", json={"status": "shortlisted"}, headers=emp)
@@ -169,7 +196,9 @@ class TestApplicationStatusFlow:
 
     def test_employer_rejects_candidate(self, client: TestClient, db_session: Session):
         cand = _register_and_login(client, db_session, "rj@t.com", "p", "Rj")
-        emp = _register_and_login(client, db_session, "rje@t.com", "p", "RE", role="employer", company_name="RC")
+        emp = _register_and_login(
+            client, db_session, "rje@t.com", "p", "RE", role="employer", company_name="RC"
+        )
         job_id = _create_job(client, emp)
         app_id = client.post("/applications", json={"job_id": job_id}, headers=cand).json()["id"]
         resp = client.patch(f"/applications/{app_id}", json={"status": "rejected"}, headers=emp)
@@ -178,7 +207,9 @@ class TestApplicationStatusFlow:
 
     def test_candidate_cannot_update_own_status(self, client: TestClient, db_session: Session):
         cand = _register_and_login(client, db_session, "cs@t.com", "p", "CS")
-        emp = _register_and_login(client, db_session, "cse@t.com", "p", "CSE", role="employer", company_name="CSC")
+        emp = _register_and_login(
+            client, db_session, "cse@t.com", "p", "CSE", role="employer", company_name="CSC"
+        )
         job_id = _create_job(client, emp)
         app_id = client.post("/applications", json={"job_id": job_id}, headers=cand).json()["id"]
         resp = client.patch(f"/applications/{app_id}", json={"status": "reviewed"}, headers=cand)
@@ -191,7 +222,9 @@ class TestApplicationPermissions:
     def test_candidate_only_sees_own_applications(self, client: TestClient, db_session: Session):
         ca = _register_and_login(client, db_session, "ca@t.com", "p", "CA")
         cb = _register_and_login(client, db_session, "cb@t.com", "p", "CB")
-        emp = _register_and_login(client, db_session, "pe@t.com", "p", "PE", role="employer", company_name="PC")
+        emp = _register_and_login(
+            client, db_session, "pe@t.com", "p", "PE", role="employer", company_name="PC"
+        )
         job_id = _create_job(client, emp)
         a_resp = client.post("/applications", json={"job_id": job_id}, headers=ca)
         assert a_resp.status_code == 201
@@ -205,7 +238,9 @@ class TestApplicationPermissions:
 
     def test_employer_sees_single_application(self, client: TestClient, db_session: Session):
         cand = _register_and_login(client, db_session, "sa@t.com", "p", "SA")
-        emp = _register_and_login(client, db_session, "sae@t.com", "p", "SAE", role="employer", company_name="SAC")
+        emp = _register_and_login(
+            client, db_session, "sae@t.com", "p", "SAE", role="employer", company_name="SAC"
+        )
         job_id = _create_job(client, emp)
         app_id = client.post("/applications", json={"job_id": job_id}, headers=cand).json()["id"]
         resp = client.get(f"/applications/{app_id}", headers=emp)
@@ -214,7 +249,9 @@ class TestApplicationPermissions:
 
     def test_employer_sees_ranked_list_for_job(self, client: TestClient, db_session: Session):
         cand = _register_and_login(client, db_session, "rk@t.com", "p", "RK")
-        emp = _register_and_login(client, db_session, "rke@t.com", "p", "RKE", role="employer", company_name="RKC")
+        emp = _register_and_login(
+            client, db_session, "rke@t.com", "p", "RKE", role="employer", company_name="RKC"
+        )
         job_id = _create_job(client, emp)
         client.post("/applications", json={"job_id": job_id}, headers=cand)
         resp = client.get(f"/applications/employer/jobs/{job_id}", headers=emp)

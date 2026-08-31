@@ -28,7 +28,9 @@ def test_assistant_chat_validation(client: TestClient):
     assert resp.status_code == 400
 
 
-@patch("app.services.assistant_service.deepseek_client.create_chat_completion", new_callable=AsyncMock)
+@patch(
+    "app.services.assistant_service.deepseek_client.create_chat_completion", new_callable=AsyncMock
+)
 def test_assistant_chat_success(mock_create_chat, client: TestClient):
     """Test AI assistant chat response parsing."""
     mock_create_chat.return_value = {
@@ -42,13 +44,8 @@ def test_assistant_chat_success(mock_create_chat, client: TestClient):
     }
 
     payload = {
-        "messages": [
-            {"role": "user", "content": "Tìm cho tôi việc làm React tại Hà Nội"}
-        ],
-        "context": {
-            "current_path": "/jobs",
-            "role": "candidate"
-        }
+        "messages": [{"role": "user", "content": "Tìm cho tôi việc làm React tại Hà Nội"}],
+        "context": {"current_path": "/jobs", "role": "candidate"},
     }
 
     resp = client.post("/ai/assistant/chat", json=payload)
@@ -60,19 +57,16 @@ def test_assistant_chat_success(mock_create_chat, client: TestClient):
     assert data["suggested_cards"][0]["url"] == "/jobs/1"
 
 
-@patch("app.services.assistant_service.deepseek_client.create_chat_completion", new_callable=AsyncMock)
+@patch(
+    "app.services.assistant_service.deepseek_client.create_chat_completion", new_callable=AsyncMock
+)
 def test_assistant_chat_fallback(mock_create_chat, client: TestClient):
     """Test fallback response when LLM service throws an error."""
     mock_create_chat.side_effect = Exception("API connection timed out")
 
     payload = {
-        "messages": [
-            {"role": "user", "content": "Xin chào, bạn có thể làm gì?"}
-        ],
-        "context": {
-            "current_path": "/",
-            "role": "guest"
-        }
+        "messages": [{"role": "user", "content": "Xin chào, bạn có thể làm gì?"}],
+        "context": {"current_path": "/", "role": "guest"},
     }
 
     resp = client.post("/ai/assistant/chat", json=payload)

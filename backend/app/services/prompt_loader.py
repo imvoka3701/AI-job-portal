@@ -84,4 +84,3 @@ def get_system_prompt(feature: AIFeature, db: Session | None = None) -> str:
 
     # Fallback — hardcoded prompt always works
     return HARDCODED_FALLBACK_PROMPTS.get(feature, "")
-

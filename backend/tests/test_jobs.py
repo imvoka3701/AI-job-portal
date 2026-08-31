@@ -183,7 +183,7 @@ class TestJobFilters:
         for i in range(3):
             client.post(
                 "/jobs",
-                json={**JOB_PAYLOAD, "title": f"Job #{i+1}"},
+                json={**JOB_PAYLOAD, "title": f"Job #{i + 1}"},
                 headers=headers,
             )
 

@@ -12,7 +12,9 @@ class CriteriaScore(Base):
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
 
     round_id: Mapped[int] = mapped_column(
-        ForeignKey("interview_rounds.id", ondelete="CASCADE"), nullable=False, index=True,
+        ForeignKey("interview_rounds.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
 
     criteria_name: Mapped[str] = mapped_column(String(255), nullable=False)

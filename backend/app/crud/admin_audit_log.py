@@ -56,7 +56,9 @@ class CRUDAdminAuditLog:
                 stmt.order_by(AdminAuditLog.created_at.desc(), AdminAuditLog.id.desc())
                 .offset(skip)
                 .limit(limit)
-            ).scalars().all()
+            )
+            .scalars()
+            .all()
         )
         return items, total
 
@@ -81,7 +83,9 @@ class CRUDAdminAuditLog:
                 stmt.order_by(AdminAuditLog.created_at.desc(), AdminAuditLog.id.desc())
                 .offset(skip)
                 .limit(limit)
-            ).scalars().all()
+            )
+            .scalars()
+            .all()
         )
         return items, total
 

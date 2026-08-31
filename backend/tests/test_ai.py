@@ -61,6 +61,7 @@ def _register_and_login(
     # Auto-activate employer accounts in tests — bypasses admin approval
     if role == "employer" and db is not None:
         from app.models.user import User as UserModel
+
         user = db.query(UserModel).filter(UserModel.email == email).first()
         if user and not user.is_active:
             user.is_active = True
@@ -86,9 +87,7 @@ def _create_resume_with_embedding(
     return resume.id
 
 
-def _create_job_with_embedding(
-    db: Session, employer_id: int, embedding: list[float]
-) -> int:
+def _create_job_with_embedding(db: Session, employer_id: int, embedding: list[float]) -> int:
     """Create a job with a pre-computed embedding via CRUD."""
     job_in = JobCreate(
         title="Senior Python Developer",
@@ -132,7 +131,11 @@ class TestAIMatchingIntegration:
             client, "cand@test.com", "secret123", "Nguyen Van A", "candidate"
         )
         empl_headers = _register_and_login(
-            client, "empl@test.com", "secret123", "Công ty TNHH ABC", "employer",
+            client,
+            "empl@test.com",
+            "secret123",
+            "Công ty TNHH ABC",
+            "employer",
             db=db_session,
         )
 
@@ -192,15 +195,17 @@ class TestAIMatchingIntegration:
         )
         assert resp_404b.status_code == 404
 
-    def test_match_resume_without_embedding(
-        self, client: TestClient, db_session: Session
-    ):
+    def test_match_resume_without_embedding(self, client: TestClient, db_session: Session):
         """When a resume has no embedding, score should be 0 with explanation."""
         cand_headers = _register_and_login(
             client, "nocv@test.com", "secret123", "No CV User", "candidate"
         )
         empl_headers = _register_and_login(
-            client, "empl2@test.com", "secret123", "Công ty XYZ", "employer",
+            client,
+            "empl2@test.com",
+            "secret123",
+            "Công ty XYZ",
+            "employer",
             db=db_session,
         )
 
@@ -210,7 +215,9 @@ class TestAIMatchingIntegration:
         empl_id = me2.json()["id"]
 
         # Resume WITHOUT embedding
-        resume_in = ResumeCreate(title="empty.pdf", file_url="uploads/test/empty.pdf", raw_text="Some text")
+        resume_in = ResumeCreate(
+            title="empty.pdf", file_url="uploads/test/empty.pdf", raw_text="Some text"
+        )
         resume = crud_resume.create(db_session, obj_in=resume_in, user_id=cand_id)
 
         # Job WITH embedding
@@ -227,15 +234,17 @@ class TestAIMatchingIntegration:
         assert data["score"] == 0.0
         assert "no embedding" in data["explanation"].lower()
 
-    def test_match_job_without_embedding(
-        self, client: TestClient, db_session: Session
-    ):
+    def test_match_job_without_embedding(self, client: TestClient, db_session: Session):
         """When a job has no embedding, endpoint returns 422."""
         cand_headers = _register_and_login(
             client, "has_cv@test.com", "secret123", "Has CV", "candidate"
         )
         empl_headers = _register_and_login(
-            client, "empl3@test.com", "secret123", "Công ty NoEmbed", "employer",
+            client,
+            "empl3@test.com",
+            "secret123",
+            "Công ty NoEmbed",
+            "employer",
             db=db_session,
         )
 
@@ -409,8 +418,12 @@ class TestAIMatchingRealEmbeddings:
         mkt_score = mkt_resp.json()["score"]
 
         # ── 6. Validate scores ────────────────────────────────────────
-        assert isinstance(py_score, (int, float)), f"py_score should be numeric, got {type(py_score)}"
-        assert isinstance(mkt_score, (int, float)), f"mkt_score should be numeric, got {type(mkt_score)}"
+        assert isinstance(py_score, (int, float)), (
+            f"py_score should be numeric, got {type(py_score)}"
+        )
+        assert isinstance(mkt_score, (int, float)), (
+            f"mkt_score should be numeric, got {type(mkt_score)}"
+        )
         assert not math.isnan(py_score), "py_score should not be NaN"
         assert not math.isnan(mkt_score), "mkt_score should not be NaN"
         assert 0.0 <= py_score <= 100.0, f"py_score {py_score} out of [0, 100]"
@@ -448,9 +461,7 @@ class TestAIMatchingRealEmbeddings:
             raw_text=self_text,
             embedding=self_emb,
         )
-        self_resume = crud_resume.create(
-            db_session, obj_in=self_resume_in, user_id=cand_user_id
-        )
+        self_resume = crud_resume.create(db_session, obj_in=self_resume_in, user_id=cand_user_id)
         # Compare self_resume embedding vs py_job embedding via Python
         # (not via HTTP, since we just want to validate the model itself)
         from app.services.ai_matching import _cosine_similarity_python
@@ -485,9 +496,7 @@ class TestAIRealDeepseekCalls:
     Run with: pytest tests/test_ai.py::TestAIRealDeepseekCalls -v -s
     """
 
-    def test_evaluate_cv_with_real_deepseek(
-        self, client: TestClient, db_session: Session
-    ):
+    def test_evaluate_cv_with_real_deepseek(self, client: TestClient, db_session: Session):
         """POST /ai/evaluate with a realistic mid-level Python CV.
 
         Prints the full JSON response. Validates structure and content
@@ -544,9 +553,7 @@ class TestAIRealDeepseekCalls:
             print(f"  STATUS: {resp.status_code}")
             print(f"  BODY: {resp.text}")
             print("=" * 72 + "\n")
-            pytest.fail(
-                f"/ai/evaluate returned {resp.status_code}: {resp.text[:500]}"
-            )
+            pytest.fail(f"/ai/evaluate returned {resp.status_code}: {resp.text[:500]}")
 
         data = resp.json()
         # Write UTF-8 JSON directly to avoid Windows cp1252 console issues
@@ -571,9 +578,7 @@ class TestAIRealDeepseekCalls:
             f"Expected ≥2 suggestions, got {data.get('suggestions')}"
         )
         for i, s in enumerate(data["suggestions"]):
-            assert isinstance(s, str) and len(s) > 20, (
-                f"suggestion[{i}] too short/generic: {s!r}"
-            )
+            assert isinstance(s, str) and len(s) > 20, f"suggestion[{i}] too short/generic: {s!r}"
 
         assert isinstance(data["skill_analysis"], dict) and len(data["skill_analysis"]) >= 3, (
             f"Expected ≥3 skills analyzed, got {data.get('skill_analysis')}"
@@ -592,9 +597,7 @@ class TestAIRealDeepseekCalls:
                     f"skill_analysis['{skill}'] too short: {assessment!r}"
                 )
 
-    def test_roadmap_with_real_deepseek(
-        self, client: TestClient, db_session: Session
-    ):
+    def test_roadmap_with_real_deepseek(self, client: TestClient, db_session: Session):
         """POST /ai/roadmap with a realistic CV and target role.
 
         Prints the full JSON response. Validates that steps are specific
@@ -653,9 +656,7 @@ class TestAIRealDeepseekCalls:
             print(f"  STATUS: {resp.status_code}")
             print(f"  BODY: {resp.text}")
             print("=" * 72 + "\n")
-            pytest.fail(
-                f"/ai/roadmap returned {resp.status_code}: {resp.text[:500]}"
-            )
+            pytest.fail(f"/ai/roadmap returned {resp.status_code}: {resp.text[:500]}")
 
         data = resp.json()
         # Write UTF-8 JSON directly to avoid Windows cp1252 console issues
@@ -685,16 +686,14 @@ class TestAIRealDeepseekCalls:
             assert isinstance(step["description"], str) and len(step["description"]) > 30, (
                 f"step[{i}].description too short/generic: {step['description']!r}"
             )
-            assert isinstance(step["skills_to_learn"], list) and len(step["skills_to_learn"]) >= 1, (
-                f"step[{i}].skills_to_learn empty — should list specific skills"
-            )
+            assert (
+                isinstance(step["skills_to_learn"], list) and len(step["skills_to_learn"]) >= 1
+            ), f"step[{i}].skills_to_learn empty — should list specific skills"
             for skill in step["skills_to_learn"]:
                 assert isinstance(skill, str) and len(skill) > 2, (
                     f"step[{i}].skills_to_learn has empty/generic entry: {skill!r}"
                 )
-            assert isinstance(step["resources"], list), (
-                f"step[{i}].resources not a list"
-            )
+            assert isinstance(step["resources"], list), f"step[{i}].resources not a list"
             # Resources are optional (can be empty), but if present they must be strings
             for res in step["resources"]:
                 assert isinstance(res, str) and len(res) > 5, (
@@ -708,9 +707,7 @@ class TestAIRealDeepseekCalls:
             f"estimated_months {data['estimated_months']} seems unrealistic (>5 years)"
         )
 
-    def test_summarize_cv_with_real_deepseek(
-        self, client: TestClient, db_session: Session
-    ):
+    def test_summarize_cv_with_real_deepseek(self, client: TestClient, db_session: Session):
         """POST /ai/summarize-cv with a realistic CV + job description.
 
         Prints the full JSON response. Validates fit_points are specific
@@ -721,14 +718,23 @@ class TestAIRealDeepseekCalls:
 
         # ── Register candidate + employer + create resume + job ─────────
         cand = _register_and_login(
-            client, "summarize_c@test.com", "secret123", "Tóm Tắt CV", "candidate",
+            client,
+            "summarize_c@test.com",
+            "secret123",
+            "Tóm Tắt CV",
+            "candidate",
         )
         me = client.get("/users/me", headers=cand)
         cand_id = me.json()["id"]
 
         empl = _register_and_login(
-            client, "summarize_e@test.com", "secret123", "Công ty Tóm Tắt",
-            "employer", db=db_session, company_name="Tóm Tắt Corp",
+            client,
+            "summarize_e@test.com",
+            "secret123",
+            "Công ty Tóm Tắt",
+            "employer",
+            db=db_session,
+            company_name="Tóm Tắt Corp",
         )
         me_emp = client.get("/users/me", headers=empl)
         assert me_emp.status_code == 200
@@ -754,13 +760,15 @@ class TestAIRealDeepseekCalls:
         resume = crud_resume.create(db_session, obj_in=resume_in, user_id=cand_id)
 
         # Job that is a partial match
-        job_text = " ".join([
-            "Senior Backend Developer (Python, AWS, Microservices).",
-            "Công ty FinTech tìm Senior Backend Developer xây dựng hệ thống microservices trên AWS.",
-            "Yêu cầu: 5+ năm Python, thành thạo FastAPI/Django, Kubernetes, AWS (ECS, RDS, Lambda).",
-            "Kinh nghiệm với message queue (Kafka/RabbitMQ), gRPC, distributed systems.",
-            "Quyền lợi: Lương 40-60 triệu, ESOP, làm việc hybrid, MacBook Pro M3.",
-        ])
+        job_text = " ".join(
+            [
+                "Senior Backend Developer (Python, AWS, Microservices).",
+                "Công ty FinTech tìm Senior Backend Developer xây dựng hệ thống microservices trên AWS.",
+                "Yêu cầu: 5+ năm Python, thành thạo FastAPI/Django, Kubernetes, AWS (ECS, RDS, Lambda).",
+                "Kinh nghiệm với message queue (Kafka/RabbitMQ), gRPC, distributed systems.",
+                "Quyền lợi: Lương 40-60 triệu, ESOP, làm việc hybrid, MacBook Pro M3.",
+            ]
+        )
         job_emb = generate_embedding(job_text)
         job_in = JobCreate(
             title="Senior Backend Developer",
@@ -798,26 +806,22 @@ class TestAIRealDeepseekCalls:
         sys.stdout.buffer.write(("=" * 72 + "\n\n").encode("utf-8"))
 
         # ── Structural assertions ────────────────────────────────────────
-        assert isinstance(data["fit_points"], list), f"fit_points not a list: {data.get('fit_points')}"
+        assert isinstance(data["fit_points"], list), (
+            f"fit_points not a list: {data.get('fit_points')}"
+        )
         assert len(data["fit_points"]) >= 1, "fit_points should not be empty"
         for pt in data["fit_points"]:
-            assert isinstance(pt, str) and len(pt) > 10, (
-                f"fit_point too short/generic: {pt!r}"
-            )
+            assert isinstance(pt, str) and len(pt) > 10, f"fit_point too short/generic: {pt!r}"
 
         assert isinstance(data["questions"], list), f"questions not a list: {data.get('questions')}"
         for q in data["questions"]:
-            assert isinstance(q, str) and len(q) > 10, (
-                f"question too short/generic: {q!r}"
-            )
+            assert isinstance(q, str) and len(q) > 10, f"question too short/generic: {q!r}"
 
         assert isinstance(data["summary"], str) and len(data["summary"]) > 20, (
             f"summary too short: {data['summary']!r}"
         )
 
-    def test_interview_questions_with_real_deepseek(
-        self, client: TestClient, db_session: Session
-    ):
+    def test_interview_questions_with_real_deepseek(self, client: TestClient, db_session: Session):
         """POST /ai/interview-questions with selected skills.
 
         Prints the full JSON response. Validates questions are actually
@@ -828,14 +832,23 @@ class TestAIRealDeepseekCalls:
 
         # ── Register candidate + employer + create resume + job ─────────
         cand = _register_and_login(
-            client, "intv_c@test.com", "secret123", "Phỏng Vấn Test", "candidate",
+            client,
+            "intv_c@test.com",
+            "secret123",
+            "Phỏng Vấn Test",
+            "candidate",
         )
         me = client.get("/users/me", headers=cand)
         cand_id = me.json()["id"]
 
         empl = _register_and_login(
-            client, "intv_e@test.com", "secret123", "Công ty Phỏng Vấn",
-            "employer", db=db_session, company_name="Intv Corp",
+            client,
+            "intv_e@test.com",
+            "secret123",
+            "Công ty Phỏng Vấn",
+            "employer",
+            db=db_session,
+            company_name="Intv Corp",
         )
         me_emp = client.get("/users/me", headers=empl)
         empl_id = me_emp.json()["id"]
@@ -851,25 +864,31 @@ class TestAIRealDeepseekCalls:
         )
         resume_emb = generate_embedding(resume_text)
         resume_in = ResumeCreate(
-            title="cv_intv_test.pdf", file_url="uploads/test/cv_intv_test.pdf",
-            raw_text=resume_text, embedding=resume_emb,
+            title="cv_intv_test.pdf",
+            file_url="uploads/test/cv_intv_test.pdf",
+            raw_text=resume_text,
+            embedding=resume_emb,
         )
         resume = crud_resume.create(db_session, obj_in=resume_in, user_id=cand_id)
 
-        job_text = " ".join([
-            "Senior Backend Developer (Python, AWS, Microservices).",
-            "Công ty FinTech tìm Senior Backend Developer xây dựng hệ thống microservices trên AWS.",
-            "Yêu cầu: 5+ năm Python, thành thạo FastAPI/Django, Kubernetes, AWS (ECS, RDS, Lambda).",
-            "Kinh nghiệm với message queue, gRPC, distributed systems, hệ thống high-throughput.",
-            "Quyền lợi: Lương 40-60 triệu, ESOP, hybrid.",
-        ])
+        job_text = " ".join(
+            [
+                "Senior Backend Developer (Python, AWS, Microservices).",
+                "Công ty FinTech tìm Senior Backend Developer xây dựng hệ thống microservices trên AWS.",
+                "Yêu cầu: 5+ năm Python, thành thạo FastAPI/Django, Kubernetes, AWS (ECS, RDS, Lambda).",
+                "Kinh nghiệm với message queue, gRPC, distributed systems, hệ thống high-throughput.",
+                "Quyền lợi: Lương 40-60 triệu, ESOP, hybrid.",
+            ]
+        )
         job_emb = generate_embedding(job_text)
         job_in = JobCreate(
             title="Senior Backend Developer",
             description="Công ty FinTech tìm Senior Backend Developer xây dựng microservices.",
             requirements="5+ năm Python, FastAPI/Django, Kubernetes, AWS, Kafka, gRPC.",
             benefits="Lương 40-60 triệu, ESOP, hybrid.",
-            job_type="full_time", experience_level="senior", location="Hà Nội",
+            job_type="full_time",
+            experience_level="senior",
+            location="Hà Nội",
         )
         job = crud_job.create(db_session, obj_in=job_in, employer_id=empl_id)
         crud_job.update_embedding(db_session, job=job, embedding=job_emb)
@@ -941,14 +960,23 @@ class TestAIRealDeepseekCalls:
 
         # ── Setup: same pattern as other tests ────────────────────────────
         cand = _register_and_login(
-            client, "email_c@t.com", "secret123", "Nguyễn Văn Ứng Viên", "candidate",
+            client,
+            "email_c@t.com",
+            "secret123",
+            "Nguyễn Văn Ứng Viên",
+            "candidate",
         )
         me = client.get("/users/me", headers=cand)
         cand_id = me.json()["id"]
 
         empl = _register_and_login(
-            client, "email_e@t.com", "secret123", "Công ty Email",
-            "employer", db=db_session, company_name="Email Corp Việt Nam",
+            client,
+            "email_e@t.com",
+            "secret123",
+            "Công ty Email",
+            "employer",
+            db=db_session,
+            company_name="Email Corp Việt Nam",
         )
         me_emp = client.get("/users/me", headers=empl)
         empl_id = me_emp.json()["id"]
@@ -963,31 +991,41 @@ class TestAIRealDeepseekCalls:
         )
         resume_emb = generate_embedding(resume_text)
         resume_in = ResumeCreate(
-            title="cv_email_test.pdf", file_url="uploads/test/cv_email_test.pdf",
-            raw_text=resume_text, embedding=resume_emb,
+            title="cv_email_test.pdf",
+            file_url="uploads/test/cv_email_test.pdf",
+            raw_text=resume_text,
+            embedding=resume_emb,
         )
         resume = crud_resume.create(db_session, obj_in=resume_in, user_id=cand_id)
 
-        job_text = " ".join([
-            "Senior Backend Developer (Python, FastAPI).",
-            "Công ty công nghệ tìm Senior Backend Developer.",
-            "Yêu cầu: 5+ năm Python, FastAPI, PostgreSQL, Docker.",
-            "Quyền lợi: Lương cạnh tranh, làm việc hybrid.",
-        ])
+        job_text = " ".join(
+            [
+                "Senior Backend Developer (Python, FastAPI).",
+                "Công ty công nghệ tìm Senior Backend Developer.",
+                "Yêu cầu: 5+ năm Python, FastAPI, PostgreSQL, Docker.",
+                "Quyền lợi: Lương cạnh tranh, làm việc hybrid.",
+            ]
+        )
         job_emb = generate_embedding(job_text)
         job_in = JobCreate(
             title="Senior Backend Developer",
             description="Phát triển và duy trì hệ thống API hiệu năng cao.",
             requirements="5+ năm Python, FastAPI, PostgreSQL, Docker, Git, CI/CD.",
             benefits="Lương cạnh tranh, làm việc hybrid, bảo hiểm.",
-            job_type="full_time", experience_level="senior", location="Hà Nội",
+            job_type="full_time",
+            experience_level="senior",
+            location="Hà Nội",
         )
         job = crud_job.create(db_session, obj_in=job_in, employer_id=empl_id)
 
         # Create application with resume attached via API
         apply_resp = client.post(
             "/applications",
-            json={"job_id": job.id, "resume_id": resume.id, "cover_letter": "Tôi rất phù hợp với vị trí này."},
+            json={
+                "job_id": job.id,
+                "resume_id": resume.id,
+                "cover_letter": "Tôi rất phù hợp với vị trí này.",
+            },
             headers=cand,
         )
         assert apply_resp.status_code == 201, apply_resp.text
@@ -1016,7 +1054,9 @@ class TestAIRealDeepseekCalls:
                 print(f"  STATUS: {resp.status_code}")
                 print(f"  BODY: {resp.text}")
                 print(f"{'=' * 72}\n")
-                pytest.fail(f"/ai/generate-email ({etype}) returned {resp.status_code}: {resp.text[:500]}")
+                pytest.fail(
+                    f"/ai/generate-email ({etype}) returned {resp.status_code}: {resp.text[:500]}"
+                )
 
             data = resp.json()
             sys.stdout.buffer.write(
@@ -1047,9 +1087,16 @@ class TestAIRealDeepseekCalls:
                 # in "Việt Nam" (the country). Review the full email text
                 # manually instead — the body is printed above for inspection.
                 sensitive_terms = [
-                    "tuổi", "giới tính", "dân tộc", "tôn giáo",
-                    "hôn nhân", "mang thai", "khuyết tật", "tàn tật",
-                    "quá trẻ", "quá già",
+                    "tuổi",
+                    "giới tính",
+                    "dân tộc",
+                    "tôn giáo",
+                    "hôn nhân",
+                    "mang thai",
+                    "khuyết tật",
+                    "tàn tật",
+                    "quá trẻ",
+                    "quá già",
                 ]
                 body_lower = body.lower()
                 for pattern in sensitive_terms:
@@ -1059,9 +1106,18 @@ class TestAIRealDeepseekCalls:
                     )
                 # Should mention future opportunities
                 future_keywords = [
-                    "tương lai", "dịp khác", "lần sau", "sắp tới", "về sau",
-                    "sau này", "cơ hội", "vị trí phù hợp", "giữ liên lạc",
-                    "liên hệ", "đồng hành", "hợp tác",
+                    "tương lai",
+                    "dịp khác",
+                    "lần sau",
+                    "sắp tới",
+                    "về sau",
+                    "sau này",
+                    "cơ hội",
+                    "vị trí phù hợp",
+                    "giữ liên lạc",
+                    "liên hệ",
+                    "đồng hành",
+                    "hợp tác",
                 ]
                 assert any(kw in body_lower for kw in future_keywords), (
                     f"reject email should invite future applications: {body[:200]}"

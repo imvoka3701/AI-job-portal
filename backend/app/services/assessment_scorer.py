@@ -1,6 +1,5 @@
 """Deterministic scoring engine for MBTI and MI assessments."""
 
-
 from app.schemas.assessment import (
     AssessmentQuestionnaire,
 )
@@ -8,6 +7,7 @@ from app.schemas.assessment import (
 # ── MBTI Questionnaire (mbti-v1) ──────────────────────────────────────────────
 # 40 questions total: 10 per dimension (E/I, S/N, T/F, J/P)
 # Scoring: 1-5 scale, higher = first letter (E, S, T, J), lower = second letter (I, N, F, P)
+
 
 def get_mbti_v1_questionnaire() -> AssessmentQuestionnaire:
     """Return MBTI v1 questionnaire (40 questions)."""

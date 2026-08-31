@@ -61,6 +61,7 @@ class JSONLogFormatter(logging.Formatter):
             log_obj["exception"] = self.formatException(record.exc_info)
         return json.dumps(log_obj)
 
+
 def _configure_logging() -> None:
     """Configure root logger and ai_audit dedicated handler.
 
@@ -136,6 +137,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 # --- Exception Handlers ---
 @app.exception_handler(HTTPException)
 async def custom_http_exception_handler(request: Request, exc: HTTPException):
@@ -148,19 +150,22 @@ async def custom_http_exception_handler(request: Request, exc: HTTPException):
         content={"error": {"code": "HTTP_ERROR", "message": str(exc.detail)}},
     )
 
+
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     from fastapi.encoders import jsonable_encoder
+
     return JSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         content={
             "error": {
                 "code": "VALIDATION_ERROR",
                 "message": "Dữ liệu không hợp lệ",
-                "details": jsonable_encoder(exc.errors())
+                "details": jsonable_encoder(exc.errors()),
             }
         },
     )
+
 
 @app.exception_handler(SQLAlchemyError)
 async def sqlalchemy_exception_handler(request: Request, exc: SQLAlchemyError):
@@ -170,6 +175,7 @@ async def sqlalchemy_exception_handler(request: Request, exc: SQLAlchemyError):
         content={"error": {"code": "DATABASE_ERROR", "message": "Lỗi cơ sở dữ liệu nội bộ"}},
     )
 
+
 @app.exception_handler(Exception)
 async def general_exception_handler(request: Request, exc: Exception):
     logging.getLogger(__name__).exception("Unhandled exception")
@@ -177,6 +183,7 @@ async def general_exception_handler(request: Request, exc: Exception):
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content={"error": {"code": "INTERNAL_SERVER_ERROR", "message": "Lỗi hệ thống nội bộ"}},
     )
+
 
 # --- Include Routers ---
 app.include_router(auth.router)

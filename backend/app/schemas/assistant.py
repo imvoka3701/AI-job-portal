@@ -9,9 +9,15 @@ class ChatMessage(BaseModel):
 
 
 class ChatContext(BaseModel):
-    current_path: str = Field(default="/", description="URL path of the page the user is currently on")
-    selected_job_id: Optional[int] = Field(default=None, description="Current job ID if viewing a job detail page")
-    role: Optional[str] = Field(default=None, description="User role if authenticated: candidate, employer, admin")
+    current_path: str = Field(
+        default="/", description="URL path of the page the user is currently on"
+    )
+    selected_job_id: Optional[int] = Field(
+        default=None, description="Current job ID if viewing a job detail page"
+    )
+    role: Optional[str] = Field(
+        default=None, description="User role if authenticated: candidate, employer, admin"
+    )
 
 
 class EmbeddedCard(BaseModel):

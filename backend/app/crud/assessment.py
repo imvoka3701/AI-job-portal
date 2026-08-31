@@ -53,9 +53,7 @@ async def get_attempt_by_id(
     attempt_id: int,
 ) -> AssessmentAttempt | None:
     """Get a specific attempt by ID."""
-    result = await db.execute(
-        select(AssessmentAttempt).where(AssessmentAttempt.id == attempt_id)
-    )
+    result = await db.execute(select(AssessmentAttempt).where(AssessmentAttempt.id == attempt_id))
     return result.scalar_one_or_none()
 
 

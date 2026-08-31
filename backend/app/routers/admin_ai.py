@@ -26,6 +26,7 @@ router = APIRouter(prefix="/admin/ai", tags=["Admin — AI Control"])
 
 # ── Pydantic Schemas ──────────────────────────────────────────────────────────
 
+
 class AIPromptConfigOut(BaseModel):
     id: int
     feature: str
@@ -97,6 +98,7 @@ class AIStatsOut(BaseModel):
 
 # ── Helper ────────────────────────────────────────────────────────────────────
 
+
 def _enrich_prompt(prompt: AIPromptConfig, db: Session) -> AIPromptConfigOut:
     """Attach updated_by_name from users table."""
     updated_by_name: str | None = None
@@ -118,6 +120,7 @@ def _enrich_prompt(prompt: AIPromptConfig, db: Session) -> AIPromptConfigOut:
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
+
 
 @router.get(
     "/prompts",
@@ -290,7 +293,9 @@ def list_logs(
         q = q.filter(AICallLog.created_at <= to_date)
 
     total = q.count()
-    items = q.order_by(desc(AICallLog.created_at)).offset((page - 1) * page_size).limit(page_size).all()
+    items = (
+        q.order_by(desc(AICallLog.created_at)).offset((page - 1) * page_size).limit(page_size).all()
+    )
     return PaginatedLogsOut(items=items, total=total, page=page, page_size=page_size)
 
 

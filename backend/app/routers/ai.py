@@ -64,7 +64,9 @@ router = APIRouter(prefix="/ai", tags=["AI"])
 def _get_cv_document(db: Session, document_id: int, user_id: int):
     document = crud_cv_document.get_by_id(db, document_id=document_id, user_id=user_id)
     if not document:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="CV Builder document not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="CV Builder document not found"
+        )
     return document
 
 
@@ -79,23 +81,21 @@ def _authorize_resume_access(
     if current_user.role == UserRole.CANDIDATE:
         if resume.user_id != current_user.id:
             raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Bạn không có quyền truy cập CV này."
+                status_code=status.HTTP_403_FORBIDDEN, detail="Bạn không có quyền truy cập CV này."
             )
         return
 
     # 2. Employer Validation: Role & AI Permission
     if current_user.role != UserRole.EMPLOYER:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Bạn không có quyền truy cập CV này."
+            status_code=status.HTTP_403_FORBIDDEN, detail="Bạn không có quyền truy cập CV này."
         )
 
     context = build_company_context(db, current_user)
     if not context.has(CompanyPermission.AI_RECRUITMENT):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Bạn không có quyền sử dụng tính năng AI tuyển dụng. Vui lòng liên hệ Admin."
+            detail="Bạn không có quyền sử dụng tính năng AI tuyển dụng. Vui lòng liên hệ Admin.",
         )
 
     # 3. Target Job Verification (if specific job_id is provided)
@@ -104,8 +104,7 @@ def _authorize_resume_access(
         target_job = crud_job.get_by_id(db, job_id=job_id)
         if not target_job:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Công việc yêu cầu không tồn tại."
+                status_code=status.HTTP_404_NOT_FOUND, detail="Công việc yêu cầu không tồn tại."
             )
         require_job_scope(db, context=context, job=target_job)
 
@@ -115,7 +114,7 @@ def _authorize_resume_access(
     if not applications:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="CV này chưa được nộp cho công việc nào thuộc công ty của bạn."
+            detail="CV này chưa được nộp cho công việc nào thuộc công ty của bạn.",
         )
 
     has_valid_scope = False
@@ -131,16 +130,22 @@ def _authorize_resume_access(
     if not has_valid_scope:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="CV nằm ngoài phạm vi phòng ban hoặc dữ liệu tuyển dụng được phân công của bạn."
+            detail="CV nằm ngoài phạm vi phòng ban hoặc dữ liệu tuyển dụng được phân công của bạn.",
         )
 
 
 @router.post("/cv/suggest-summary", response_model=CvSummarySuggestionResponse)
-async def suggest_cv_summary(data: CvSummarySuggestionRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> CvSummarySuggestionResponse:
+async def suggest_cv_summary(
+    data: CvSummarySuggestionRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> CvSummarySuggestionResponse:
     _get_cv_document(db, data.cv_document_id, current_user.id)
     started = time.monotonic()
     try:
-        result = await cv_suggestion_service.suggest_summary(current_text=data.current_text, target_role=data.target_role, language=data.language)
+        result = await cv_suggestion_service.suggest_summary(
+            current_text=data.current_text, target_role=data.target_role, language=data.language
+        )
         ai_audit.log_success(
             user_id=current_user.id,
             user_role=current_user.role.value,
@@ -166,14 +171,20 @@ async def suggest_cv_summary(data: CvSummarySuggestionRequest, current_user: Use
 
 
 @router.post("/cv/rewrite-experience", response_model=CvExperienceSuggestionResponse)
-async def rewrite_cv_experience(data: CvExperienceSuggestionRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> CvExperienceSuggestionResponse:
+async def rewrite_cv_experience(
+    data: CvExperienceSuggestionRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> CvExperienceSuggestionResponse:
     _get_cv_document(db, data.cv_document_id, current_user.id)
     # Fetch job context if provided — enables more targeted bullet rewrites
     job_context = ""
     if data.job_id:
         job = crud_job.get_by_id(db, job_id=data.job_id)
         if job:
-            job_context = " ".join(part for part in [job.title, job.description, job.requirements] if part)
+            job_context = " ".join(
+                part for part in [job.title, job.description, job.requirements] if part
+            )
     started = time.monotonic()
     try:
         result = await cv_suggestion_service.rewrite_experience(
@@ -207,16 +218,27 @@ async def rewrite_cv_experience(data: CvExperienceSuggestionRequest, current_use
 
 
 @router.post("/cv/suggest-skills", response_model=CvSkillsSuggestionResponse)
-async def suggest_cv_skills(data: CvSkillsSuggestionRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> CvSkillsSuggestionResponse:
+async def suggest_cv_skills(
+    data: CvSkillsSuggestionRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> CvSkillsSuggestionResponse:
     document = _get_cv_document(db, data.cv_document_id, current_user.id)
     job_context = ""
     if data.job_id:
         job = crud_job.get_by_id(db, job_id=data.job_id)
         if not job:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
-        job_context = " ".join(part for part in [job.title, job.description, job.requirements] if part)
+        job_context = " ".join(
+            part for part in [job.title, job.description, job.requirements] if part
+        )
     try:
-        return await cv_suggestion_service.suggest_skills(current_skills=data.current_skills, target_role=data.target_role, job_context=job_context, language=data.language)
+        return await cv_suggestion_service.suggest_skills(
+            current_skills=data.current_skills,
+            target_role=data.target_role,
+            job_context=job_context,
+            language=data.language,
+        )
     except Exception as exc:
         logger.exception("CV skills suggestion failed for document %s", document.id)
         raise ai_http_exception(exc)
@@ -312,7 +334,9 @@ async def suggest_roadmap(
     if not resume:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume not found")
     if current_user.role != UserRole.CANDIDATE or resume.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Roadmap chỉ dành cho CV của ứng viên hiện tại.")
+        raise HTTPException(
+            status_code=403, detail="Roadmap chỉ dành cho CV của ứng viên hiện tại."
+        )
 
     if not resume.raw_text:
         raise HTTPException(
@@ -352,7 +376,9 @@ async def suggest_roadmap(
         raise ai_http_exception(exc)
 
 
-@router.post("/summarize-cv", response_model=CVSummarizeResponse, summary="Summarize CV against a job")
+@router.post(
+    "/summarize-cv", response_model=CVSummarizeResponse, summary="Summarize CV against a job"
+)
 async def summarize_cv(
     data: CVSummarizeRequest,
     current_user: User = Depends(get_current_user),
@@ -380,16 +406,18 @@ async def summarize_cv(
     if not job:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
 
-    jd_text = " ".join(
-        p for p in [job.title, job.description, job.requirements, job.benefits] if p
-    )
+    jd_text = " ".join(p for p in [job.title, job.description, job.requirements, job.benefits] if p)
 
     try:
         return await cv_summarizer_service.summarize(
-            cv_text=resume.raw_text, job_description=jd_text, db=db,
+            cv_text=resume.raw_text,
+            job_description=jd_text,
+            db=db,
         )
     except Exception as exc:
-        logger.exception("CV summarization failed for resume %s, job %s", data.resume_id, data.job_id)
+        logger.exception(
+            "CV summarization failed for resume %s, job %s", data.resume_id, data.job_id
+        )
         raise ai_http_exception(exc)
 
 
@@ -433,9 +461,7 @@ async def generate_interview_questions(
     if not job:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
 
-    jd_text = " ".join(
-        p for p in [job.title, job.description, job.requirements, job.benefits] if p
-    )
+    jd_text = " ".join(p for p in [job.title, job.description, job.requirements, job.benefits] if p)
 
     try:
         return await interview_questions_service.generate(
@@ -447,7 +473,9 @@ async def generate_interview_questions(
     except Exception as exc:
         logger.exception(
             "Interview questions generation failed for resume %s, job %s, skills=%s",
-            data.resume_id, data.job_id, data.skills_to_assess,
+            data.resume_id,
+            data.job_id,
+            data.skills_to_assess,
         )
         raise ai_http_exception(exc)
 
@@ -489,9 +517,7 @@ async def generate_email(
 
     candidate_name = app.candidate.full_name if app.candidate else f"Ứng viên #{app.candidate_id}"
     job_title = app.job.title if app.job else f"Vị trí #{app.job_id}"
-    company_name = (
-        context.company.name
-    )
+    company_name = context.company.name
 
     cv_summary = None
     if app.resume and app.resume.raw_text:
@@ -520,7 +546,8 @@ async def generate_email(
     except Exception as exc:
         logger.exception(
             "Email generation failed for application %s, type=%s",
-            data.application_id, data.email_type,
+            data.application_id,
+            data.email_type,
         )
         ai_audit.log_failure(
             user_id=current_user.id,
@@ -532,7 +559,6 @@ async def generate_email(
             started_at=started,
         )
         raise ai_http_exception(exc)
-
 
 
 @router.post(
@@ -574,4 +600,3 @@ def assistant_suggestions(
     """Get context-aware 1-click prompt chips."""
     effective_role = role or (current_user.role if current_user else "guest")
     return assistant_service.get_quick_suggestions(path=path, role=effective_role)
-

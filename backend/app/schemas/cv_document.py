@@ -7,15 +7,34 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.models.cv_document import CvDocumentStatus
 
-ALLOWED_TEMPLATES = {"ats-minimal", "modern-two-column", "professional-blue", "executive", "creative-clean"}
+ALLOWED_TEMPLATES = {
+    "ats-minimal",
+    "modern-two-column",
+    "professional-blue",
+    "executive",
+    "creative-clean",
+}
 
 
 def default_cv_content() -> dict[str, Any]:
     return {
         "version": 1,
-        "personal": {"full_name": "", "headline": "", "email": "", "phone": "", "location": "", "website": ""},
-        "summary": "", "skills": [], "experience": [], "education": [], "projects": [],
-        "certifications": [], "languages": [], "links": {"github": "", "linkedin": "", "portfolio": ""},
+        "personal": {
+            "full_name": "",
+            "headline": "",
+            "email": "",
+            "phone": "",
+            "location": "",
+            "website": "",
+        },
+        "summary": "",
+        "skills": [],
+        "experience": [],
+        "education": [],
+        "projects": [],
+        "certifications": [],
+        "languages": [],
+        "links": {"github": "", "linkedin": "", "portfolio": ""},
     }
 
 
@@ -57,4 +76,3 @@ class CvDocumentRead(BaseModel):
     content_json: dict[str, Any]
     created_at: datetime
     updated_at: datetime
-

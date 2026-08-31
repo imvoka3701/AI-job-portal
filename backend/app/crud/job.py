@@ -28,7 +28,9 @@ class CRUDJob:
                     Job.id.in_(job_ids),
                     Job.company_id == company_id,
                 )
-            ).scalars().all()
+            )
+            .scalars()
+            .all()
         )
 
     def _apply_filters(

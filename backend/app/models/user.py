@@ -22,7 +22,9 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
     full_name: Mapped[str] = mapped_column(String(255), nullable=False)
-    role: Mapped[UserRole] = mapped_column(pg_enum(UserRole, "userrole"), default=UserRole.CANDIDATE)
+    role: Mapped[UserRole] = mapped_column(
+        pg_enum(UserRole, "userrole"), default=UserRole.CANDIDATE
+    )
     avatar_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     phone: Mapped[str | None] = mapped_column(String(20), nullable=True)
     is_active: Mapped[bool] = mapped_column(default=True)
@@ -32,9 +34,7 @@ class User(Base):
     company_logo_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     company_description: Mapped[str | None] = mapped_column(nullable=True)
 
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
@@ -47,7 +47,9 @@ class User(Base):
     resumes: Mapped[list["Resume"]] = relationship(back_populates="user")  # type: ignore[name-defined]  # noqa: F821
     notifications: Mapped[list["Notification"]] = relationship()  # type: ignore[name-defined]  # noqa: F821
     oauth_accounts: Mapped[list["OAuthAccount"]] = relationship(back_populates="user")  # type: ignore[name-defined]  # noqa: F821
-    cv_documents: Mapped[list["CvDocument"]] = relationship(back_populates="user", cascade="all, delete-orphan")  # type: ignore[name-defined]  # noqa: F821
+    cv_documents: Mapped[list["CvDocument"]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )  # type: ignore[name-defined]  # noqa: F821
 
     def __repr__(self) -> str:
         return f"<User {self.email} ({self.role.value})>"

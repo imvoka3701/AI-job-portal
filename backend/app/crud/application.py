@@ -27,7 +27,11 @@ class CRUDApplication:
         return db.execute(stmt).scalars().unique().first()
 
     def get_by_candidate(self, db: Session, *, candidate_id: int) -> list[Application]:
-        stmt = select(Application).where(Application.candidate_id == candidate_id).options(joinedload(Application.job))
+        stmt = (
+            select(Application)
+            .where(Application.candidate_id == candidate_id)
+            .options(joinedload(Application.job))
+        )
         return list(db.execute(stmt).scalars().all())
 
     def get_by_job(self, db: Session, *, job_id: int) -> list[Application]:

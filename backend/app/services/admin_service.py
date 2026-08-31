@@ -102,7 +102,11 @@ def set_job_status(
         target_type="job",
         target_id=str(job.id),
         target_label=job.title,
-        details={"previous_active": previous, "new_active": is_active, "employer_id": job.employer_id},
+        details={
+            "previous_active": previous,
+            "new_active": is_active,
+            "employer_id": job.employer_id,
+        },
     )
     db.commit()
     db.refresh(job)

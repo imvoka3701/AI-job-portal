@@ -89,7 +89,12 @@ class AIMatchingService:
                 {"embedding": str(job_embedding), "limit": limit},
             )
             return [
-                {"resume_id": row.id, "user_id": row.user_id, "title": row.title, "score": row.similarity}
+                {
+                    "resume_id": row.id,
+                    "user_id": row.user_id,
+                    "title": row.title,
+                    "score": row.similarity,
+                }
                 for row in result
             ]
         except Exception:

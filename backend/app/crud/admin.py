@@ -55,7 +55,11 @@ class CRUDAdmin:
         if keyword:
             pattern = f"%{keyword.strip()}%"
             stmt = stmt.join(User, Job.employer_id == User.id).where(
-                or_(Job.title.ilike(pattern), User.company_name.ilike(pattern), User.email.ilike(pattern))
+                or_(
+                    Job.title.ilike(pattern),
+                    User.company_name.ilike(pattern),
+                    User.email.ilike(pattern),
+                )
             )
         if is_active is not None:
             stmt = stmt.where(Job.is_active == is_active)
@@ -66,7 +70,10 @@ class CRUDAdmin:
                 .order_by(Job.created_at.desc())
                 .offset(skip)
                 .limit(limit)
-            ).scalars().unique().all()
+            )
+            .scalars()
+            .unique()
+            .all()
         )
         return items, total
 
@@ -84,7 +91,11 @@ class CRUDAdmin:
         if keyword:
             pattern = f"%{keyword.strip()}%"
             stmt = stmt.where(
-                or_(User.full_name.ilike(pattern), User.email.ilike(pattern), User.company_name.ilike(pattern))
+                or_(
+                    User.full_name.ilike(pattern),
+                    User.email.ilike(pattern),
+                    User.company_name.ilike(pattern),
+                )
             )
         if role is not None:
             stmt = stmt.where(User.role == role)
@@ -92,14 +103,20 @@ class CRUDAdmin:
             stmt = stmt.where(User.is_active == is_active)
         total = db.execute(select(func.count()).select_from(stmt.subquery())).scalar() or 0
         items = list(
-            db.execute(stmt.order_by(User.created_at.desc()).offset(skip).limit(limit)).scalars().all()
+            db.execute(stmt.order_by(User.created_at.desc()).offset(skip).limit(limit))
+            .scalars()
+            .all()
         )
         return items, total
 
     def count_active_admins(self, db: Session) -> int:
-        stmt = select(func.count()).select_from(User).where(
-            User.role == UserRole.ADMIN,
-            User.is_active.is_(True),
+        stmt = (
+            select(func.count())
+            .select_from(User)
+            .where(
+                User.role == UserRole.ADMIN,
+                User.is_active.is_(True),
+            )
         )
         return db.execute(stmt).scalar() or 0
 
@@ -144,7 +161,9 @@ class CRUDAdmin:
             elif result in ("passed", "failed"):
                 stmt = stmt.where(InterviewRound.status == result)
         if round_type:
-            r_type = {"technical": "tech", "phone_screen": "hr", "behavioral": "hr"}.get(round_type, round_type)
+            r_type = {"technical": "tech", "phone_screen": "hr", "behavioral": "hr"}.get(
+                round_type, round_type
+            )
             stmt = stmt.where(InterviewRound.round_type == r_type)
         if needs_review is not None:
             stmt = stmt.where(InterviewRound.needs_review == needs_review)
@@ -154,20 +173,31 @@ class CRUDAdmin:
             db.execute(
                 stmt.options(
                     joinedload(InterviewRound.application).joinedload(Application.candidate),
-                    joinedload(InterviewRound.application).joinedload(Application.job).joinedload(Job.employer),
+                    joinedload(InterviewRound.application)
+                    .joinedload(Application.job)
+                    .joinedload(Job.employer),
                 )
                 .order_by(InterviewRound.created_at.desc())
                 .offset(skip)
                 .limit(limit)
-            ).scalars().unique().all()
+            )
+            .scalars()
+            .unique()
+            .all()
         )
         return items, total
 
     def get_interview_round(self, db: Session, *, round_id: int) -> InterviewRound | None:
-        stmt = select(InterviewRound).options(
-            joinedload(InterviewRound.application).joinedload(Application.candidate),
-            joinedload(InterviewRound.application).joinedload(Application.job).joinedload(Job.employer),
-        ).where(InterviewRound.id == round_id)
+        stmt = (
+            select(InterviewRound)
+            .options(
+                joinedload(InterviewRound.application).joinedload(Application.candidate),
+                joinedload(InterviewRound.application)
+                .joinedload(Application.job)
+                .joinedload(Job.employer),
+            )
+            .where(InterviewRound.id == round_id)
+        )
         return db.execute(stmt).scalar_one_or_none()
 
     def get_system_alerts(self, db: Session) -> dict[str, Any]:
@@ -177,7 +207,9 @@ class CRUDAdmin:
             select(InterviewRound)
             .options(
                 joinedload(InterviewRound.application).joinedload(Application.candidate),
-                joinedload(InterviewRound.application).joinedload(Application.job).joinedload(Job.employer),
+                joinedload(InterviewRound.application)
+                .joinedload(Application.job)
+                .joinedload(Job.employer),
             )
             .where(
                 InterviewRound.status.in_(["pending", "in_progress"]),
@@ -191,16 +223,26 @@ class CRUDAdmin:
         overdue_alerts = []
         for r in overdue_rounds:
             days_overdue = max(1, (now - r.scheduled_at).days) if r.scheduled_at else 1
-            cand_name = r.application.candidate.full_name if r.application and r.application.candidate else "N/A"
+            cand_name = (
+                r.application.candidate.full_name
+                if r.application and r.application.candidate
+                else "N/A"
+            )
             job_title = r.application.job.title if r.application and r.application.job else "N/A"
-            comp_name = r.application.job.employer.company_name or r.application.job.employer.full_name if r.application and r.application.job and r.application.job.employer else "N/A"
-            overdue_alerts.append({
-                "round_id": r.id,
-                "candidate_name": cand_name,
-                "job_title": job_title,
-                "company_name": comp_name,
-                "days_overdue": days_overdue,
-            })
+            comp_name = (
+                r.application.job.employer.company_name or r.application.job.employer.full_name
+                if r.application and r.application.job and r.application.job.employer
+                else "N/A"
+            )
+            overdue_alerts.append(
+                {
+                    "round_id": r.id,
+                    "candidate_name": cand_name,
+                    "job_title": job_title,
+                    "company_name": comp_name,
+                    "days_overdue": days_overdue,
+                }
+            )
 
         # 2. Stale jobs (active > 30 days)
         thirty_days_ago = now - timedelta(days=30)
@@ -219,7 +261,9 @@ class CRUDAdmin:
             {
                 "job_id": j.id,
                 "title": j.title,
-                "company_name": j.employer.company_name or j.employer.full_name if j.employer else "N/A",
+                "company_name": j.employer.company_name or j.employer.full_name
+                if j.employer
+                else "N/A",
                 "days_inactive": max(30, (now - j.created_at).days) if j.created_at else 30,
             }
             for j in stale_jobs
@@ -229,7 +273,10 @@ class CRUDAdmin:
         fourteen_days_ago = now - timedelta(days=14)
         pending_apps_stmt = (
             select(Application)
-            .options(joinedload(Application.candidate), joinedload(Application.job).joinedload(Job.employer))
+            .options(
+                joinedload(Application.candidate),
+                joinedload(Application.job).joinedload(Job.employer),
+            )
             .where(
                 Application.status == "pending",
                 Application.applied_at < fourteen_days_ago,
@@ -243,7 +290,9 @@ class CRUDAdmin:
                 "application_id": a.id,
                 "candidate_name": a.candidate.full_name if a.candidate else "N/A",
                 "job_title": a.job.title if a.job else "N/A",
-                "company_name": a.job.employer.company_name or a.job.employer.full_name if a.job and a.job.employer else "N/A",
+                "company_name": a.job.employer.company_name or a.job.employer.full_name
+                if a.job and a.job.employer
+                else "N/A",
                 "days_pending": max(14, (now - a.applied_at).days) if a.applied_at else 14,
             }
             for a in pending_apps

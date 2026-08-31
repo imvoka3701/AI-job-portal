@@ -68,15 +68,15 @@ class CVSummarizeRequest(BaseModel):
 
 
 class CVSummarizeResponse(BaseModel):
-    fit_points: list[str]      # điểm phù hợp (dạng mô tả, không phải %)
-    questions: list[str]       # điểm cần hỏi thêm / làm rõ
-    summary: str               # tóm tắt ngắn gọn (2-3 câu)
+    fit_points: list[str]  # điểm phù hợp (dạng mô tả, không phải %)
+    questions: list[str]  # điểm cần hỏi thêm / làm rõ
+    summary: str  # tóm tắt ngắn gọn (2-3 câu)
 
 
 class InterviewQuestionItem(BaseModel):
     question: str
-    purpose: str               # mục đích đánh giá (đang hỏi để kiểm tra điều gì)
-    skill_related: str         # kỹ năng liên quan
+    purpose: str  # mục đích đánh giá (đang hỏi để kiểm tra điều gì)
+    skill_related: str  # kỹ năng liên quan
 
 
 class InterviewQuestionsRequest(BaseModel):
@@ -116,7 +116,9 @@ class CvSummarySuggestionResponse(BaseModel):
 
 class CvExperienceSuggestionRequest(CvSuggestionBase):
     experience_text: str
-    job_id: int | None = None  # Optional: context from target job for more specific bullet rewriting
+    job_id: int | None = (
+        None  # Optional: context from target job for more specific bullet rewriting
+    )
 
 
 class CvExperienceSuggestionResponse(BaseModel):

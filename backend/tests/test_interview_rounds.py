@@ -38,13 +38,19 @@ def _register_and_login(
 
 
 def _create_job(client: TestClient, emp_headers: dict[str, str]) -> int:
-    resp = client.post("/jobs", json={
-        "title": "Test Job",
-        "description": "A test job posting with enough text to pass validation and generate embeddings.",
-        "requirements": "Python, FastAPI",
-        "benefits": "Remote work",
-        "job_type": "full_time", "experience_level": "junior", "location": "Hanoi",
-    }, headers=emp_headers)
+    resp = client.post(
+        "/jobs",
+        json={
+            "title": "Test Job",
+            "description": "A test job posting with enough text to pass validation and generate embeddings.",
+            "requirements": "Python, FastAPI",
+            "benefits": "Remote work",
+            "job_type": "full_time",
+            "experience_level": "junior",
+            "location": "Hanoi",
+        },
+        headers=emp_headers,
+    )
     assert resp.status_code == 201, resp.text
     return resp.json()["id"]
 
@@ -56,7 +62,9 @@ class TestAutoCreateRound1:
     def test_apply_creates_round1(self, client: TestClient, db_session: Session):
         """POST /applications automatically creates Round 1 (cv_screen, pending)."""
         cand = _register_and_login(client, db_session, "r1_c@t.com", "p", "RCand")
-        emp = _register_and_login(client, db_session, "r1_e@t.com", "p", "REmp", "employer", "RCorp")
+        emp = _register_and_login(
+            client, db_session, "r1_e@t.com", "p", "REmp", "employer", "RCorp"
+        )
         job_id = _create_job(client, emp)
 
         resp = client.post("/applications", json={"job_id": job_id}, headers=cand)
@@ -67,9 +75,7 @@ class TestAutoCreateRound1:
         app = db_session.get(Application, app_id)
         assert app is not None
         rounds = (
-            db_session.query(InterviewRound)
-            .filter(InterviewRound.application_id == app_id)
-            .all()
+            db_session.query(InterviewRound).filter(InterviewRound.application_id == app_id).all()
         )
         assert len(rounds) == 1, f"Expected 1 round after apply, got {len(rounds)}"
         r1 = rounds[0]
@@ -91,12 +97,16 @@ class TestAutoCreateRound1:
         r2 = client.post("/applications", json={"job_id": job_id}, headers=cand)
         assert r2.status_code == 201
 
-        r1_rounds = db_session.query(InterviewRound).filter(
-            InterviewRound.application_id == r1.json()["id"]
-        ).count()
-        r2_rounds = db_session.query(InterviewRound).filter(
-            InterviewRound.application_id == r2.json()["id"]
-        ).count()
+        r1_rounds = (
+            db_session.query(InterviewRound)
+            .filter(InterviewRound.application_id == r1.json()["id"])
+            .count()
+        )
+        r2_rounds = (
+            db_session.query(InterviewRound)
+            .filter(InterviewRound.application_id == r2.json()["id"])
+            .count()
+        )
         assert r1_rounds == 1
         assert r2_rounds == 1
 
@@ -111,17 +121,17 @@ class TestStatusSyncCreatesRound:
         app_id = client.post("/applications", json={"job_id": job_id}, headers=cand).json()["id"]
 
         # Apply → Round 1 created (pending)
-        rounds_before = db_session.query(InterviewRound).filter(
-            InterviewRound.application_id == app_id
-        ).count()
+        rounds_before = (
+            db_session.query(InterviewRound).filter(InterviewRound.application_id == app_id).count()
+        )
         assert rounds_before == 1
 
         # PATCH status → reviewed
         client.patch(f"/applications/{app_id}", json={"status": "reviewed"}, headers=emp)
 
-        rounds_after = db_session.query(InterviewRound).filter(
-            InterviewRound.application_id == app_id
-        ).all()
+        rounds_after = (
+            db_session.query(InterviewRound).filter(InterviewRound.application_id == app_id).all()
+        )
         assert len(rounds_after) == 2  # original Round 1 + auto-created round
 
         # The auto-round should be type cv_screen
@@ -140,9 +150,9 @@ class TestStatusSyncCreatesRound:
         # PATCH → accepted
         client.patch(f"/applications/{app_id}", json={"status": "accepted"}, headers=emp)
 
-        rounds = db_session.query(InterviewRound).filter(
-            InterviewRound.application_id == app_id
-        ).all()
+        rounds = (
+            db_session.query(InterviewRound).filter(InterviewRound.application_id == app_id).all()
+        )
         # Original Round 1 (now skipped) + auto final round (passed)
         r1 = [r for r in rounds if r.round_number == 1][0]
         assert r1.status == RoundStatus.SKIPPED.value, f"Round 1 should be skipped, got {r1.status}"
@@ -157,20 +167,27 @@ class TestOrphanCleanup:
     def test_no_orphan_rounds_after_accepted(self, client: TestClient, db_session: Session):
         """After accepted, no round should be pending or in_progress."""
         cand = _register_and_login(client, db_session, "oc1_c@t.com", "p", "OC1C")
-        emp = _register_and_login(client, db_session, "oc1_e@t.com", "p", "OC1E", "employer", "OC1C")
+        emp = _register_and_login(
+            client, db_session, "oc1_e@t.com", "p", "OC1E", "employer", "OC1C"
+        )
         job_id = _create_job(client, emp)
 
         app_id = client.post("/applications", json={"job_id": job_id}, headers=cand).json()["id"]
 
         # Manually add extra pending rounds (simulating in-progress pipeline before accept)
         from app.crud.interview_round import crud_interview_round
-        crud_interview_round.create(db_session, application_id=app_id, round_type="tech", round_name="Vòng 2: Tech")
-        crud_interview_round.create(db_session, application_id=app_id, round_type="hr", round_name="Vòng 3: HR")
+
+        crud_interview_round.create(
+            db_session, application_id=app_id, round_type="tech", round_name="Vòng 2: Tech"
+        )
+        crud_interview_round.create(
+            db_session, application_id=app_id, round_type="hr", round_name="Vòng 3: HR"
+        )
 
         # Verify we have 3 rounds, 2 pending
-        rounds_before = db_session.query(InterviewRound).filter(
-            InterviewRound.application_id == app_id
-        ).all()
+        rounds_before = (
+            db_session.query(InterviewRound).filter(InterviewRound.application_id == app_id).all()
+        )
         pending_before = [r for r in rounds_before if r.status == RoundStatus.PENDING.value]
         assert len(pending_before) == 3  # Round 1 (auto from POST) + Round 2 (tech) + Round 3 (hr)
 
@@ -178,32 +195,47 @@ class TestOrphanCleanup:
         client.patch(f"/applications/{app_id}", json={"status": "accepted"}, headers=emp)
 
         # Verify NO orphans
-        rounds_after = db_session.query(InterviewRound).filter(
-            InterviewRound.application_id == app_id
-        ).all()
-        orphans = [r for r in rounds_after if r.status in (RoundStatus.PENDING.value, RoundStatus.IN_PROGRESS.value)]
-        assert len(orphans) == 0, f"Found {len(orphans)} orphan rounds after accepted: {[r.round_name for r in orphans]}"
+        rounds_after = (
+            db_session.query(InterviewRound).filter(InterviewRound.application_id == app_id).all()
+        )
+        orphans = [
+            r
+            for r in rounds_after
+            if r.status in (RoundStatus.PENDING.value, RoundStatus.IN_PROGRESS.value)
+        ]
+        assert len(orphans) == 0, (
+            f"Found {len(orphans)} orphan rounds after accepted: {[r.round_name for r in orphans]}"
+        )
 
     def test_no_orphan_rounds_after_rejected(self, client: TestClient, db_session: Session):
         """After rejected, no round should be pending or in_progress."""
         cand = _register_and_login(client, db_session, "oc2_c@t.com", "p", "OC2C")
-        emp = _register_and_login(client, db_session, "oc2_e@t.com", "p", "OC2E", "employer", "OC2C")
+        emp = _register_and_login(
+            client, db_session, "oc2_e@t.com", "p", "OC2E", "employer", "OC2C"
+        )
         job_id = _create_job(client, emp)
 
         app_id = client.post("/applications", json={"job_id": job_id}, headers=cand).json()["id"]
 
         # Add pending rounds
         from app.crud.interview_round import crud_interview_round
-        crud_interview_round.create(db_session, application_id=app_id, round_type="tech", round_name="Vòng 2: Tech")
+
+        crud_interview_round.create(
+            db_session, application_id=app_id, round_type="tech", round_name="Vòng 2: Tech"
+        )
 
         # PATCH → rejected
         client.patch(f"/applications/{app_id}", json={"status": "rejected"}, headers=emp)
 
         # Verify NO orphans — all pending/in_progress → failed
-        rounds = db_session.query(InterviewRound).filter(
-            InterviewRound.application_id == app_id
-        ).all()
-        orphans = [r for r in rounds if r.status in (RoundStatus.PENDING.value, RoundStatus.IN_PROGRESS.value)]
+        rounds = (
+            db_session.query(InterviewRound).filter(InterviewRound.application_id == app_id).all()
+        )
+        orphans = [
+            r
+            for r in rounds
+            if r.status in (RoundStatus.PENDING.value, RoundStatus.IN_PROGRESS.value)
+        ]
         assert len(orphans) == 0, f"Found {len(orphans)} orphan rounds after rejected"
 
 
@@ -268,18 +300,27 @@ class TestRoundCRUD:
 
 
 class TestEmployerInterviewsEndpoint:
-    def test_employer_sees_interviews_sorted_soonest_first(self, client: TestClient, db_session: Session):
+    def test_employer_sees_interviews_sorted_soonest_first(
+        self, client: TestClient, db_session: Session
+    ):
         """GET /employer/interviews returns rounds sorted by scheduled_at ASC."""
-        emp = _register_and_login(client, db_session, "ei1_e@t.com", "p", "EI1E", "employer", "EI1Corp")
+        emp = _register_and_login(
+            client, db_session, "ei1_e@t.com", "p", "EI1E", "employer", "EI1Corp"
+        )
         cand = _register_and_login(client, db_session, "ei1_c@t.com", "p", "EI1C")
         job_id = _create_job(client, emp)
 
         app_id = client.post("/applications", json={"job_id": job_id}, headers=cand).json()["id"]
 
         # Get Round 1 and schedule 2 interviews
-        r1 = db_session.query(InterviewRound).filter(InterviewRound.application_id == app_id).first()
+        r1 = (
+            db_session.query(InterviewRound).filter(InterviewRound.application_id == app_id).first()
+        )
         from app.crud.interview_round import crud_interview_round
-        r2 = crud_interview_round.create(db_session, application_id=app_id, round_type="tech", round_name="Vòng 2")
+
+        r2 = crud_interview_round.create(
+            db_session, application_id=app_id, round_type="tech", round_name="Vòng 2"
+        )
 
         now = datetime.utcnow()
         r1.scheduled_at = now + timedelta(days=3)
@@ -296,8 +337,12 @@ class TestEmployerInterviewsEndpoint:
 
     def test_employer_only_sees_own_jobs(self, client: TestClient, db_session: Session):
         """Employer A cannot see interviews from Employer B's jobs."""
-        emp_a = _register_and_login(client, db_session, "ei2a@t.com", "p", "EIA", "employer", "ACorp")
-        emp_b = _register_and_login(client, db_session, "ei2b@t.com", "p", "EIB", "employer", "BCorp")
+        emp_a = _register_and_login(
+            client, db_session, "ei2a@t.com", "p", "EIA", "employer", "ACorp"
+        )
+        emp_b = _register_and_login(
+            client, db_session, "ei2b@t.com", "p", "EIB", "employer", "BCorp"
+        )
         cand = _register_and_login(client, db_session, "ei2c@t.com", "p", "EIC")
 
         job_a = _create_job(client, emp_a)
@@ -306,8 +351,12 @@ class TestEmployerInterviewsEndpoint:
         app_a = client.post("/applications", json={"job_id": job_a}, headers=cand).json()["id"]
         app_b = client.post("/applications", json={"job_id": job_b}, headers=cand).json()["id"]
 
-        r_a = db_session.query(InterviewRound).filter(InterviewRound.application_id == app_a).first()
-        r_b = db_session.query(InterviewRound).filter(InterviewRound.application_id == app_b).first()
+        r_a = (
+            db_session.query(InterviewRound).filter(InterviewRound.application_id == app_a).first()
+        )
+        r_b = (
+            db_session.query(InterviewRound).filter(InterviewRound.application_id == app_b).first()
+        )
         r_a.scheduled_at = datetime.utcnow() + timedelta(days=1)
         r_b.scheduled_at = datetime.utcnow() + timedelta(days=2)
         db_session.commit()
@@ -326,12 +375,16 @@ class TestEmployerInterviewsEndpoint:
 class TestCandidateInterviewsEndpoint:
     def test_candidate_sees_own_interviews(self, client: TestClient, db_session: Session):
         """GET /applications/me/interviews returns candidate's scheduled rounds."""
-        emp = _register_and_login(client, db_session, "ci1_e@t.com", "p", "CI1E", "employer", "CI1Corp")
+        emp = _register_and_login(
+            client, db_session, "ci1_e@t.com", "p", "CI1E", "employer", "CI1Corp"
+        )
         cand = _register_and_login(client, db_session, "ci1_c@t.com", "p", "CI1C")
         job_id = _create_job(client, emp)
 
         app_id = client.post("/applications", json={"job_id": job_id}, headers=cand).json()["id"]
-        r1 = db_session.query(InterviewRound).filter(InterviewRound.application_id == app_id).first()
+        r1 = (
+            db_session.query(InterviewRound).filter(InterviewRound.application_id == app_id).first()
+        )
         r1.scheduled_at = datetime.utcnow() + timedelta(days=1)
         db_session.commit()
 
@@ -344,7 +397,9 @@ class TestCandidateInterviewsEndpoint:
 
     def test_candidate_only_sees_own_interviews(self, client: TestClient, db_session: Session):
         """Candidate A cannot see Candidate B's scheduled interviews."""
-        emp = _register_and_login(client, db_session, "ci2_e@t.com", "p", "CI2E", "employer", "CI2Corp")
+        emp = _register_and_login(
+            client, db_session, "ci2_e@t.com", "p", "CI2E", "employer", "CI2Corp"
+        )
         cand_a = _register_and_login(client, db_session, "ci2a@t.com", "p", "CIA")
         cand_b = _register_and_login(client, db_session, "ci2b@t.com", "p", "CIB")
         job_id = _create_job(client, emp)
@@ -352,8 +407,12 @@ class TestCandidateInterviewsEndpoint:
         app_a = client.post("/applications", json={"job_id": job_id}, headers=cand_a).json()["id"]
         app_b = client.post("/applications", json={"job_id": job_id}, headers=cand_b).json()["id"]
 
-        r_a = db_session.query(InterviewRound).filter(InterviewRound.application_id == app_a).first()
-        r_b = db_session.query(InterviewRound).filter(InterviewRound.application_id == app_b).first()
+        r_a = (
+            db_session.query(InterviewRound).filter(InterviewRound.application_id == app_a).first()
+        )
+        r_b = (
+            db_session.query(InterviewRound).filter(InterviewRound.application_id == app_b).first()
+        )
         r_a.scheduled_at = datetime.utcnow() + timedelta(days=1)
         r_b.scheduled_at = datetime.utcnow() + timedelta(days=2)
         db_session.commit()
@@ -372,7 +431,9 @@ class TestAnalytics458:
 
     def test_funnel_pass_rate_exact(self, client: TestClient, db_session: Session):
         """Create 5 rounds, pass 3 → verify 60.0% pass rate."""
-        emp = _register_and_login(client, db_session, "af1_e@t.com", "p", "AFE", "employer", "AFCorp")
+        emp = _register_and_login(
+            client, db_session, "af1_e@t.com", "p", "AFE", "employer", "AFCorp"
+        )
         cands = [
             _register_and_login(client, db_session, f"af1_c{i}@t.com", "p", f"AFC{i}")
             for i in range(5)
@@ -380,9 +441,16 @@ class TestAnalytics458:
         job_id = _create_job(client, emp)
 
         from app.models.interview_round import RoundStatus
+
         for i, cand in enumerate(cands):
-            app_id = client.post("/applications", json={"job_id": job_id}, headers=cand).json()["id"]
-            r1 = db_session.query(InterviewRound).filter(InterviewRound.application_id == app_id).first()
+            app_id = client.post("/applications", json={"job_id": job_id}, headers=cand).json()[
+                "id"
+            ]
+            r1 = (
+                db_session.query(InterviewRound)
+                .filter(InterviewRound.application_id == app_id)
+                .first()
+            )
             r1.status = RoundStatus.PASSED.value if i < 3 else RoundStatus.FAILED.value
         db_session.commit()
 
@@ -399,13 +467,16 @@ class TestAnalytics458:
         """Accepted application with known dates → verify avg days matches."""
         from datetime import datetime as dt
 
-        emp = _register_and_login(client, db_session, "atth_e@t.com", "p", "ATTH", "employer", "ATHCorp")
+        emp = _register_and_login(
+            client, db_session, "atth_e@t.com", "p", "ATTH", "employer", "ATHCorp"
+        )
         cand = _register_and_login(client, db_session, "atth_c@t.com", "p", "ATHC")
         job_id = _create_job(client, emp)
 
         app_id = client.post("/applications", json={"job_id": job_id}, headers=cand).json()["id"]
         app = db_session.query(Application).first()
         from app.models.application import ApplicationStatus
+
         app.applied_at = dt.utcnow().replace(microsecond=0) - timedelta(days=10)
         app.status = ApplicationStatus.ACCEPTED
         app.updated_at = dt.utcnow().replace(microsecond=0)
@@ -420,24 +491,54 @@ class TestAnalytics458:
     def test_candidate_source_exact(self, client: TestClient, db_session: Session):
         """Create 3 direct candidates + 1 Google OAuth candidate → verify %."""
         for i in range(3):
-            client.post("/auth/register", json={
-                "email": f"src_d{i}@t.com", "password": "p", "full_name": f"D{i}", "role": "candidate",
-            })
+            client.post(
+                "/auth/register",
+                json={
+                    "email": f"src_d{i}@t.com",
+                    "password": "p",
+                    "full_name": f"D{i}",
+                    "role": "candidate",
+                },
+            )
         from app.models.oauth_account import OAuthAccount
         from app.models.user import User
-        oauth_user = User(email="src_o@t.com", hashed_password="x", full_name="OAuth", role="candidate", is_active=True)
+
+        oauth_user = User(
+            email="src_o@t.com",
+            hashed_password="x",
+            full_name="OAuth",
+            role="candidate",
+            is_active=True,
+        )
         db_session.add(oauth_user)
         db_session.flush()
-        db_session.add(OAuthAccount(user_id=oauth_user.id, provider="google", provider_user_id="g123", email="src_o@t.com"))
+        db_session.add(
+            OAuthAccount(
+                user_id=oauth_user.id,
+                provider="google",
+                provider_user_id="g123",
+                email="src_o@t.com",
+            )
+        )
         db_session.commit()
 
         # Create a fresh admin for this test to avoid password conflicts
-        admin_user = User(email="analytics_admin@t.com", hashed_password="x", full_name="AA", role="admin", is_active=True)
-        db_session.add(admin_user); db_session.flush()
+        admin_user = User(
+            email="analytics_admin@t.com",
+            hashed_password="x",
+            full_name="AA",
+            role="admin",
+            is_active=True,
+        )
+        db_session.add(admin_user)
+        db_session.flush()
         from app.core.security import hash_password
+
         admin_user.hashed_password = hash_password("adminpass")
         db_session.commit()
-        login = client.post("/auth/login", json={"email": "analytics_admin@t.com", "password": "adminpass"})
+        login = client.post(
+            "/auth/login", json={"email": "analytics_admin@t.com", "password": "adminpass"}
+        )
         token = login.json()["access_token"]
 
         resp = client.get("/admin/stats", headers={"Authorization": f"Bearer {token}"})

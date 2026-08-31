@@ -123,7 +123,9 @@ class EmailGeneratorService:
                 last_error = exc
                 logger.warning(
                     "Email generation attempt %d/%d failed: %s",
-                    attempt + 1, 1 + MAX_RETRIES, exc,
+                    attempt + 1,
+                    1 + MAX_RETRIES,
+                    exc,
                 )
                 if attempt < MAX_RETRIES:
                     continue

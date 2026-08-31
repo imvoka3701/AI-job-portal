@@ -65,7 +65,9 @@ class CVSummarizerService:
                 last_error = exc
                 logger.warning(
                     "CV summarize attempt %d/%d failed: %s",
-                    attempt + 1, 1 + MAX_RETRIES, exc,
+                    attempt + 1,
+                    1 + MAX_RETRIES,
+                    exc,
                 )
                 if attempt < MAX_RETRIES:
                     continue

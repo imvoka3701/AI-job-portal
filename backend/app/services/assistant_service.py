@@ -94,7 +94,9 @@ QUY CÁCH PHẢN HỒI:
 def _get_relevant_jobs(db: Session, query_text: str, limit: int = 4) -> List[Job]:
     """Search for relevant active jobs in database based on user query keywords."""
     try:
-        keywords = [k.strip() for k in re.findall(r"[\w\+]+", query_text.lower()) if len(k.strip()) > 2]
+        keywords = [
+            k.strip() for k in re.findall(r"[\w\+]+", query_text.lower()) if len(k.strip()) > 2
+        ]
         if not keywords:
             return db.scalars(
                 select(Job).where(Job.is_active.is_(True)).order_by(Job.id.desc()).limit(limit)
@@ -133,7 +135,11 @@ class AssistantService:
         """Process chat message with diplomatic persona & contextual knowledge."""
         last_user_message = next((m.content for m in reversed(messages) if m.role == "user"), "")
 
-        role = context.role if context and context.role else (current_user.role if current_user else "guest")
+        role = (
+            context.role
+            if context and context.role
+            else (current_user.role if current_user else "guest")
+        )
         role_map = {
             "candidate": "Ứng viên tìm việc (Candidate)",
             "employer": "Nhà tuyển dụng / Đại diện Doanh nghiệp (Employer)",
@@ -151,7 +157,9 @@ class AssistantService:
 
         candidate_context = ""
         if current_user and current_user.role == "candidate":
-            candidate_context = f"- Tên ứng viên: {current_user.full_name}, Email: {current_user.email}."
+            candidate_context = (
+                f"- Tên ứng viên: {current_user.full_name}, Email: {current_user.email}."
+            )
 
         relevant_jobs = _get_relevant_jobs(db, last_user_message, limit=4)
         jobs_data_lines = []
@@ -159,7 +167,11 @@ class AssistantService:
             jobs_data_lines.append(
                 f"- [ID #{j.id}] {j.title} | Địa điểm: {j.location or 'Toàn quốc'} | Loại: {j.job_type.value} | Lương: {j.salary_min or 'Thoả thuận'}-{j.salary_max or 'Thoả thuận'} triệu VNĐ | Link: /jobs/{j.id}"
             )
-        jobs_data = "\n".join(jobs_data_lines) if jobs_data_lines else "Hiện không có tin tuyển dụng nào trực tiếp phù hợp."
+        jobs_data = (
+            "\n".join(jobs_data_lines)
+            if jobs_data_lines
+            else "Hiện không có tin tuyển dụng nào trực tiếp phù hợp."
+        )
 
         system_prompt = DIPLOMATIC_SYSTEM_PROMPT.format(
             role_desc=role_desc,
@@ -200,7 +212,10 @@ class AssistantService:
                     )
 
             # Auto-attach relevant cards if user asks about jobs or assessments
-            if not cards and any(w in last_user_message.lower() for w in ["việc", "job", "tuyển", "lương", "react", "python", "dev"]):
+            if not cards and any(
+                w in last_user_message.lower()
+                for w in ["việc", "job", "tuyển", "lương", "react", "python", "dev"]
+            ):
                 for j in relevant_jobs[:2]:
                     cards.append(
                         EmbeddedCard(
@@ -208,10 +223,16 @@ class AssistantService:
                             title=j.title,
                             subtitle=f"{j.location or 'Toàn quốc'} · {j.job_type.value.replace('_', '-').capitalize()}",
                             url=f"/jobs/{j.id}",
-                            meta={"id": j.id, "salary": f"{j.salary_min or 'Thương lượng'} - {j.salary_max or ''}"},
+                            meta={
+                                "id": j.id,
+                                "salary": f"{j.salary_min or 'Thương lượng'} - {j.salary_max or ''}",
+                            },
                         )
                     )
-            elif not cards and any(w in last_user_message.lower() for w in ["mbti", "tính cách", "trí tuệ", "mi", "hướng nghiệp"]):
+            elif not cards and any(
+                w in last_user_message.lower()
+                for w in ["mbti", "tính cách", "trí tuệ", "mi", "hướng nghiệp"]
+            ):
                 cards.append(
                     EmbeddedCard(
                         card_type="tool",
@@ -228,7 +249,9 @@ class AssistantService:
                         url="/tools/mi",
                     )
                 )
-            elif not cards and any(w in last_user_message.lower() for w in ["cv", "hồ sơ", "resume", "mẫu cv"]):
+            elif not cards and any(
+                w in last_user_message.lower() for w in ["cv", "hồ sơ", "resume", "mẫu cv"]
+            ):
                 cards.append(
                     EmbeddedCard(
                         card_type="tool",
@@ -280,7 +303,9 @@ class AssistantService:
                 ],
             )
 
-    def get_quick_suggestions(self, path: str, role: Optional[str]) -> List[AssistantQuickSuggestion]:
+    def get_quick_suggestions(
+        self, path: str, role: Optional[str]
+    ) -> List[AssistantQuickSuggestion]:
         """Return context-sensitive diplomatic prompt chips."""
         if role == "employer" or "/employer" in path:
             return [

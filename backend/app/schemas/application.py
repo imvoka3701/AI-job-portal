@@ -47,6 +47,7 @@ class ApplicationRead(ApplicationBase):
 
 class EmployerApplicationRead(BaseModel):
     """Application detail for employer view — includes candidate info + AI score."""
+
     id: int
     status: ApplicationStatus
     ai_matching_score: float | None = None

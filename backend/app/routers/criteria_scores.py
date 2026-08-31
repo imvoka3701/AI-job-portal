@@ -17,7 +17,11 @@ from app.schemas.criteria_score import CriteriaBulkUpdate, CriteriaScoreRead
 router = APIRouter(prefix="/rounds", tags=["Criteria Scores"])
 
 
-@router.get("/{round_id}/criteria", response_model=list[CriteriaScoreRead], summary="Get criteria scores for a round")
+@router.get(
+    "/{round_id}/criteria",
+    response_model=list[CriteriaScoreRead],
+    summary="Get criteria scores for a round",
+)
 def get_criteria(
     round_id: int,
     context: CompanyContext = Depends(
@@ -34,7 +38,11 @@ def get_criteria(
     return [CriteriaScoreRead.model_validate(s) for s in scores]
 
 
-@router.put("/{round_id}/criteria", response_model=list[CriteriaScoreRead], summary="Replace criteria scores for a round")
+@router.put(
+    "/{round_id}/criteria",
+    response_model=list[CriteriaScoreRead],
+    summary="Replace criteria scores for a round",
+)
 def replace_criteria(
     round_id: int,
     data: CriteriaBulkUpdate,
@@ -50,6 +58,8 @@ def replace_criteria(
     require_application_scope(db, context=context, application=round_obj.application)
     round_obj.reviewer_id = context.user.id
     scores = crud_criteria_score.bulk_replace(
-        db, round_id=round_id, criteria=[c.model_dump() for c in data.criteria],
+        db,
+        round_id=round_id,
+        criteria=[c.model_dump() for c in data.criteria],
     )
     return [CriteriaScoreRead.model_validate(s) for s in scores]

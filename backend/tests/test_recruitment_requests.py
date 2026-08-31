@@ -25,13 +25,16 @@ def _approved_employer(
     email: str,
     company_name: str,
 ) -> dict[str, str]:
-    response = client.post("/auth/register", json={
-        "email": email,
-        "password": PASSWORD,
-        "full_name": "Employer Owner",
-        "role": "employer",
-        "company_name": company_name,
-    })
+    response = client.post(
+        "/auth/register",
+        json={
+            "email": email,
+            "password": PASSWORD,
+            "full_name": "Employer Owner",
+            "role": "employer",
+            "company_name": company_name,
+        },
+    )
     assert response.status_code == 201
     user = crud_user.get_by_email(db, email=email)
     assert user is not None
@@ -119,11 +122,14 @@ def test_recruitment_request_full_workflow_and_job_conversion(
     assert created.json()["status"] == "draft"
     assert created.json()["department_id"] == department_id
 
-    assert client.post(
-        f"/employer/recruitment-requests/{request_id}/review",
-        headers=head_headers,
-        json={"decision": "approved"},
-    ).status_code == 403
+    assert (
+        client.post(
+            f"/employer/recruitment-requests/{request_id}/review",
+            headers=head_headers,
+            json={"decision": "approved"},
+        ).status_code
+        == 403
+    )
 
     submitted = client.post(
         f"/employer/recruitment-requests/{request_id}/submit",
@@ -135,11 +141,14 @@ def test_recruitment_request_full_workflow_and_job_conversion(
     owner_context = client.get("/employer/company-context", headers=owner_headers).json()
     assert "recruitment_request:review" in owner_context["permissions"]
     assert "recruitment_request:create" not in owner_context["permissions"]
-    assert client.post(
-        "/employer/recruitment-requests",
-        headers=owner_headers,
-        json=_request_payload(),
-    ).status_code == 403
+    assert (
+        client.post(
+            "/employer/recruitment-requests",
+            headers=owner_headers,
+            json=_request_payload(),
+        ).status_code
+        == 403
+    )
 
     approved = client.post(
         f"/employer/recruitment-requests/{request_id}/review",
@@ -204,17 +213,23 @@ def test_recruitment_request_rejection_resubmit_and_tenant_isolation(
     )
     assert edited.status_code == 200
     assert edited.json()["status"] == "draft"
-    assert client.post(
-        f"/employer/recruitment-requests/{created['id']}/submit",
-        headers=head_headers,
-    ).json()["status"] == "submitted"
+    assert (
+        client.post(
+            f"/employer/recruitment-requests/{created['id']}/submit",
+            headers=head_headers,
+        ).json()["status"]
+        == "submitted"
+    )
 
-    assert client.get(
-        f"/employer/recruitment-requests/{created['id']}", headers=foreign_headers
-    ).status_code == 404
-    assert client.get(
-        "/employer/recruitment-requests", headers=foreign_headers
-    ).json()["total"] == 0
+    assert (
+        client.get(
+            f"/employer/recruitment-requests/{created['id']}", headers=foreign_headers
+        ).status_code
+        == 404
+    )
+    assert (
+        client.get("/employer/recruitment-requests", headers=foreign_headers).json()["total"] == 0
+    )
 
 
 def test_invitation_delivery_tracking_failure_retry_and_bounce(
@@ -277,9 +292,7 @@ def test_invitation_delivery_tracking_failure_retry_and_bounce(
         json={"message_id": "<sent@example.test>", "reason": "Mailbox unavailable"},
     )
     assert bounced.status_code == 202
-    invitation = client.get(
-        "/employer/team/invitations", headers=owner_headers
-    ).json()[0]
+    invitation = client.get("/employer/team/invitations", headers=owner_headers).json()[0]
     assert invitation["delivery_status"] == "bounced"
     assert invitation["delivery_error"] == "Mailbox unavailable"
 
@@ -335,6 +348,7 @@ def test_invitation_email_service_sends_structured_message(monkeypatch):
     message = calls["message"]
     assert message["To"] == "new-hr@example.test"
     assert message["Message-ID"] == result.message_id
-    assert "http://localhost:3000/employer/invitations/one-time-token/accept" in message.get_body(
-        preferencelist=("plain",)
-    ).get_content()
+    assert (
+        "http://localhost:3000/employer/invitations/one-time-token/accept"
+        in message.get_body(preferencelist=("plain",)).get_content()
+    )

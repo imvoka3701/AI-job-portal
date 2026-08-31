@@ -61,7 +61,9 @@ def create_application(
             db, document_id=data.cv_document_id, user_id=current_user.id
         )
         if not cv_document:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="CV Builder document not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="CV Builder document not found"
+            )
 
     application = crud_application.create(db, obj_in=data, candidate_id=current_user.id)
 
@@ -85,14 +87,13 @@ def create_application(
                 db,
                 user_id=job.employer_id,
                 title="Ứng viên mới ứng tuyển",
-                message=(
-                    f"{current_user.full_name} đã ứng tuyển vào vị trí "
-                    f"\"{job.title}\"."
-                ),
+                message=(f'{current_user.full_name} đã ứng tuyển vào vị trí "{job.title}".'),
                 type=NotificationType.APPLICATION_UPDATE,
             )
     except Exception:
-        logger.exception("Failed to create notification for employer %s", job.employer_id if job else "?")
+        logger.exception(
+            "Failed to create notification for employer %s", job.employer_id if job else "?"
+        )
 
     return ApplicationRead.model_validate(application)
 
@@ -114,6 +115,7 @@ def get_my_interviews(
 ) -> list[dict]:
     """Scheduled interview rounds for the current candidate, soonest first."""
     from sqlalchemy import text as sa_text
+
     rows = db.execute(
         sa_text(
             "SELECT ir.id AS round_id, ir.scheduled_at, ir.location, ir.round_name, "
@@ -130,10 +132,15 @@ def get_my_interviews(
         {"cid": current_user.id},
     ).fetchall()
     import datetime as _dt
+
     return [
         {
             "round_id": r.round_id,
-            "scheduled_at": r.scheduled_at.isoformat() if isinstance(r.scheduled_at, _dt.datetime) else str(r.scheduled_at) if r.scheduled_at else "",
+            "scheduled_at": r.scheduled_at.isoformat()
+            if isinstance(r.scheduled_at, _dt.datetime)
+            else str(r.scheduled_at)
+            if r.scheduled_at
+            else "",
             "location": r.location,
             "round_name": r.round_name or f"Vòng {r.round_number}",
             "round_type": r.round_type,
@@ -168,7 +175,9 @@ def get_application(
     return ApplicationRead.model_validate(app)
 
 
-@router.patch("/{application_id}", response_model=EmployerApplicationRead, summary="Update application status")
+@router.patch(
+    "/{application_id}", response_model=EmployerApplicationRead, summary="Update application status"
+)
 def update_application(
     application_id: int,
     data: ApplicationUpdate,
@@ -194,7 +203,9 @@ def update_application(
 
         # Cleanup orphan rounds on terminal status
         crud_interview_round.cleanup_orphan_rounds(
-            db, application_id=app.id, to_status=new_status,
+            db,
+            application_id=app.id,
+            to_status=new_status,
         )
 
         # Create a synced round reflecting this status change
@@ -234,7 +245,7 @@ def update_application(
             "accepted": "Trúng tuyển",
             "rejected": "Không phù hợp",
         }
-        label = status_labels.get(data.status, f"cập nhật thành \"{data.status}\"")
+        label = status_labels.get(data.status, f'cập nhật thành "{data.status}"')
         try:
             job = crud_job.get_by_id(db, job_id=app.job_id)
             crud_notification.create(
@@ -242,7 +253,7 @@ def update_application(
                 user_id=app.candidate_id,
                 title="Cập nhật trạng thái ứng tuyển",
                 message=(
-                    f"Đơn ứng tuyển \"{job.title if job else f'Job #{app.job_id}'}\" "
+                    f'Đơn ứng tuyển "{job.title if job else f"Job #{app.job_id}"}" '
                     f"của bạn đã được cập nhật: {label}."
                 ),
                 type=NotificationType.APPLICATION_UPDATE,
@@ -310,10 +321,16 @@ async def get_applications_for_employer_job(
     results: list[EmployerApplicationRead] = []
     for app in applications:
         score: float | None = None
-        if job.embedding is not None and app.resume is not None and app.resume.embedding is not None:
+        if (
+            job.embedding is not None
+            and app.resume is not None
+            and app.resume.embedding is not None
+        ):
             try:
                 match = await ai_matching_service.compute_match(
-                    db, resume=app.resume, job_embedding=job.embedding  # type: ignore[arg-type]
+                    db,
+                    resume=app.resume,
+                    job_embedding=job.embedding,  # type: ignore[arg-type]
                 )
                 score = match.score
             except Exception:
@@ -345,5 +362,7 @@ async def get_applications_for_employer_job(
         )
 
     # Sort by score descending (None sorts last)
-    results.sort(key=lambda r: (r.ai_matching_score is None, r.ai_matching_score or 0), reverse=True)
+    results.sort(
+        key=lambda r: (r.ai_matching_score is None, r.ai_matching_score or 0), reverse=True
+    )
     return results

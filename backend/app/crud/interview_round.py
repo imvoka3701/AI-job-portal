@@ -19,8 +19,15 @@ class CRUDInterviewRound:
         )
         return list(db.execute(stmt).scalars().all())
 
-    def create(self, db: Session, *, application_id: int, round_type: str = "custom",
-               round_name: str | None = None, round_number: int | None = None) -> InterviewRound:
+    def create(
+        self,
+        db: Session,
+        *,
+        application_id: int,
+        round_type: str = "custom",
+        round_name: str | None = None,
+        round_number: int | None = None,
+    ) -> InterviewRound:
         """Create a new round. If round_number not given, auto-increments."""
         if round_number is None:
             existing = self.get_by_application(db, application_id=application_id)
@@ -66,7 +73,9 @@ class CRUDInterviewRound:
             update(InterviewRound)
             .where(
                 InterviewRound.application_id == application_id,
-                InterviewRound.status.in_([RoundStatus.PENDING.value, RoundStatus.IN_PROGRESS.value]),
+                InterviewRound.status.in_(
+                    [RoundStatus.PENDING.value, RoundStatus.IN_PROGRESS.value]
+                ),
             )
             .values(status=orphan_status)
         )

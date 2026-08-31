@@ -6,12 +6,12 @@ from pydantic import BaseModel
 
 
 class RoundCreate(BaseModel):
-    round_type: str = "custom"    # cv_screen | tech | hr | final | custom
+    round_type: str = "custom"  # cv_screen | tech | hr | final | custom
     round_name: str | None = None
 
 
 class RoundUpdate(BaseModel):
-    status: str | None = None     # pending | in_progress | passed | failed | skipped
+    status: str | None = None  # pending | in_progress | passed | failed | skipped
     scheduled_at: datetime | None = None
     location: str | None = None
     notes: str | None = None
