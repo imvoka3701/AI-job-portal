@@ -4,9 +4,11 @@ import { getCompanies, approveCompany, rejectCompany, type CompanySummary } from
 import { getApiErrorMessage } from "@/lib/axios";
 import { useUser, useAuthStore } from "@/stores/authStore";
 import { tokenStorage } from "@/lib/axios";
-import { Button, Card, Badge, Input, Skeleton } from "@/components/ui";
-import { Shield } from "lucide-react";
+import { Button, Input, Skeleton } from "@/components/ui";
+import { Shield, Building2, Search, CheckCircle2, XCircle, Mail, Calendar } from "lucide-react";
 import { AdminTabNavigation } from "./components/AdminTabNavigation";
+import { SEOMeta } from "@/components/seo/SEOMeta";
+import { motion } from "framer-motion";
 
 export function AdminCompanies() {
   const user = useUser();
@@ -38,103 +40,231 @@ export function AdminCompanies() {
 
   const handleApprove = async (id: number) => {
     setActionId(id);
-    try { await approveCompany(id); setCompanies((p) => p.map((c) => c.id === id ? { ...c, is_active: true } : c)); setActionMsg("Đã duyệt tài khoản."); }
-    catch (e) { setActionMsg(getApiErrorMessage(e)); }
+    try {
+      await approveCompany(id);
+      setCompanies((p) => p.map((c) => c.id === id ? { ...c, is_active: true } : c));
+      setActionMsg("✓ Đã duyệt tài khoản nhà tuyển dụng.");
+    } catch (e) { setActionMsg(getApiErrorMessage(e)); }
     finally { setActionId(null); }
     setTimeout(() => setActionMsg(null), 3000);
   };
-  const handleReject = async (id: number) => {
+
+  const handleReject = async (id: number, name: string) => {
+    if (!confirm(`Khóa tài khoản "${name}"?`)) return;
     setActionId(id);
-    try { await rejectCompany(id); setCompanies((p) => p.map((c) => c.id === id ? { ...c, is_active: false } : c)); setActionMsg("Đã từ chối tài khoản."); }
-    catch (e) { setActionMsg(getApiErrorMessage(e)); }
+    try {
+      await rejectCompany(id);
+      setCompanies((p) => p.map((c) => c.id === id ? { ...c, is_active: false } : c));
+      setActionMsg("Đã khóa tài khoản nhà tuyển dụng.");
+    } catch (e) { setActionMsg(getApiErrorMessage(e)); }
     finally { setActionId(null); }
     setTimeout(() => setActionMsg(null), 3000);
   };
 
   if (!user) return <GuestPage><Link to="/login"><Button>Đăng nhập</Button></Link></GuestPage>;
-  if (user.role !== "admin") return <GuestPage><h1 className="text-2xl font-semibold text-gray-900">Không có quyền truy cập</h1></GuestPage>;
+  if (user.role !== "admin") return <GuestPage><p>Không có quyền truy cập.</p></GuestPage>;
+
+  const pendingCount = companies.filter(c => !c.is_active).length;
+  const getInitials = (name: string) => name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
 
   return (
-    <div className="min-h-screen bg-page-bg px-4 py-10 sm:px-6 lg:px-8">
-      <div className="max-w-6xl mx-auto space-y-6">
-        {/* Header with Badge */}
-        <div>
-          <div className="flex items-center gap-2 mb-2">
-            <Badge variant="primary" className="flex items-center gap-1.5 text-xs font-semibold">
-              <Shield className="w-3.5 h-3.5" />
-              Admin
-            </Badge>
-          </div>
-          <h1 className="text-3xl font-semibold text-gray-900">Quản lý công ty</h1>
-          <p className="text-sm text-gray-500 mt-1">Duyệt và quản lý tài khoản nhà tuyển dụng</p>
-        </div>
+    <>
+      <SEOMeta title="Quản lý Công ty — Admin" description="Duyệt và quản lý tài khoản nhà tuyển dụng" />
+      <div className="min-h-screen bg-[#F8FAFC] px-4 py-8 sm:px-6 lg:px-8 font-sans">
+        <div className="max-w-7xl mx-auto space-y-5">
 
-        {/* Tab Navigation */}
-        <AdminTabNavigation />
-
-        {actionMsg && <div className="rounded-lg bg-primary-light border border-primary/20 p-3 text-sm text-primary-dark">{actionMsg}</div>}
-
-        <div className="flex flex-wrap gap-2">
-          <div className="min-w-64 flex-1">
-            <Input
-              aria-label="Tìm kiếm công ty"
-              placeholder="Tên công ty, người đại diện hoặc email..."
-              value={searchInput}
-              onChange={(event) => setSearchInput(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") setKeyword(searchInput.trim());
-              }}
-            />
-          </div>
-          <select
-            aria-label="Lọc trạng thái công ty"
-            className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
-            value={statusFilter}
-            onChange={(event) => setStatusFilter(event.target.value)}
-          >
-            <option value="">Tất cả trạng thái</option>
-            <option value="active">Đang hoạt động</option>
-            <option value="inactive">Đã khóa</option>
-          </select>
-          <Button size="md" onClick={() => setKeyword(searchInput.trim())}>Tìm</Button>
-        </div>
-
-        {loading && <div className="space-y-3">{Array.from({ length: 4 }).map((_, i) => <Card key={i}><div className="p-4 flex justify-between"><div className="space-y-2"><Skeleton className="h-4 w-40" /><Skeleton className="h-3 w-60" /></div><Skeleton className="h-8 w-20 rounded-lg" /></div></Card>)}</div>}
-
-        {!loading && error && <div role="alert" className="rounded-lg bg-red-50 border border-red-200 p-4 text-sm text-red-700">{error}<Button className="ml-3" size="sm" variant="secondary" onClick={fetch}>Thử lại</Button></div>}
-
-        {!loading && !error && companies.length === 0 && (
-          <Card><div className="py-8 text-center"><p className="text-sm font-medium text-gray-700">Chưa có tài khoản nhà tuyển dụng nào.</p></div></Card>
-        )}
-
-        {!loading && !error && companies.length > 0 && (
-          <div className="space-y-3">
-            {companies.map((c) => (
-              <Card key={c.id}>
-                <div className="p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-sm font-semibold text-gray-900">{c.company_name ?? c.full_name}</h3>
-                      <Badge variant={c.is_active ? "success" : "default"} size="sm" dot>{c.is_active ? "Đang hoạt động" : "Đã khóa"}</Badge>
-                    </div>
-                    <p className="text-xs text-gray-500 mt-1">{c.full_name} — {c.email}</p>
-                    {c.company_description && <p className="text-xs text-gray-400 mt-0.5 line-clamp-1">{c.company_description}</p>}
-                    <p className="text-[10px] text-gray-400 mt-1">Đăng ký: {new Date(c.created_at).toLocaleDateString("vi-VN")}</p>
+          {/* Hero Header */}
+          <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-3xl p-6 sm:p-7 text-white relative overflow-hidden shadow-xl">
+            <div className="absolute inset-0 opacity-[0.04]" style={{ backgroundImage: "linear-gradient(#fff 1px,transparent 1px),linear-gradient(90deg,#fff 1px,transparent 1px)", backgroundSize: "40px 40px" }} />
+            <div className="absolute -top-16 -right-16 w-60 h-60 bg-[#00B86B]/20 rounded-full blur-3xl pointer-events-none" />
+            <div className="relative flex items-start justify-between gap-4 flex-wrap">
+              <div>
+                <div className="flex items-center gap-2 mb-2.5">
+                  <div className="w-7 h-7 bg-[#00B86B]/20 border border-[#00B86B]/30 rounded-lg flex items-center justify-center">
+                    <Building2 className="w-3.5 h-3.5 text-[#00B86B]" />
                   </div>
-                  <div className="flex gap-2 shrink-0">
-                    {!c.is_active && <Button variant="primary" size="sm" isLoading={actionId === c.id} onClick={() => handleApprove(c.id)}>Duyệt</Button>}
-                    {c.is_active && <Button variant="destructive" size="sm" isLoading={actionId === c.id} onClick={() => handleReject(c.id)}>Khóa</Button>}
-                  </div>
+                  <span className="text-xs font-bold text-[#00B86B] uppercase tracking-widest">Quản lý Công ty</span>
                 </div>
-              </Card>
-            ))}
+                <h1 className="text-2xl sm:text-3xl font-extrabold text-white">Nhà tuyển dụng hệ thống</h1>
+                <p className="text-slate-400 text-sm mt-1.5">Duyệt hồ sơ, phê duyệt và quản lý tài khoản doanh nghiệp</p>
+              </div>
+              <div className="flex gap-5 flex-shrink-0">
+                <div className="text-right">
+                  <p className="text-3xl font-extrabold text-white tabular-nums">{companies.length}</p>
+                  <p className="text-slate-400 text-xs mt-0.5">Tổng công ty</p>
+                </div>
+                {pendingCount > 0 && (
+                  <div className="text-right">
+                    <p className="text-3xl font-extrabold text-amber-400 tabular-nums">{pendingCount}</p>
+                    <p className="text-slate-400 text-xs mt-0.5">Chờ duyệt</p>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
-        )}
+
+          <AdminTabNavigation />
+
+          {/* Flash message */}
+          {actionMsg && (
+            <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
+              className={`rounded-2xl border p-3.5 text-sm font-medium ${
+                actionMsg.startsWith("✓")
+                  ? "bg-[#ECFDF5] border-emerald-200 text-[#00995C]"
+                  : "bg-red-50 border-red-200 text-red-700"
+              }`}>
+              {actionMsg}
+            </motion.div>
+          )}
+
+          {/* Filter bar */}
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-xs">
+            <div className="flex flex-wrap gap-2.5">
+              <div className="relative flex-1 min-w-52">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <Input
+                  aria-label="Tìm kiếm công ty"
+                  placeholder="Tên công ty, người đại diện hoặc email..."
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") setKeyword(searchInput.trim()); }}
+                  className="pl-9"
+                />
+              </div>
+              <select
+                aria-label="Lọc trạng thái công ty"
+                className="h-10 rounded-xl border border-slate-200 bg-white text-sm px-3 text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#00B86B]/20 focus:border-[#00B86B]"
+                value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}
+              >
+                <option value="">Tất cả trạng thái</option>
+                <option value="active">Đang hoạt động</option>
+                <option value="inactive">Đã khóa / Chờ duyệt</option>
+              </select>
+              <button
+                onClick={() => setKeyword(searchInput.trim())}
+                className="px-5 h-10 bg-[#00B86B] hover:bg-[#00995C] text-white text-sm font-bold rounded-xl transition-all shadow-xs"
+              >
+                Tìm kiếm
+              </button>
+            </div>
+          </div>
+
+          {/* Loading */}
+          {loading && (
+            <div className="space-y-2.5">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="bg-white border border-slate-200/80 rounded-2xl p-4 flex justify-between items-center">
+                  <div className="flex items-center gap-3">
+                    <Skeleton className="w-12 h-12 rounded-2xl" />
+                    <div className="space-y-2"><Skeleton className="h-4 w-40" /><Skeleton className="h-3 w-60" /></div>
+                  </div>
+                  <Skeleton className="h-8 w-20 rounded-xl" />
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Error */}
+          {!loading && error && (
+            <div role="alert" className="rounded-2xl bg-red-50 border border-red-200 p-4 text-sm text-red-700 flex items-center justify-between">
+              <span>{error}</span>
+              <Button size="sm" variant="secondary" onClick={fetch}>Thử lại</Button>
+            </div>
+          )}
+
+          {/* Empty */}
+          {!loading && !error && companies.length === 0 && (
+            <div className="bg-white border border-slate-200/80 rounded-2xl py-16 text-center">
+              <Building2 className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+              <p className="text-sm text-slate-500">Chưa có tài khoản nhà tuyển dụng nào.</p>
+            </div>
+          )}
+
+          {/* Company list */}
+          {!loading && !error && companies.length > 0 && (
+            <div className="space-y-2">
+              {companies.map((c, idx) => (
+                <motion.div
+                  key={c.id}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: idx * 0.04 }}
+                  className={`bg-white border rounded-2xl p-4 hover:shadow-sm transition-all ${
+                    !c.is_active ? "border-amber-200/80 bg-amber-50/30" : "border-slate-200/80"
+                  }`}
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div className="flex items-center gap-3.5 flex-1 min-w-0">
+                      {/* Company avatar */}
+                      <div className="w-12 h-12 rounded-2xl bg-[#ECFDF5] flex items-center justify-center text-sm font-extrabold text-[#00B86B] flex-shrink-0 border border-emerald-100">
+                        {getInitials(c.company_name ?? c.full_name)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="text-sm font-bold text-slate-900">{c.company_name ?? c.full_name}</h3>
+                          <span className={`text-[10px] font-bold border rounded-full px-2 py-0.5 ${
+                            c.is_active
+                              ? "bg-emerald-50 border-emerald-200 text-emerald-700"
+                              : "bg-amber-50 border-amber-200 text-amber-700"
+                          }`}>
+                            {c.is_active ? "● Đang hoạt động" : "⏳ Chờ duyệt"}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3 mt-1 flex-wrap">
+                          <span className="flex items-center gap-1 text-xs text-slate-500">
+                            <Mail className="w-3 h-3" />{c.full_name} — {c.email}
+                          </span>
+
+                          <span className="flex items-center gap-1 text-xs text-slate-400">
+                            <Calendar className="w-3 h-3" />{new Date(c.created_at).toLocaleDateString("vi-VN")}
+                          </span>
+                        </div>
+                        {c.company_description && (
+                          <p className="text-xs text-slate-400 mt-1 line-clamp-1">{c.company_description}</p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex gap-2 flex-shrink-0">
+                      {!c.is_active && (
+                        <button
+                          disabled={actionId === c.id}
+                          onClick={() => handleApprove(c.id)}
+                          className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-xl border border-emerald-200 bg-[#ECFDF5] text-[#00B86B] hover:bg-emerald-100 transition-all disabled:opacity-50"
+                        >
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          {actionId === c.id ? "⋯" : "Duyệt"}
+                        </button>
+                      )}
+                      {c.is_active && (
+                        <button
+                          disabled={actionId === c.id}
+                          onClick={() => handleReject(c.id, c.company_name ?? c.full_name)}
+                          className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-xl border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 transition-all disabled:opacity-50"
+                        >
+                          <XCircle className="w-3.5 h-3.5" />
+                          {actionId === c.id ? "⋯" : "Khóa"}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
+function GuestPage({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+      <div className="bg-white border border-slate-200 rounded-2xl p-10 text-center max-w-sm">
+        <Shield className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+        <div className="text-slate-600 text-sm">{children}</div>
       </div>
     </div>
   );
 }
 
-function GuestPage({ children }: { children: React.ReactNode }) {
-  return <div className="min-h-screen bg-page-bg px-4 py-10"><div className="max-w-6xl mx-auto"><Card className="p-8 text-center">{children}</Card></div></div>;
-}

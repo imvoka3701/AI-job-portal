@@ -103,7 +103,8 @@ export function Header() {
               const isActive =
                 item.href === "/"
                   ? location.pathname === "/"
-                  : location.pathname.startsWith(item.href);
+                  : location.pathname.startsWith(item.href) ||
+                    (item.href === "/ai/matching" && location.pathname.startsWith("/ai/match"));
               const IconComp = item.icon;
 
               if (item.isB2B) {

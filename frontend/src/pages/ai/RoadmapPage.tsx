@@ -624,7 +624,9 @@ export const RoadmapPage = () => {
   useEffect(() => {
     try {
       localStorage.setItem("roadmap_completed_tasks_2026", JSON.stringify(completedTasks));
-    } catch {}
+    } catch (error) {
+      console.error("Failed to save roadmap tasks to localStorage:", error);
+    }
   }, [completedTasks]);
 
   // Toggle task in weekly planner

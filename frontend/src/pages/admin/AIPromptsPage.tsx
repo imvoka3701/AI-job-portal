@@ -16,7 +16,7 @@ import {
   ShieldAlert,
   PartyPopper,
 } from "lucide-react";
-import { Badge, Button, Card, Skeleton } from "@/components/ui";
+import { Badge, Button, Skeleton } from "@/components/ui";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { AdminTabNavigation } from "./components/AdminTabNavigation";
@@ -158,40 +158,44 @@ export function AIPromptsPage() {
 
   return (
     <>
-      <SEOMeta
-        title="Quản lý AI Prompt — Admin"
-        description="Chỉnh sửa system prompt cho các tính năng AI"
-      />
-      <div className="space-y-6">
-        <AdminTabNavigation />
+      <SEOMeta title="Quản lý AI Prompt — Admin" description="Chỉnh sửa system prompt cho các tính năng AI" />
+      <div className="min-h-screen bg-[#F8FAFC] font-sans px-4 py-8 sm:px-6 lg:px-8">
+        <div className="max-w-4xl mx-auto space-y-5">
 
-        <div className="max-w-4xl mx-auto">
-          {/* Header */}
-          <div className="mb-6">
-            <div className="flex items-center gap-3 mb-1">
-              <Sparkles className="w-6 h-6 text-primary" />
-              <h1 className="text-2xl font-bold text-gray-900">Quản lý AI Prompt</h1>
+          {/* Hero Header */}
+          <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-3xl p-6 sm:p-7 text-white relative overflow-hidden shadow-xl">
+            <div className="absolute inset-0 opacity-[0.04]" style={{ backgroundImage: "linear-gradient(#fff 1px,transparent 1px),linear-gradient(90deg,#fff 1px,transparent 1px)", backgroundSize: "40px 40px" }} />
+            <div className="absolute -top-16 -right-16 w-60 h-60 bg-purple-500/20 rounded-full blur-3xl pointer-events-none" />
+            <div className="relative flex items-center gap-3">
+              <div className="w-10 h-10 bg-purple-500/20 border border-purple-400/30 rounded-xl flex items-center justify-center flex-shrink-0">
+                <Sparkles className="w-5 h-5 text-purple-400" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2 mb-0.5">
+                  <span className="text-xs font-bold text-purple-400 uppercase tracking-widest">Admin · AI Engine</span>
+                </div>
+                <h1 className="text-2xl sm:text-3xl font-extrabold text-white">Quản lý AI Prompt</h1>
+                <p className="text-slate-400 text-sm mt-0.5">Chỉnh sửa system prompt cho từng tính năng AI. Hệ thống tự động dùng lại prompt gốc nếu bạn để trống.</p>
+              </div>
             </div>
-            <p className="text-gray-500 text-sm ml-9">
-              Chỉnh sửa system prompt cho từng tính năng AI. Hệ thống tự động
-              dùng lại prompt gốc nếu bạn để trống.
-            </p>
           </div>
+
+          <AdminTabNavigation />
 
           {/* Loading */}
           {loading && (
             <div className="space-y-3" aria-label="Đang tải">
               {[1, 2, 3, 4, 5].map((i) => (
-                <Card key={i} className="p-4">
+                <div key={i} className="bg-white border border-slate-200/80 rounded-2xl p-4">
                   <div className="flex items-center gap-3">
-                    <Skeleton className="w-9 h-9 rounded-lg" />
+                    <Skeleton className="w-9 h-9 rounded-xl" />
                     <div className="flex-1 space-y-1.5">
                       <Skeleton className="h-4 w-40" />
                       <Skeleton className="h-3 w-64" />
                     </div>
                     <Skeleton className="h-6 w-24 rounded-full" />
                   </div>
-                </Card>
+                </div>
               ))}
             </div>
           )}
@@ -218,19 +222,13 @@ export function AIPromptsPage() {
                 const Icon = meta.icon;
                 const isExpanded = expandedFeature === feature;
                 const cardClass = isExpanded
-                  ? "overflow-hidden border border-primary/40 shadow-md transition-all duration-200"
-                  : "overflow-hidden border border-gray-200 hover:border-gray-300 hover:shadow-sm transition-all duration-200";
-                const iconWrapClass = `w-9 h-9 rounded-lg bg-gray-50 flex items-center justify-center shrink-0 ${meta.color}`;
+                  ? "overflow-hidden border border-[#00B86B]/40 shadow-md transition-all duration-200 bg-white rounded-2xl"
+                  : "overflow-hidden border border-slate-200/80 hover:border-slate-300 hover:shadow-sm transition-all duration-200 bg-white rounded-2xl";
+                const iconWrapClass = `w-9 h-9 rounded-xl bg-slate-50 flex items-center justify-center shrink-0 ${meta.color}`;
 
                 return (
-                  <motion.div
-                    key={feature}
-                    layout
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    <Card className={cardClass}>
+                  <motion.div key={feature} layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
+                    <div className={cardClass}>
                       {/* Row header — clickable */}
                       <button
                         type="button"
@@ -306,7 +304,7 @@ export function AIPromptsPage() {
                           </motion.div>
                         )}
                       </AnimatePresence>
-                    </Card>
+                    </div>
                   </motion.div>
                 );
               })}
