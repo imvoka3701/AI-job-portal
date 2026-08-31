@@ -7,7 +7,15 @@ import { Button, Card, EmptyState, ErrorState, PageTransition } from "@/componen
 import { EmployerStatsWidget } from "./components/EmployerStatsWidget";
 import { ActiveJobsTable } from "./components/ActiveJobsTable";
 import { EmployerRoleOverview } from "./components/EmployerRoleOverview";
-import { Briefcase, ArrowRight, AlertCircle } from "lucide-react";
+import {
+  Briefcase,
+  AlertCircle,
+  Plus,
+  Users,
+  Building2,
+  ClipboardList,
+  UserPlus,
+} from "lucide-react";
 import { motion } from "framer-motion";
 import { useEmployerCompany } from "@/contexts/EmployerCompanyContext";
 
@@ -15,7 +23,8 @@ export function EmployerDashboard() {
   const user = useUser();
   const navigate = useNavigate();
   const { data: companyContext } = useEmployerCompany();
-  const isDepartmentHead = companyContext?.membership.member_role === "department_head" && !companyContext.membership.is_owner;
+  const isDepartmentHead =
+    companyContext?.membership.member_role === "department_head" && !companyContext.membership.is_owner;
 
   const [stats, setStats] = useState<EmployerStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(false);
@@ -56,10 +65,16 @@ export function EmployerDashboard() {
   // Not logged in
   if (!user) {
     return (
-      <div className="flex items-center justify-center h-[calc(100vh-64px)]">
-        <div className="text-center">
-          <h1 className="text-2xl font-semibold text-gray-900">Đang tải...</h1>
-        </div>
+      <div className="min-h-screen bg-[#F8FAFB] flex items-center justify-center p-4 font-sans">
+        <Card className="p-8 text-center max-w-md w-full rounded-3xl border-slate-200 shadow-sm">
+          <div className="w-14 h-14 rounded-2xl bg-emerald-50 text-[#00B86B] flex items-center justify-center mx-auto mb-4 border border-emerald-200">
+            <Building2 className="w-7 h-7" />
+          </div>
+          <h1 className="text-2xl font-black text-slate-900">Bàn Điều Hành Tuyển Dụng</h1>
+          <p className="mt-2 text-sm text-slate-600">
+            Đang tải dữ liệu tài khoản doanh nghiệp...
+          </p>
+        </Card>
       </div>
     );
   }
@@ -67,18 +82,23 @@ export function EmployerDashboard() {
   // Not an employer
   if (user.role !== "employer") {
     return (
-      <div className="flex items-center justify-center h-full min-h-[400px]">
-        <Card className="p-8 text-center max-w-md w-full shadow-sm border-red-100">
-          <div className="mx-auto w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mb-3">
-            <Briefcase className="w-6 h-6 text-red-500" />
+      <div className="min-h-screen bg-[#F8FAFB] flex items-center justify-center p-4 font-sans">
+        <Card className="p-8 text-center max-w-md w-full shadow-sm border-slate-200 rounded-3xl">
+          <div className="mx-auto w-14 h-14 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mb-4 border border-amber-200">
+            <Briefcase className="w-7 h-7" />
           </div>
-          <h1 className="text-xl font-semibold text-gray-900">Truy cập bị từ chối</h1>
-          <p className="mt-3 text-sm text-gray-600">
-            Trang này chỉ dành cho tài khoản Nhà tuyển dụng. Vui lòng đăng nhập với tài khoản phù hợp.
+          <h1 className="text-xl font-black text-slate-900">Cổng Dành Riêng Cho Doanh Nghiệp</h1>
+          <p className="mt-2 text-sm text-slate-600 leading-relaxed">
+            Tài khoản hiện tại của bạn là Ứng viên. Vui lòng đăng nhập với tài khoản Nhà tuyển dụng để truy cập bảng điều khiển này.
           </p>
-          <div className="mt-6">
+          <div className="mt-6 flex flex-col gap-2">
+            <Link to="/employer/landing">
+              <Button className="w-full bg-[#00B86B] hover:bg-[#00995C] text-white font-bold rounded-xl py-2.5 shadow-sm">
+                Tìm hiểu Cổng Nhà Tuyển Dụng
+              </Button>
+            </Link>
             <Link to="/">
-              <Button variant="outline" className="w-full">Quay lại trang chủ</Button>
+              <Button variant="outline" className="w-full rounded-xl">Quay lại trang chủ</Button>
             </Link>
           </div>
         </Card>
@@ -86,95 +106,118 @@ export function EmployerDashboard() {
     );
   }
 
-  return (
-    <PageTransition className="space-y-8 pb-16 max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 mt-6">
-      {/* Tier 1: Overview Header */}
-      <motion.div
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="relative bg-white border border-gray-200 rounded-3xl p-8 shadow-sm overflow-hidden"
-      >
-        <div className="absolute top-0 right-0 -mt-16 -mr-16 w-64 h-64 bg-gradient-to-bl from-blue-500/10 to-purple-500/5 rounded-full blur-3xl pointer-events-none" />
-        
-        <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-          <div className="max-w-2xl">
-            <div className="mb-3 flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200/60">
-                Dashboard
-              </span>
-              {companyContext && (
-                <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border ${companyContext.membership.is_owner ? 'bg-indigo-50 text-indigo-700 border-indigo-200/60' : 'bg-gray-100 text-gray-700 border-gray-200/60'}`}>
-                  {companyContext.membership.is_owner
-                    ? "Owner · Nhân sự"
-                    : companyContext.membership.member_role === "hr"
-                      ? "Nhân sự"
-                      : `Trưởng bộ phận${companyContext.membership.department_name ? ` · ${companyContext.membership.department_name}` : ""}`}
-                </span>
-              )}
-            </div>
-            <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">
-              Chào mừng trở lại, {companyContext?.company.name || user.company_name || user.full_name}
-            </h1>
-            <p className="text-base text-gray-500 mt-2 leading-relaxed">
-              {isDepartmentHead
-                ? `Dữ liệu thuộc ${companyContext?.membership.department_name ?? "phòng ban"} và các job được phân công trong 30 ngày qua.`
-                : "Theo dõi tổng quan hiệu suất tuyển dụng toàn doanh nghiệp trong 30 ngày qua."}
-            </p>
-          </div>
+  const companyName = companyContext?.company.name || user.company_name || user.full_name;
 
-          {stats && stats.active_jobs.length > 0 && (
-            <div className="shrink-0 bg-blue-50/50 border border-blue-100 rounded-2xl p-5 shadow-sm">
-              <div className="flex items-start gap-4">
-                <div className="relative flex h-3 w-3 mt-1.5 shrink-0">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-75" />
-                  <span className="relative inline-flex h-3 w-3 rounded-full bg-blue-600" />
+  return (
+    <PageTransition className="min-h-screen bg-[#F8FAFB] font-sans pb-16 text-slate-900">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+        {/* ── 1. COMMAND HERO BENTO HEADER ───────────────────────────────── */}
+        <section className="rounded-[32px] bg-white border border-slate-200/90 shadow-xs p-6 sm:p-8 space-y-6 relative overflow-hidden">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+            {/* Left: Company Identity */}
+            <div className="flex items-center gap-5">
+              <div className="w-20 h-20 sm:w-22 sm:h-22 rounded-2xl bg-gradient-to-br from-[#00B86B] to-teal-800 flex items-center justify-center text-white font-black text-3xl shadow-md shadow-emerald-500/20 border-4 border-white shrink-0 overflow-hidden">
+                {companyContext?.company.logo_url ? (
+                  <img src={companyContext.company.logo_url} alt={companyName} className="w-full h-full object-cover" />
+                ) : (
+                  <span>{companyName.charAt(0).toUpperCase()}</span>
+                )}
+              </div>
+
+              <div className="space-y-1.5">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#00B86B] animate-pulse" />
+                    Doanh Nghiệp Xác Thực
+                  </span>
+                  {companyContext && (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                      {companyContext.membership.is_owner
+                        ? "Chủ Sở Hữu / Owner"
+                        : companyContext.membership.member_role === "hr"
+                        ? "Quản Lý Nhân Sự"
+                        : `Trưởng Bộ Phận · ${companyContext.membership.department_name || ""}`}
+                    </span>
+                  )}
                 </div>
-                <div>
-                  <p className="text-sm font-medium text-blue-900/80 mb-1">Ứng viên mới cần xử lý</p>
-                  <p className="text-2xl font-bold text-blue-900 mb-3">{stats.total_applications}</p>
-                  <Link to="/employer/candidates" className="inline-flex items-center justify-center w-full px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors shadow-sm">
-                    Xử lý ngay <ArrowRight className="w-4 h-4 ml-1.5" />
-                  </Link>
-                </div>
+                <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+                  {companyName}
+                </h1>
+                <p className="text-xs sm:text-sm text-slate-500 font-medium">
+                  {isDepartmentHead
+                    ? `Dữ liệu thuộc ${companyContext?.membership.department_name ?? "phòng ban"} và các vị trí tuyển dụng được phân công.`
+                    : "Trung tâm điều hành tuyển dụng thông minh & Tự động hóa sàng lọc ứng viên bằng AI."}
+                </p>
               </div>
             </div>
-          )}
-        </div>
-      </motion.div>
 
-      {statsError ? (
-        <ErrorState title="Không tải được dashboard" message={statsError} onRetry={() => window.location.reload()} />
-      ) : stats ? (
-        <div className="space-y-8">
-          {companyContext && <EmployerRoleOverview context={companyContext} stats={stats} />}
-          
-          {/* Tier 2: Insights Grid is inside EmployerStatsWidget */}
-          <EmployerStatsWidget stats={stats} loading={statsLoading} error={null} scoped={Boolean(isDepartmentHead)} />
-          
-          {/* Tier 3: Workspace */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="pt-4"
-          >
-            <ActiveJobsTable
-              jobs={stats.active_jobs}
-              loading={statsLoading}
-              onSelectJob={handleSelectJob}
-              canManageJobs={!isDepartmentHead}
-              scoped={Boolean(isDepartmentHead)}
-            />
-          </motion.div>
-        </div>
-      ) : (
-        <EmptyState
-          icon={<AlertCircle className="w-7 h-7 text-gray-400" />}
-          title={statsLoading ? "Đang tải dashboard" : "Chưa có dữ liệu"}
-          description="Tổng quan tuyển dụng sẽ hiện ở đây sau khi dữ liệu được tải."
-          className="py-16 bg-white rounded-3xl border border-gray-200"
-        />
-      )}
+            {/* Right: Quick Actions */}
+            <div className="flex flex-wrap items-center gap-2.5">
+              <Link to="/employer/jobs/new">
+                <Button className="bg-gradient-to-r from-[#00B86B] to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold text-xs rounded-full px-5 py-2.5 shadow-md shadow-emerald-600/20 cursor-pointer flex items-center gap-1.5">
+                  <Plus size={15} />
+                  <span>Đăng Tin Tuyển Mới</span>
+                </Button>
+              </Link>
+
+              <Link to="/employer/candidates">
+                <Button variant="outline" className="rounded-full text-xs font-bold px-4 py-2.5 bg-white hover:bg-slate-50 border-slate-200 text-slate-700 cursor-pointer flex items-center gap-1.5">
+                  <Users size={15} className="text-[#00B86B]" />
+                  <span>Phễu Ứng Viên</span>
+                </Button>
+              </Link>
+
+              <Link to="/employer/recruitment-requests">
+                <Button variant="outline" className="rounded-full text-xs font-bold px-4 py-2.5 bg-white hover:bg-slate-50 border-slate-200 text-slate-700 cursor-pointer flex items-center gap-1.5">
+                  <ClipboardList size={15} className="text-blue-600" />
+                  <span>Nhu Cầu Tuyển Dụng</span>
+                </Button>
+              </Link>
+
+              <Link to="/employer/team">
+                <Button variant="outline" className="rounded-full text-xs font-bold px-4 py-2.5 bg-white hover:bg-slate-50 border-slate-200 text-slate-700 cursor-pointer flex items-center gap-1.5">
+                  <UserPlus size={15} className="text-purple-600" />
+                  <span>Đội Ngũ</span>
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </section>
+
+        {/* ── 2. STATS & ANALYTICS WIDGET ─────────────────────────────────── */}
+        {statsError ? (
+          <ErrorState title="Không tải được dữ liệu" message={statsError} onRetry={() => window.location.reload()} />
+        ) : stats ? (
+          <div className="space-y-8">
+            {companyContext && <EmployerRoleOverview context={companyContext} stats={stats} />}
+
+            {/* 4 KPIs + Funnel & Trend charts */}
+            <EmployerStatsWidget stats={stats} loading={statsLoading} error={null} scoped={Boolean(isDepartmentHead)} />
+
+            {/* Active Jobs Table */}
+            <motion.div
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.15 }}
+            >
+              <ActiveJobsTable
+                jobs={stats.active_jobs}
+                loading={statsLoading}
+                onSelectJob={handleSelectJob}
+                canManageJobs={!isDepartmentHead}
+                scoped={Boolean(isDepartmentHead)}
+              />
+            </motion.div>
+          </div>
+        ) : (
+          <EmptyState
+            icon={<AlertCircle className="w-8 h-8 text-slate-400" />}
+            title={statsLoading ? "Đang tải dữ liệu..." : "Chưa có dữ liệu tuyển dụng"}
+            description="Bảng thống kê tuyển dụng sẽ hiển thị sau khi bạn bắt đầu đăng tin và nhận hồ sơ ứng viên."
+            className="py-16 bg-white rounded-3xl border border-slate-200 shadow-xs"
+          />
+        )}
+      </main>
     </PageTransition>
   );
 }

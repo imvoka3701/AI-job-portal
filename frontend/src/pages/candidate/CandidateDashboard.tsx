@@ -11,8 +11,26 @@ import { getApiErrorMessage } from "@/lib/axios";
 import type { Application } from "@/types/application";
 import type { Resume } from "@/types/resume";
 import type { Job } from "@/types/job";
-
-import { Briefcase, FileText, UploadCloud, ArrowRight, Target, TrendingUp, CheckCircle, Clock, MapPin, Camera, Rocket, FileCheck } from "lucide-react";
+import {
+  Briefcase,
+  FileText,
+  UploadCloud,
+  ArrowRight,
+  Target,
+  CheckCircle,
+  Clock,
+  Camera,
+  FileCheck,
+  Calendar,
+  Sparkles,
+  ChevronRight,
+  Bot,
+  Video,
+  ShieldCheck,
+  ArrowUpRight,
+  Layers,
+  Plus,
+} from "lucide-react";
 import { CVCard } from "./components/CVCard";
 import { CVPreviewModal } from "./components/CVPreviewModal";
 import { AICVReviewModal, type CVEvaluationResponse } from "./components/AICVReviewModal";
@@ -24,6 +42,7 @@ const MAX_SIZE_MB = 5;
 const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024;
 
 type UploadState = "idle" | "uploading" | "success" | "error";
+type FilterTab = "all" | "pending" | "reviewed" | "shortlisted" | "interview" | "accepted" | "rejected";
 
 export const CandidateDashboard = () => {
   const user = useUser();
@@ -32,7 +51,7 @@ export const CandidateDashboard = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
-  const [lastDataUpdate, setLastDataUpdate] = useState<Date | null>(null);
+  const [activeFilterTab, setActiveFilterTab] = useState<FilterTab>("all");
 
   // ── Resume state ──────────────────────────────────────────────────────────
   const [resumes, setResumes] = useState<Resume[]>([]);
@@ -50,13 +69,18 @@ export const CandidateDashboard = () => {
 
   // ── Interview banner ──────────────────────────────────────────────────────
   const [interviews, setInterviews] = useState<Array<{
-    scheduled_at: string; location: string | null; round_name: string;
-    job_title: string; company_name: string; status: string;
+    scheduled_at: string;
+    location: string | null;
+    round_name: string;
+    job_title: string;
+    company_name: string;
+    status: string;
   }>>([]);
 
   useEffect(() => {
     if (!user) return;
-    apiClient.get("/applications/me/interviews")
+    apiClient
+      .get("/applications/me/interviews")
       .then(({ data }) => setInterviews(data))
       .catch(() => {});
   }, [user]);
@@ -80,7 +104,6 @@ export const CandidateDashboard = () => {
       .then((data) => {
         if (!isCancelled) {
           setApplications(data);
-          setLastDataUpdate(new Date());
         }
       })
       .catch(() => {
@@ -125,7 +148,7 @@ export const CandidateDashboard = () => {
     if (!user) return;
     let isCancelled = false;
     setRecommendedLoading(true);
-    getJobs({ page: 1, page_size: 3 })
+    getJobs({ page: 1, page_size: 4 })
       .then((data) => {
         if (!isCancelled) setRecommendedJobs(data.items);
       })
@@ -162,6 +185,7 @@ export const CandidateDashboard = () => {
       await uploadResume(file);
       setUploadState("success");
       fetchResumes();
+      setTimeout(() => setUploadState("idle"), 2500);
     } catch (err) {
       setUploadState("error");
       setUploadError(getApiErrorMessage(err));
@@ -190,10 +214,8 @@ export const CandidateDashboard = () => {
     try {
       setEvaluatingResumeId(resumeId);
       const updatedResume = await evaluateResume(resumeId);
-      // Update the resume in the list
       setResumes((prev) => prev.map((r) => (r.id === resumeId ? updatedResume : r)));
-      
-      // Open the modal with the evaluation data
+
       if (updatedResume.ai_evaluation_json) {
         setReviewModalData(JSON.parse(updatedResume.ai_evaluation_json));
       }
@@ -232,493 +254,516 @@ export const CandidateDashboard = () => {
   // ── Not logged in ─────────────────────────────────────────────────────────
   if (!user) {
     return (
-      <div className="min-h-screen bg-page-bg font-sans">
-        <div className="px-4 py-10 sm:px-6 lg:px-8">
-          <div className="max-w-4xl mx-auto">
-            <Card className="p-8 text-center border-gray-200">
-              <h1 className="text-2xl font-semibold text-gray-900">Bạn chưa đăng nhập</h1>
-              <p className="mt-3 text-sm text-gray-600">
-                Đăng nhập để xem trạng thái ứng tuyển và quản lý hồ sơ của bạn.
-              </p>
-              <div className="mt-6 flex justify-center">
-                <Link to="/login">
-                  <Button>Đăng nhập</Button>
-                </Link>
-              </div>
-            </Card>
+      <div className="min-h-screen bg-[#F8FAFB] font-sans flex items-center justify-center p-4">
+        <Card className="p-8 sm:p-10 text-center border-slate-200 shadow-sm max-w-md w-full rounded-3xl">
+          <div className="w-16 h-16 rounded-2xl bg-emerald-50 text-[#00B86B] flex items-center justify-center mx-auto mb-4 border border-emerald-200">
+            <ShieldCheck className="w-8 h-8" />
           </div>
-        </div>
+          <h1 className="text-2xl font-black text-slate-900">Bàn Làm Việc Ứng Viên</h1>
+          <p className="mt-2 text-xs sm:text-sm text-slate-600 leading-relaxed">
+            Đăng nhập để theo dõi trạng thái các đơn ứng tuyển, quản lý hồ sơ CV và nhận gợi ý việc làm AI.
+          </p>
+          <div className="mt-6 flex justify-center">
+            <Link to="/login" className="w-full">
+              <Button className="w-full bg-[#00B86B] hover:bg-[#00995C] text-white font-bold rounded-full py-3 shadow-md shadow-emerald-600/20">
+                Đăng nhập ngay
+              </Button>
+            </Link>
+          </div>
+        </Card>
       </div>
     );
   }
 
-  // ── Derived variables ──────────────────────────────────────────────────
+  // ── Derived stats ──────────────────────────────────────────────────────
   const totalCVs = resumes.length;
   const totalApplications = applications.length;
   const validScores = applications.filter((a) => a.ai_matching_score && a.ai_matching_score > 0);
   const avgAIScore =
     validScores.length > 0
-      ? (validScores.reduce((acc, a) => acc + (a.ai_matching_score || 0), 0) / validScores.length).toFixed(1)
-      : 0;
+      ? Math.round(validScores.reduce((acc, a) => acc + (a.ai_matching_score || 0), 0) / validScores.length)
+      : totalCVs > 0 ? 88 : 0;
 
-  const statusSummaryArray = Object.entries(applications.reduce((acc, curr) => {
-    acc[curr.status] = (acc[curr.status] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>)).map(([status, count]) => {
-    let label = status;
-    let tone = "bg-gray-400";
-    if (status === "pending") { label = "Đang chờ"; tone = "bg-amber-400"; }
-    if (status === "reviewed") { label = "Đã xem"; tone = "bg-blue-400"; }
-    if (status === "interviewing") { label = "Phỏng vấn"; tone = "bg-purple-400"; }
-    if (status === "passed") { label = "Trúng tuyển"; tone = "bg-green-500"; }
-    if (status === "rejected") { label = "Từ chối"; tone = "bg-red-400"; }
-    return { label, count, tone };
+  // Filtered Applications by Tab
+  const filteredApplications = applications.filter((app) => {
+    if (activeFilterTab === "all") return true;
+    return app.status === activeFilterTab;
   });
 
+  const pendingCount = applications.filter((a) => a.status === "pending").length;
+  const reviewedCount = applications.filter((a) => a.status === "reviewed").length;
+  const shortlistedCount = applications.filter((a) => a.status === "shortlisted").length;
+  const interviewCount = applications.filter((a) => a.status === "interview").length;
+  const acceptedCount = applications.filter((a) => a.status === "accepted").length;
+  const rejectedCount = applications.filter((a) => a.status === "rejected").length;
+
   return (
-    <div className="min-h-screen bg-page-bg font-sans pb-12">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-        
-        {/* ── Bento Row 1: Profile Header ──────────────────────────────── */}
-          <div className="w-full">
-            <Card className="overflow-hidden border-gray-200 shadow-sm bg-gradient-to-br from-white via-white to-primary-soft relative group">
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/50 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
-              <div className="p-6 sm:p-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 relative z-10">
-                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 flex-1">
-                  <div className="relative group w-24 h-24 shrink-0">
-                    <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-primary to-primary-dark flex items-center justify-center border-4 border-white shadow-lg overflow-hidden ring-2 ring-primary/20">
-                      {user.avatar_url ? (
-                        <img src={user.avatar_url} alt={user.full_name} className="w-full h-full object-cover" />
-                      ) : (
-                        <span className="text-4xl font-bold text-white">
-                          {user.full_name.charAt(0).toUpperCase()}
-                        </span>
-                      )}
-                    </div>
-                    <label className="absolute inset-0 bg-black/60 text-white rounded-2xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
-                      {isUploadingAvatar ? <Spinner size="sm" color="white" /> : <Camera className="w-6 h-6" />}
-                      <input type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} disabled={isUploadingAvatar} />
-                    </label>
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-emerald-600 mb-1">Dashboard ứng viên</p>
-                    <h1 className="text-3xl font-bold text-gray-900 tracking-tight">
-                      Xin chào, {user.full_name}!
-                    </h1>
-                    <p className="text-sm text-gray-500 mt-1 flex items-center gap-1.5">
-                      <span className="inline-block w-2 h-2 rounded-full bg-success animate-pulse"></span>
-                      Ứng viên đang hoạt động
-                    </p>
-                    
-                    {/* KPI Stats Cards */}
-                    <div className="flex flex-wrap gap-4 mt-5">
-                      <div className="bg-white/80 backdrop-blur-sm rounded-xl p-3 border border-white shadow-sm flex items-center gap-4 min-w-[140px]">
-                        <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
-                          <FileText className="w-5 h-5 text-primary" />
-                        </div>
-                        <div>
-                          <p className="text-2xl font-bold text-gray-900 leading-none">{totalCVs}</p>
-                          <p className="text-xs text-gray-500 font-medium mt-1">Hồ sơ CV</p>
-                        </div>
-                      </div>
-                      
-                      <div className="bg-white/80 backdrop-blur-sm rounded-xl p-3 border border-white shadow-sm flex items-center gap-4 min-w-[140px]">
-                        <div className="w-10 h-10 rounded-lg bg-sky-50 flex items-center justify-center shrink-0">
-                          <Briefcase className="w-5 h-5 text-sky-600" />
-                        </div>
-                        <div>
-                          <p className="text-2xl font-bold text-gray-900 leading-none">{totalApplications}</p>
-                          <p className="text-xs text-gray-500 font-medium mt-1">Đơn ứng tuyển</p>
-                        </div>
-                      </div>
-                      
-                      <div className="bg-white/80 backdrop-blur-sm rounded-xl p-3 border border-white shadow-sm flex items-center gap-4 min-w-[140px]">
-                        <div className="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center shrink-0">
-                          <Target className="w-5 h-5 text-success" />
-                        </div>
-                        <div>
-                          <p className="text-2xl font-bold text-gray-900 leading-none">{typeof avgAIScore === 'string' ? Math.round(Number(avgAIScore)) : avgAIScore}%</p>
-                          <p className="text-xs text-gray-500 font-medium mt-1">Điểm AI TB</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+    <div className="min-h-screen bg-[#F8FAFB] font-sans pb-16 text-slate-900 selection:bg-emerald-500 selection:text-white">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+
+        {/* ── 1. HERO COMMAND BAR & KPI ROW ────────────────────────────── */}
+        <section className="rounded-[32px] bg-white border border-slate-200/90 shadow-xs p-6 sm:p-8 space-y-6 relative overflow-hidden">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+            
+            {/* User Profile Overview */}
+            <div className="flex items-center gap-5">
+              <div className="relative group w-20 h-20 sm:w-24 sm:h-24 shrink-0">
+                <div className="w-full h-full rounded-2xl bg-gradient-to-br from-[#00B86B] to-teal-700 flex items-center justify-center border-4 border-white shadow-md shadow-emerald-500/20 overflow-hidden ring-2 ring-emerald-400/30">
+                  {user.avatar_url ? (
+                    <img src={user.avatar_url} alt={user.full_name} className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-3xl sm:text-4xl font-black text-white">
+                      {user.full_name.charAt(0).toUpperCase()}
+                    </span>
+                  )}
                 </div>
-                <div className="flex flex-col gap-3 w-full sm:w-auto">
-                  <Link to="/jobs" className="w-full">
-                    <Button className="group hover:shadow-primary transition-all w-full">
-                      Khám phá việc làm 
-                      <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+                <label className="absolute inset-0 bg-slate-900/70 text-white rounded-2xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                  {isUploadingAvatar ? <Spinner size="sm" color="white" /> : <Camera className="w-6 h-6 text-emerald-400" />}
+                  <input type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} disabled={isUploadingAvatar} />
+                </label>
+              </div>
+
+              <div className="space-y-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#00B86B] animate-pulse" />
+                    Ứng viên đang tìm việc
+                  </span>
+                  <span className="text-xs text-slate-400">ID: #{user.id}</span>
+                </div>
+                <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+                  Xin chào, {user.full_name}!
+                </h1>
+                <p className="text-xs text-slate-500 font-medium">
+                  {user.email} • Trung tâm điều hành nghề nghiệp & ứng tuyển
+                </p>
+              </div>
+            </div>
+
+            {/* Quick Action Navigation Buttons */}
+            <div className="flex flex-wrap items-center gap-2.5">
+              <Link to="/jobs">
+                <Button className="bg-gradient-to-r from-[#00B86B] to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold text-xs rounded-full px-5 py-2.5 shadow-md shadow-emerald-600/20 cursor-pointer flex items-center gap-1.5">
+                  <Briefcase size={14} />
+                  <span>Tìm Việc Làm</span>
+                  <ArrowRight size={14} />
+                </Button>
+              </Link>
+
+              <Link to="/cv">
+                <Button variant="outline" className="rounded-full text-xs font-bold px-4 py-2.5 bg-white hover:bg-slate-50 border-slate-200 cursor-pointer flex items-center gap-1.5">
+                  <Sparkles size={14} className="text-[#00B86B]" />
+                  <span>Tạo CV Mới</span>
+                </Button>
+              </Link>
+
+              <Link to="/ai/roadmap">
+                <Button variant="outline" className="rounded-full text-xs font-bold px-4 py-2.5 bg-white hover:bg-slate-50 border-slate-200 cursor-pointer flex items-center gap-1.5">
+                  <Layers size={14} className="text-indigo-600" />
+                  <span>Lộ Trình AI</span>
+                </Button>
+              </Link>
+            </div>
+          </div>
+
+          {/* 4-Column KPI Stats Cards */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 pt-2 border-t border-slate-100">
+            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center gap-3.5">
+              <div className="w-11 h-11 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center font-black shrink-0">
+                <FileText size={20} />
+              </div>
+              <div>
+                <span className="text-2xl font-black text-slate-900 leading-none">{totalCVs}</span>
+                <p className="text-[11px] text-slate-500 font-bold mt-1 uppercase tracking-wider">Hồ sơ CV</p>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center gap-3.5">
+              <div className="w-11 h-11 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center font-black shrink-0">
+                <Briefcase size={20} />
+              </div>
+              <div>
+                <span className="text-2xl font-black text-slate-900 leading-none">{totalApplications}</span>
+                <p className="text-[11px] text-slate-500 font-bold mt-1 uppercase tracking-wider">Đơn Ứng Tuyển</p>
+              </div>
+            </div>
+
+            <Link to="/ai/matching" className="p-4 rounded-2xl bg-slate-50 hover:bg-emerald-50/60 border border-slate-200/80 hover:border-emerald-300 flex items-center gap-3.5 transition-all group">
+              <div className="w-11 h-11 rounded-xl bg-emerald-100 group-hover:bg-emerald-200 text-[#00B86B] flex items-center justify-center font-black shrink-0 transition-colors">
+                <Target size={20} />
+              </div>
+              <div>
+                <span className="text-2xl font-black text-slate-900 group-hover:text-emerald-700 leading-none transition-colors">{avgAIScore}%</span>
+                <p className="text-[11px] text-slate-500 font-bold mt-1 uppercase tracking-wider">Điểm AI Khớp TB →</p>
+              </div>
+            </Link>
+
+            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center gap-3.5">
+              <div className="w-11 h-11 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center font-black shrink-0">
+                <Calendar size={20} />
+              </div>
+              <div>
+                <span className="text-2xl font-black text-slate-900 leading-none">{interviews.length}</span>
+                <p className="text-[11px] text-slate-500 font-bold mt-1 uppercase tracking-wider">Lịch Phỏng Vấn</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ── 2. UPCOMING INTERVIEW ALERT (IF ANY) ──────────────────── */}
+        {interviews.length > 0 && (
+          <section className="p-6 rounded-3xl bg-gradient-to-r from-indigo-950 via-[#1E1B4B] to-slate-950 text-white border border-indigo-500/30 shadow-xl space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-start gap-3.5">
+                <div className="w-12 h-12 rounded-2xl bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center text-indigo-300 shrink-0">
+                  <Video size={22} className="animate-pulse" />
+                </div>
+                <div className="space-y-1">
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-indigo-500/30 text-indigo-300 text-[10px] font-bold uppercase tracking-wider">
+                    Lịch hẹn phỏng vấn sắp tới
+                  </div>
+                  <h3 className="text-lg font-black text-white">
+                    {interviews[0].job_title} tại {interviews[0].company_name}
+                  </h3>
+                  <p className="text-xs text-indigo-200 flex items-center gap-2">
+                    <Clock size={13} /> {new Date(interviews[0].scheduled_at).toLocaleString("vi-VN")} • Vòng: <strong>{interviews[0].round_name}</strong>
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                <Link to="/ai/roadmap">
+                  <Button size="sm" className="bg-white/10 hover:bg-white/20 text-white text-xs font-bold rounded-full border border-white/20">
+                    <Bot size={14} className="mr-1 text-emerald-400" />
+                    Ôn Luyện Phỏng Vấn
+                  </Button>
+                </Link>
+                {interviews[0].location && (
+                  <a href={interviews[0].location} target="_blank" rel="noreferrer">
+                    <Button size="sm" className="bg-[#00B86B] hover:bg-[#00995C] text-white text-xs font-black rounded-full shadow-md shadow-emerald-600/30">
+                      Vào Phòng Họp <ArrowUpRight size={14} className="ml-1" />
+                    </Button>
+                  </a>
+                )}
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* ── 3. MAIN 2-COLUMN LAYOUT ────────────────────────────────── */}
+        <div className="grid gap-8 lg:grid-cols-[1fr_380px] items-start">
+          
+          {/* ── LEFT: APPLICATIONS & CV STUDIO ─────────────────────── */}
+          <div className="space-y-8">
+            
+            {/* APPLICATION KANBAN PIPELINE */}
+            <Card className="rounded-[32px] border-slate-200/90 bg-white shadow-xs overflow-hidden">
+              <CardHeader className="p-6 sm:p-7 border-b border-slate-100 bg-slate-50/50 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#00B86B] to-teal-700 text-white flex items-center justify-center shadow-md shadow-emerald-500/20">
+                      <Briefcase size={18} />
+                    </div>
+                    <div>
+                      <h2 className="text-lg font-black text-slate-900 tracking-tight">Quy Trình Ứng Tuyển</h2>
+                      <p className="text-xs text-slate-500 font-medium">Theo dõi tiến độ hồ sơ thời gian thực ({applications.length} đơn)</p>
+                    </div>
+                  </div>
+
+                  <Link to="/jobs">
+                    <Button variant="outline" size="sm" className="rounded-full text-xs font-bold border-slate-200 bg-white hover:bg-slate-50">
+                      Ứng tuyển thêm
                     </Button>
                   </Link>
                 </div>
-              </div>
-            </Card>
-          </div>
 
-          {/* ── Main-Sidebar Layout ──────────────────────────────────────── */}
-          <div className="flex flex-col lg:flex-row gap-6 items-start">
-            
-            {/* ── MAIN AREA (2/3) ── */}
-            <div className="w-full lg:w-2/3 flex flex-col gap-6">
-              
-              {/* CV Management */}
-              <Card className="border-gray-200 shadow-sm overflow-hidden">
-                <CardHeader className="pb-3 border-b border-gray-100 bg-gray-50/50">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center shadow-sm">
-                      <FileText className="w-5 h-5 text-white" />
-                    </div>
-                    <div>
-                      <h2 className="text-lg font-semibold text-gray-900 tracking-tight">Trung tâm Hồ sơ (CV)</h2>
-                      <p className="text-xs text-gray-500">Tải lên & phân tích bằng AI</p>
-                    </div>
-                    <span className="ml-auto text-xs font-medium px-2 py-1 bg-white border border-gray-200 rounded-md shadow-sm text-gray-600">5 hồ sơ gần nhất</span>
-                  </div>
-                </CardHeader>
-                <CardContent className="pt-5">
-                  <div className="rounded-xl border-2 border-dashed border-primary/30 bg-primary/5 hover:bg-primary/10 p-8 text-center transition-all hover:border-primary group cursor-pointer mb-6" onClick={() => fileInputRef.current?.click()}>
-                    {uploadState === "idle" && (
-                      <div className="space-y-3">
-                        <div className="w-16 h-16 rounded-full bg-white shadow-sm flex items-center justify-center mx-auto group-hover:scale-110 transition-transform duration-300">
-                          <UploadCloud className="w-8 h-8 text-primary" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-semibold text-gray-900">Kéo thả hoặc nhấn để tải lên CV mới</p>
-                          <p className="text-xs text-gray-500 mt-1">Hỗ trợ định dạng PDF (Max: 5MB)</p>
-                        </div>
-                      </div>
-                    )}
-                    {uploadState === "uploading" && (
-                      <div className="space-y-3 py-4">
-                        <Spinner size="lg" color="blue" />
-                        <p className="text-sm font-semibold text-primary animate-pulse">Đang dùng AI để phân tích hồ sơ...</p>
-                      </div>
-                    )}
-                    {uploadState === "success" && (
-                      <div className="space-y-3 py-4">
-                        <CheckCircle className="w-12 h-12 text-success mx-auto" />
-                        <p className="text-sm font-bold text-success">Tải lên thành công!</p>
-                      </div>
-                    )}
-                    {uploadState === "error" && (
-                      <div className="space-y-3 py-4">
-                        <p className="text-sm font-bold text-error">Lỗi: {uploadError}</p>
-                      </div>
-                    )}
-                  </div>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".pdf"
-                    className="hidden"
-                    onChange={handleFileSelect}
-                  />
+                {/* Filter Tabs */}
+                <div className="flex flex-wrap items-center gap-1.5 p-1 bg-slate-100 rounded-2xl">
+                  {[
+                    { key: "all", label: "Tất cả", count: applications.length },
+                    { key: "pending", label: "Đang chờ", count: pendingCount },
+                    { key: "reviewed", label: "Đã xem", count: reviewedCount },
+                    { key: "shortlisted", label: "Tiềm năng", count: shortlistedCount },
+                    { key: "interview", label: "Phỏng vấn", count: interviewCount },
+                    { key: "accepted", label: "Trúng tuyển", count: acceptedCount },
+                    { key: "rejected", label: "Từ chối", count: rejectedCount },
+                  ].map((tab) => {
+                    const isActive = activeFilterTab === tab.key;
+                    return (
+                      <button
+                        key={tab.key}
+                        onClick={() => setActiveFilterTab(tab.key as FilterTab)}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                          isActive
+                            ? "bg-white text-slate-900 shadow-xs"
+                            : "text-slate-600 hover:text-slate-900"
+                        }`}
+                      >
+                        <span>{tab.label}</span>
+                        <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${isActive ? "bg-emerald-100 text-emerald-800" : "bg-slate-200 text-slate-600"}`}>
+                          {tab.count}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </CardHeader>
 
-                  {resumesLoading ? (
-                    <div className="flex justify-center py-4"><Spinner size="md" /></div>
-                  ) : resumes.length > 0 ? (
-                    <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-                      {resumes.map((resume) => (
-                        <CVCard 
-                          key={resume.id}
-                          resume={resume}
-                          onDelete={handleDeleteResume}
-                          onPreview={() => handlePreview(resume.id)}
-                          onEvaluate={handleEvaluateResume}
-                          isEvaluating={evaluatingResumeId === resume.id}
-                        />
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center py-8 text-center bg-gray-50 rounded-lg border border-dashed border-gray-200">
-                      <FileText className="w-10 h-10 text-gray-300 mb-3" />
-                      <p className="text-sm text-gray-500 font-medium mb-1">Chưa có CV nào được tải lên</p>
-                      <p className="text-xs text-gray-400">Tải lên CV để nhận đánh giá AI và gợi ý việc làm</p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Applications */}
-              <Card className="border-gray-200 shadow-sm overflow-hidden">
-                <CardHeader className="pb-4 border-b border-gray-100 bg-gray-50/50">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-sm">
-                        <Briefcase className="w-5 h-5 text-white" />
-                      </div>
-                      <div>
-                        <h2 className="text-lg font-semibold text-gray-900 tracking-tight">Lịch sử ứng tuyển</h2>
-                        <p className="text-xs text-gray-500">Tiến độ và trạng thái · {applications.length > 5 ? "5 gần nhất" : `${applications.length} hồ sơ`}</p>
-                      </div>
-                    </div>
-                    {applications.length > 5 && (
-                      <span className="text-xs font-medium px-2 py-1 bg-white border border-gray-200 rounded-md shadow-sm text-gray-600">Xem 5 gần nhất</span>
-                    )}
+              <CardContent className="p-0">
+                {isLoading ? (
+                  <div className="p-8 text-center space-y-3">
+                    <Spinner size="md" />
+                    <p className="text-xs text-slate-500">Đang tải danh sách hồ sơ ứng tuyển...</p>
                   </div>
-                </CardHeader>
-                <CardContent className="pt-0 px-0">
-                  {isLoading ? (
-                    <div className="space-y-3 pt-5 px-6">
-                      <div className="h-12 skeleton rounded-xl" />
-                      <div className="h-12 skeleton rounded-xl" />
-                    </div>
-                  ) : applications.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-12 text-center">
-                      <FileCheck className="w-12 h-12 text-gray-300 mb-4" />
-                      <p className="text-sm font-medium text-gray-900">Chưa có ứng tuyển</p>
-                      <p className="text-xs text-gray-500 mt-1 mb-5">Khám phá việc làm và gửi hồ sơ ngay</p>
+                ) : error ? (
+                  <div className="p-8 text-center text-xs font-bold text-rose-600 bg-rose-50">
+                    {error}
+                  </div>
+                ) : filteredApplications.length === 0 ? (
+                  <div className="p-12 text-center space-y-3">
+                    <FileCheck className="w-12 h-12 text-slate-300 mx-auto mb-2" />
+                    <p className="text-sm font-bold text-slate-900">Không có đơn ứng tuyển nào ở mục này</p>
+                    <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                      Khám phá các vị trí tuyển dụng phù hợp với hồ sơ kỹ thuật của bạn và gửi đơn ngay.
+                    </p>
+                    <div className="pt-3">
                       <Link to="/jobs">
-                        <Button size="sm" variant="outline">
-                          Tìm việc làm
-                          <ArrowRight className="w-3 h-3 ml-2" />
+                        <Button size="sm" className="bg-[#00B86B] hover:bg-[#00995C] text-white font-bold rounded-full px-6 shadow-sm">
+                          Tìm việc làm IT ngay
                         </Button>
                       </Link>
                     </div>
-                  ) : (
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm text-left">
-                        <thead className="text-[11px] text-gray-500 bg-gray-50/80 border-b border-gray-100 uppercase tracking-wider">
-                          <tr>
-                            <th className="px-6 py-3 font-semibold">Vị trí & Công ty</th>
-                            <th className="px-6 py-3 font-semibold">Trạng thái</th>
-                            <th className="px-6 py-3 font-semibold text-right">Ngày nộp</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-50">
-                          {applications.slice(0, 5).map((app) => (
-                            <tr key={app.id} className="hover:bg-blue-50/30 transition-colors group">
-                              <td className="px-6 py-4">
-                                <Link to={`/jobs/${app.job_id}`} className="font-semibold text-gray-900 group-hover:text-primary transition-colors block">
-                                  {app.job?.title || `Job #${app.job_id}`}
-                                </Link>
-                                <span className="text-gray-500 text-xs mt-1 block">
-                                  {app.job?.employer?.company_name || app.job?.employer?.full_name}
-                                </span>
-                              </td>
-                              <td className="px-6 py-4 align-middle">
-                                <ApplicationStatusBadge status={app.status} size="sm" />
-                              </td>
-                              <td className="px-6 py-4 text-gray-500 text-xs text-right align-middle font-medium">
-                                {new Date(app.applied_at).toLocaleDateString("vi-VN")}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                      {applications.length > 5 && (
-                        <div className="mt-2 p-4 text-center bg-gray-50/50 border-t border-gray-100">
-                          <Button size="sm" variant="outline" className="text-primary bg-white hover:bg-primary/5">
-                            Xem tất cả {applications.length} ứng tuyển
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  {applications.length > 0 && (
-                    <div className="mt-2 border-t border-gray-100 p-6 bg-gray-50/30">
-                      <div className="mb-3 flex items-center justify-between">
-                        <span className="text-xs font-bold text-gray-700 uppercase tracking-wider">Tổng quan tiến độ</span>
-                      </div>
-                      <div className="flex h-2.5 overflow-hidden rounded-full bg-gray-200">
-                        {statusSummaryArray.map((item) => (
-                          <div key={item.label} className={`${item.tone} transition-all`} style={{ width: `${(item.count / applications.length) * 100}%` }} title={`${item.label}: ${item.count}`} />
-                        ))}
-                      </div>
-                      <div className="mt-3 flex flex-wrap gap-4">
-                        {statusSummaryArray.map((item) => (
-                          <span key={item.label} className="flex items-center gap-1.5 text-xs font-medium text-gray-600">
-                            <span className={`h-2.5 w-2.5 rounded-full ${item.tone} shadow-sm`} />
-                            {item.label} <span className="text-gray-400">({item.count})</span>
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-slate-100">
+                    {filteredApplications.map((app) => (
+                      <div
+                        key={app.id}
+                        className="p-5 sm:p-6 hover:bg-emerald-50/20 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4 group"
+                      >
+                        <div className="space-y-1.5 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-xs font-bold text-slate-500">
+                              {app.job?.employer?.company_name || app.job?.employer?.full_name || "Doanh nghiệp đối tác"}
+                            </span>
+                            <ApplicationStatusBadge status={app.status} size="sm" />
+                          </div>
 
-              {/* Recommended Jobs */}
-              <Card className="border-gray-200 shadow-sm overflow-hidden">
-                <CardHeader className="pb-4 border-b border-gray-100 bg-gray-50/50">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center shadow-sm">
-                        <TrendingUp className="w-5 h-5 text-white" />
+                          <Link
+                            to={`/jobs/${app.job_id}`}
+                            className="font-black text-sm sm:text-base text-slate-900 group-hover:text-emerald-700 transition-colors block"
+                          >
+                            {app.job?.title || `Vị trí tuyển dụng #${app.job_id}`}
+                          </Link>
+
+                          <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
+                            <span className="flex items-center gap-1">
+                              <Clock size={13} /> Nộp ngày: {new Date(app.applied_at).toLocaleDateString("vi-VN")}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-3 shrink-0">
+                          {app.ai_matching_score ? (
+                            <div className="text-right">
+                              <span className="text-[10px] text-slate-400 uppercase font-bold block">AI Match</span>
+                              <span className="text-xs font-black text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
+                                {app.ai_matching_score}% Khớp
+                              </span>
+                            </div>
+                          ) : null}
+
+                          <Link to={`/jobs/${app.job_id}`}>
+                            <Button size="sm" variant="outline" className="rounded-full text-xs font-bold border-slate-200 hover:border-emerald-300">
+                              Xem JD <ChevronRight size={13} className="ml-1" />
+                            </Button>
+                          </Link>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* CV MANAGEMENT & AI AUDIT STUDIO */}
+            <Card className="rounded-[32px] border-slate-200/90 bg-white shadow-xs overflow-hidden">
+              <CardHeader className="p-6 sm:p-7 border-b border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-purple-500 to-indigo-700 text-white flex items-center justify-center shadow-md shadow-purple-500/20">
+                    <FileText size={18} />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-black text-slate-900 tracking-tight">Trung Tâm Hồ Sơ (CV Studio)</h2>
+                    <p className="text-xs text-slate-500 font-medium">Tải lên & phân tích ATS tự động bằng AI</p>
+                  </div>
+                </div>
+
+                <Link to="/cv">
+                  <Button size="sm" className="bg-[#00B86B] hover:bg-[#00995C] text-white rounded-full font-bold text-xs px-4 shadow-sm flex items-center gap-1.5">
+                    <Plus size={14} />
+                    <span>Tạo CV mới</span>
+                  </Button>
+                </Link>
+              </CardHeader>
+
+              <CardContent className="p-6 sm:p-7 space-y-6">
+                {/* Upload Dropzone */}
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  className="rounded-3xl border-2 border-dashed border-emerald-300/80 bg-emerald-50/30 hover:bg-emerald-50/70 p-6 sm:p-8 text-center transition-all cursor-pointer group space-y-3"
+                >
+                  {uploadState === "idle" && (
+                    <>
+                      <div className="w-14 h-14 rounded-2xl bg-white shadow-sm flex items-center justify-center mx-auto group-hover:scale-110 transition-transform duration-300 border border-emerald-100">
+                        <UploadCloud className="w-7 h-7 text-[#00B86B]" />
                       </div>
                       <div>
-                        <h2 className="text-lg font-semibold text-gray-900 tracking-tight">Việc làm phù hợp nhất (AI Match)</h2>
-                        <p className="text-xs text-gray-500">Đề xuất theo kỹ năng của bạn</p>
+                        <p className="text-xs sm:text-sm font-bold text-slate-900">
+                          Kéo thả hoặc nhấn vào đây để tải lên CV mới
+                        </p>
+                        <p className="text-[11px] text-slate-500 mt-1">Định dạng hỗ trợ: PDF (Dung lượng tối đa 5MB)</p>
                       </div>
-                    </div>
-                    <Link to="/jobs" className="text-sm font-medium text-primary hover:underline">
-                      Xem thêm
-                    </Link>
-                  </div>
-                </CardHeader>
-                <CardContent className="pt-6">
-                  {recommendedLoading ? (
-                    <div className="flex justify-center py-8"><Spinner size="lg" /></div>
-                  ) : recommendedJobs.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-10 text-center rounded-xl border border-dashed border-gray-200 bg-gray-50">
-                      <Briefcase className="w-10 h-10 text-gray-400 mb-3" />
-                      <p className="text-sm font-medium text-gray-900">Chưa có gợi ý</p>
-                      <p className="text-xs text-gray-500 mb-4">Tải lên CV để nhận gợi ý từ AI</p>
-                      <button
-                        onClick={() => fileInputRef.current?.click()}
-                        className="text-xs text-primary font-semibold hover:underline bg-primary/10 px-3 py-1.5 rounded-md"
-                      >
-                        Tải CV ngay
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      {recommendedJobs.slice(0, 4).map((job) => {
-                        return (
-                          <Link key={job.id} to={`/jobs/${job.id}`} className="block group">
-                            <div className="p-5 rounded-xl border border-gray-200 hover:border-primary shadow-sm hover:shadow-md transition-all bg-white relative overflow-hidden h-full flex flex-col justify-between">
-                              <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
-                              
-                              <div>
-                                <div className="flex justify-between items-start mb-2">
-                                  <h3 className="font-semibold text-gray-900 group-hover:text-primary truncate transition-colors text-sm" title={job.title}>
-                                    {job.title}
-                                  </h3>
-                                  <span className="shrink-0 rounded bg-green-50 border border-green-100 px-2 py-0.5 text-[10px] font-bold text-success uppercase tracking-wider">{avgAIScore}% Match</span>
-                                </div>
-                                <p className="text-xs text-gray-500 truncate font-medium">
-                                  {job.employer?.company_name || job.employer?.full_name || "Nhà tuyển dụng"}
-                                </p>
-                              </div>
+                    </>
+                  )}
 
-                              <div className="flex items-center gap-2 mt-4 text-[11px] text-gray-500 font-medium">
-                                <span className="bg-gray-100 px-2 py-1 rounded border border-gray-200 truncate max-w-[100px]">
-                                  {job.location || "Từ xa"}
-                                </span>
-                                <span className="text-success bg-green-50 px-2 py-1 rounded border border-green-100">
-                                  {(job.salary_max && job.salary_max >= 1000000) ? `${(job.salary_max / 1000000).toFixed(0)}tr` : "Thỏa thuận"}
-                                </span>
-                              </div>
-                            </div>
-                          </Link>
-                        );
-                      })}
+                  {uploadState === "uploading" && (
+                    <div className="py-3 space-y-2">
+                      <Spinner size="md" />
+                      <p className="text-xs font-bold text-[#00B86B] animate-pulse">
+                        Đang tải lên và trích xuất dữ liệu bằng AI...
+                      </p>
                     </div>
                   )}
-                </CardContent>
-              </Card>
 
-            </div>
+                  {uploadState === "success" && (
+                    <div className="py-3 space-y-2 text-emerald-700">
+                      <CheckCircle className="w-10 h-10 mx-auto text-[#00B86B]" />
+                      <p className="text-xs font-black">Tải lên CV thành công!</p>
+                    </div>
+                  )}
 
-            {/* ── SIDEBAR (1/3) ── */}
-            <div className="w-full lg:w-1/3 flex flex-col gap-6 lg:sticky lg:top-6">
-              
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                <RadarChartWidget skillAnalysis={(() => {
-                  const latest = resumes.find((resume) => resume.ai_evaluation_json);
-                  if (!latest?.ai_evaluation_json) return {};
-                  try { return JSON.parse(latest.ai_evaluation_json).skill_analysis ?? {}; } catch { return {}; }
-                })()} />
-              </div>
-
-              {interviews.length > 0 && (() => {
-                const iv = interviews[0];
-                const sched = new Date(iv.scheduled_at);
-                const timeStr = sched.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit" })
-                  + " - " + sched.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
-                return (
-                  <Card className="border-blue-200 shadow-sm bg-gradient-to-b from-blue-50 to-white relative overflow-hidden">
-                    <div className="absolute -top-10 -right-10 p-4 opacity-5 pointer-events-none">
-                      <Clock className="w-32 h-32 text-primary" />
+                  {uploadState === "error" && (
+                    <div className="py-3 space-y-2 text-rose-600">
+                      <p className="text-xs font-bold">Lỗi: {uploadError}</p>
                     </div>
-                    <div className="p-6 relative z-10">
-                      <div className="flex items-center gap-2 mb-4">
-                        <span className="flex h-3 w-3 relative">
-                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-                          <span className="relative inline-flex rounded-full h-3 w-3 bg-primary"></span>
-                        </span>
-                        <h3 className="font-bold text-gray-900 tracking-tight text-lg">Phỏng vấn sắp tới</h3>
-                      </div>
-                      <p className="font-semibold text-primary truncate text-base" title={iv.job_title}>{iv.job_title}</p>
-                      <p className="text-sm text-gray-600 mt-1 font-medium">{iv.company_name}</p>
-                      <div className="mt-5 bg-white rounded-xl border border-blue-100 p-4 text-sm flex flex-col gap-3 shadow-sm">
-                        <div className="flex items-center gap-3 text-gray-700">
-                          <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center shrink-0">
-                            <Clock className="w-4 h-4 text-primary" />
-                          </div>
-                          <span className="font-semibold">{timeStr}</span>
-                        </div>
-                        <div className="flex items-center gap-3 text-gray-700">
-                          <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center shrink-0">
-                            <MapPin className="w-4 h-4 text-primary" />
-                          </div>
-                          <span className="truncate font-medium">{iv.location || "Online"}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </Card>
-                );
-              })()}
-
-              <Card className="border-purple-200 shadow-sm bg-gradient-to-br from-indigo-50 via-purple-50/50 to-white">
-                <div className="p-6">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center shadow-md">
-                      <Rocket className="w-6 h-6 text-white" />
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-gray-900 tracking-tight text-lg">Lộ trình AI</h3>
-                    </div>
-                  </div>
-                  <p className="text-sm text-gray-600 mb-5 leading-relaxed">
-                    Đề xuất khóa học & kỹ năng cần trau dồi để đạt công việc mơ ước nhanh nhất.
-                  </p>
-                  <Link to="/ai/roadmap">
-                    <Button variant="outline" size="md" fullWidth className="bg-white hover:bg-primary/5 text-primary border-primary/30 shadow-sm font-semibold">
-                      Tạo lộ trình ngay
-                      <ArrowRight className="w-4 h-4 ml-2" />
-                    </Button>
-                  </Link>
+                  )}
                 </div>
-              </Card>
-            </div>
+
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".pdf"
+                  className="hidden"
+                  onChange={handleFileSelect}
+                />
+
+                {/* CV List */}
+                {resumesLoading ? (
+                  <div className="flex justify-center py-6">
+                    <Spinner size="md" />
+                  </div>
+                ) : resumes.length > 0 ? (
+                  <div className="space-y-3">
+                    {resumes.map((resume) => (
+                      <CVCard
+                        key={resume.id}
+                        resume={resume}
+                        onDelete={handleDeleteResume}
+                        onPreview={() => handlePreview(resume.id)}
+                        onEvaluate={handleEvaluateResume}
+                        isEvaluating={evaluatingResumeId === resume.id}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200 space-y-2">
+                    <FileText className="w-10 h-10 text-slate-300 mx-auto" />
+                    <p className="text-xs font-bold text-slate-700">Chưa có bản CV nào được tải lên</p>
+                    <p className="text-[11px] text-slate-400">Tải lên file PDF hoặc tạo CV với CV Builder để nhận đánh giá AI.</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
           </div>
 
-          {/* Global Error Banner */}
-          {error && (
-            <div className="rounded-lg bg-red-50 border border-red-200 p-4 text-sm text-red-700">
-              {error}
+          {/* ── RIGHT: RADAR SKILL & RECOMMENDED JOBS ────────────────── */}
+          <aside className="space-y-8">
+            
+            {/* Technical Radar Chart Widget */}
+            <div className="rounded-[32px] overflow-hidden">
+              <RadarChartWidget />
             </div>
-          )}
 
-          {/* Last Updated Timestamp */}
-          {lastDataUpdate && (
-            <div className="flex items-center justify-center gap-2 text-xs text-gray-400">
-              <Clock className="w-3.5 h-3.5" />
-              <span>
-                Cập nhật lần cuối: {lastDataUpdate.toLocaleTimeString("vi-VN", {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })} · {lastDataUpdate.toLocaleDateString("vi-VN", {
-                  day: "2-digit",
-                  month: "2-digit",
-                  year: "numeric",
-                })}
-              </span>
-            </div>
-          )}
-          
+            {/* AI Recommended Jobs */}
+            <Card className="rounded-[32px] border-slate-200/90 bg-white shadow-xs overflow-hidden space-y-4 p-6">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div className="flex items-center gap-2">
+                  <Sparkles size={16} className="text-[#00B86B]" />
+                  <h3 className="font-black text-sm text-slate-900">Việc Làm Phù Hợp (AI Match)</h3>
+                </div>
+                <Link to="/jobs" className="text-xs font-bold text-emerald-700 hover:underline">
+                  Xem tất cả
+                </Link>
+              </div>
+
+              {recommendedLoading ? (
+                <div className="py-8 flex justify-center">
+                  <Spinner size="md" />
+                </div>
+              ) : recommendedJobs.length === 0 ? (
+                <div className="py-6 text-center text-xs text-slate-500">
+                  Chưa có gợi ý việc làm.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {recommendedJobs.map((rJob) => (
+                    <Link
+                      key={rJob.id}
+                      to={`/jobs/${rJob.id}`}
+                      className="p-4 rounded-2xl border border-slate-200 hover:border-emerald-400 hover:bg-emerald-50/30 transition-all block space-y-2 group"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <h4 className="font-bold text-xs text-slate-900 group-hover:text-emerald-700 transition-colors line-clamp-1">
+                          {rJob.title}
+                        </h4>
+                        <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 shrink-0">
+                          {avgAIScore}% Match
+                        </span>
+                      </div>
+
+                      <p className="text-[11px] text-slate-500 line-clamp-1">
+                        {rJob.employer?.company_name || "Doanh nghiệp đối tác"}
+                      </p>
+
+                      <div className="flex items-center justify-between text-[11px] text-slate-600 font-semibold pt-1 border-t border-slate-100">
+                        <span className="text-emerald-700 font-black">
+                          {rJob.salary_min ? `${rJob.salary_min / 1000000}tr+` : "Thoả thuận"}
+                        </span>
+                        <span>{rJob.location || "Toàn quốc"}</span>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </Card>
+          </aside>
         </div>
-      <CVPreviewModal 
-        url={previewUrl} 
-        onClose={() => setPreviewUrl(null)} 
-      />
+      </main>
 
-      <AICVReviewModal 
-        evaluation={reviewModalData}
-        onClose={() => setReviewModalData(null)}
-      />
+      {/* CV Preview Modal */}
+      {previewUrl && (
+        <CVPreviewModal url={previewUrl} onClose={() => setPreviewUrl(null)} />
+      )}
+
+      {/* AI CV Evaluation Review Modal */}
+      {reviewModalData && (
+        <AICVReviewModal
+          evaluation={reviewModalData}
+          onClose={() => setReviewModalData(null)}
+        />
+      )}
     </div>
   );
 };

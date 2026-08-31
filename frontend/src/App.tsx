@@ -1,5 +1,5 @@
 import { Suspense, lazy, useEffect } from "react";
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
 import { Toaster } from "sonner";
 import { useAuthStore } from "@/stores/authStore";
@@ -89,8 +89,10 @@ function App() {
             />
 
             {/* Public AI Hubs */}
+            <Route path="/ai/match" element={<AIMatchingPage />} />
             <Route path="/ai/matching" element={<AIMatchingPage />} />
             <Route path="/ai/roadmap" element={<RoadmapPage />} />
+            <Route path="/ai" element={<Navigate to="/ai/matching" replace />} />
 
             {/* Dashboard Routes with Layout */}
             <Route element={<DashboardLayout />}>
@@ -169,11 +171,11 @@ function App() {
                 path="/employer/recruitment-requests"
                 element={<ProtectedRoute allowedRoles={["employer"]}><RecruitmentRequestsPage /></ProtectedRoute>}
               />
-              <Route
-                path="/employer/settings"
-                element={<ProtectedRoute allowedRoles={["employer"]}><EmployerSettingsPage /></ProtectedRoute>}
-              />
+              <Route path="/employer/settings" element={<ProtectedRoute allowedRoles={["employer"]}><EmployerSettingsPage /></ProtectedRoute>} />
             </Route>
+
+            {/* Fallback Catch-all Route */}
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>
         <AIAssistantWidget />

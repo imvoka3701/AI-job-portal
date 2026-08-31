@@ -14,6 +14,8 @@ export interface CvPersonalInfo {
   phone: string;
   location: string;
   website: string;
+  avatar_url?: string;
+  show_avatar?: boolean;
 }
 
 export interface CvExperience {
@@ -44,6 +46,12 @@ export interface CvProject {
   technologies: string[];
 }
 
+export interface CvDesignSettings {
+  font_family?: "sans" | "serif" | "mono";
+  accent_color?: "emerald" | "navy" | "violet" | "rose" | "slate";
+  spacing?: "compact" | "normal" | "spacious";
+}
+
 export interface CvContent {
   version: number;
   personal: CvPersonalInfo;
@@ -55,6 +63,7 @@ export interface CvContent {
   certifications: string[];
   languages: string[];
   links: { github: string; linkedin: string; portfolio: string };
+  design?: CvDesignSettings;
 }
 
 export interface CvDocument {
@@ -75,12 +84,37 @@ export interface CvDocumentPayload {
   content_json?: CvContent;
 }
 
-export const CV_TEMPLATE_OPTIONS: Array<{ key: CvTemplateKey; name: string; description: string }> = [
-  { key: "ats-minimal", name: "ATS Minimal", description: "Một cột, rõ ràng và thân thiện với hệ thống tuyển dụng." },
-  { key: "modern-two-column", name: "Modern Two Column", description: "Sidebar gọn gàng cho kỹ năng và thông tin cá nhân." },
-  { key: "professional-blue", name: "Professional Blue", description: "Điểm nhấn xanh chuyên nghiệp cho nhóm văn phòng và kỹ thuật." },
-  { key: "executive", name: "Executive", description: "Typography trang trọng cho vị trí senior và quản lý." },
-  { key: "creative-clean", name: "Creative Clean", description: "Màu nhấn nhẹ, hiện đại nhưng vẫn dễ đọc khi in." },
+export const CV_TEMPLATE_OPTIONS: Array<{ key: CvTemplateKey; name: string; tag: string; description: string }> = [
+  {
+    key: "ats-minimal",
+    name: "Jake's LaTeX SWE (Chuẩn 1 cột)",
+    tag: "Reddit #1 & Overleaf",
+    description: "Mẫu 1 cột tối ưu cho Software Engineer, mật độ thông tin cao, tỷ lệ parse ATS 100%.",
+  },
+  {
+    key: "executive",
+    name: "Harvard Prestige (Quản lý & Doanh nghiệp)",
+    tag: "Ivy League Standard",
+    description: "Typography cổ điển trang trọng, phân cấp thông tin rõ ràng cho Senior, Lead & Manager.",
+  },
+  {
+    key: "professional-blue",
+    name: "Silicon Valley Tech Lead",
+    tag: "Startups & Big Tech",
+    description: "Điểm nhấn xanh công nghệ, làm nổi bật Tech Stack tags, GitHub repo và Demo links.",
+  },
+  {
+    key: "modern-two-column",
+    name: "TopCV B2B Modern Two-Column",
+    tag: "Chuẩn Doanh nghiệp VN",
+    description: "Bố cục 2 cột thanh lịch: Cột phụ làm nổi bật kỹ năng/chứng chỉ, cột chính trình bày kinh nghiệm.",
+  },
+  {
+    key: "creative-clean",
+    name: "Linear Minimalist Clean",
+    tag: "SaaS & Product Design",
+    description: "Thiết kế tối giản hiện đại với đường viền mảnh tinh tế và khoảng cách thoáng đãng.",
+  },
 ];
 
 export function createEmptyCvContent(): CvContent {

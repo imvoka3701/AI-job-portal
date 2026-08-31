@@ -1,10 +1,10 @@
 import { useState, useRef, useCallback } from "react";
-import { MapPin, Briefcase, Clock, Bookmark, CheckCircle2 } from "lucide-react";
+import { MapPin, Briefcase, Clock, Bookmark, CheckCircle2, ArrowRight } from "lucide-react";
 import { motion } from "framer-motion";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import type { Job } from "@/types/job";
 import { getFileUrl } from "@/lib/utils";
-import { AIMatchBadge, ApplyButton } from "./JobUIHelpers";
+import { AIMatchBadge } from "./JobUIHelpers";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -42,6 +42,7 @@ function jobTypeLabel(type: string): string {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export function JobCard({ job, viewMode = "list" }: { job: Job; viewMode?: "list" | "grid" }) {
+  const navigate = useNavigate();
   const [isBookmarked, setIsBookmarked] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
 
@@ -78,13 +79,18 @@ export function JobCard({ job, viewMode = "list" }: { job: Job; viewMode?: "list
     setIsBookmarked(!isBookmarked);
   };
 
+  const handleCardClick = () => {
+    navigate(`/jobs/${job.id}`);
+  };
+
   return (
     <motion.div
       ref={cardRef}
+      onClick={handleCardClick}
       onMouseMove={handleMouseMove}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      className="job-card-glass h-full p-5 cursor-pointer select-none group"
+      className="job-card-glass h-full p-5 cursor-pointer select-none group transition-all hover:shadow-lg hover:border-emerald-300"
       whileTap={{ scale: 0.99 }}
       data-view={viewMode}
     >
@@ -109,7 +115,7 @@ export function JobCard({ job, viewMode = "list" }: { job: Job; viewMode?: "list
 
             {/* Job Title & Company */}
             <div className="min-w-0 flex-1">
-              <Link to={`/jobs/${job.id}`} className="block">
+              <Link to={`/jobs/${job.id}`} className="block" onClick={(e) => e.stopPropagation()}>
                 <h3 className="text-[16px] font-extrabold text-[#0F172A] group-hover:text-[#00B86B] transition-colors leading-snug line-clamp-1">
                   {job.title}
                 </h3>
@@ -169,7 +175,7 @@ export function JobCard({ job, viewMode = "list" }: { job: Job; viewMode?: "list
           )}
         </div>
 
-        {/* Footer Row: AI Match Score, Date Posted, Apply Button */}
+        {/* Footer Row: AI Match Score, Date Posted, View JD CTA Button */}
         <div className="flex items-center justify-between pt-3.5 border-t border-[#E2E8F0]/80 mt-auto">
           <div className="flex items-center gap-3">
             {/* AI Match score badge */}
@@ -188,8 +194,15 @@ export function JobCard({ job, viewMode = "list" }: { job: Job; viewMode?: "list
             </div>
           </div>
 
-          {/* Apply button */}
-          <ApplyButton jobId={job.id} />
+          {/* View JD & Apply Direct Button */}
+          <Link
+            to={`/jobs/${job.id}`}
+            onClick={(e) => e.stopPropagation()}
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#00B86B] hover:bg-[#00995C] text-white text-xs font-bold rounded-xl shadow-xs hover:shadow-md transition-all group/btn"
+          >
+            <span>Xem JD & Ứng Tuyển</span>
+            <ArrowRight className="w-3.5 h-3.5 group-hover/btn:translate-x-1 transition-transform" />
+          </Link>
         </div>
       </div>
     </motion.div>
