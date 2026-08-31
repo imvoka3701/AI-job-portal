@@ -1,6 +1,5 @@
 """Employer dashboard schemas."""
 
-
 from pydantic import BaseModel
 
 
@@ -100,4 +99,3 @@ class CompanySettingsUpdate(BaseModel):
     contact_person_name: str | None = None
     contact_person_email: str | None = None
     contact_person_phone: str | None = None
-

@@ -98,9 +98,7 @@ def test_owner_can_manage_departments_and_invite_department_head(
     head_login = client.post(
         "/auth/login", json={"email": "head@example.com", "password": PASSWORD}
     )
-    head_headers = {
-        "Authorization": f"Bearer {head_login.json()['access_token']}"
-    }
+    head_headers = {"Authorization": f"Bearer {head_login.json()['access_token']}"}
     head_context = client.get("/employer/company-context", headers=head_headers)
     assert head_context.status_code == 200
     assert "candidate:recommend" in head_context.json()["permissions"]
@@ -171,9 +169,7 @@ def test_invitation_expiry_resend_reuse_decline_and_revoke(
     stored.expires_at = datetime.now(timezone.utc) - timedelta(minutes=1)
     db_session.commit()
 
-    expired = client.get(
-        f"/employer/invitations/{invitation_data['invite_token']}"
-    )
+    expired = client.get(f"/employer/invitations/{invitation_data['invite_token']}")
     assert expired.status_code == 200
     assert expired.json()["status"] == "expired"
     rejected_expired = client.post(
@@ -189,32 +185,36 @@ def test_invitation_expiry_resend_reuse_decline_and_revoke(
     assert resent.status_code == 200
     resent_token = resent.json()["invite_token"]
     assert resent_token != invitation_data["invite_token"]
-    assert client.get(
-        f"/employer/invitations/{invitation_data['invite_token']}"
-    ).status_code == 404
+    assert client.get(f"/employer/invitations/{invitation_data['invite_token']}").status_code == 404
 
     accepted = client.post(
         f"/employer/invitations/{resent_token}/accept",
         json={"full_name": "Invited HR", "password": PASSWORD},
     )
     assert accepted.status_code == 200
-    assert client.post(
-        f"/employer/invitations/{resent_token}/accept",
-        json={},
-    ).status_code == 409
+    assert (
+        client.post(
+            f"/employer/invitations/{resent_token}/accept",
+            json={},
+        ).status_code
+        == 409
+    )
 
     declined = client.post(
         "/employer/team/invitations",
         headers=owner_headers,
         json={"email": "declined@example.com", "member_role": "hr"},
     ).json()
-    assert client.post(
-        f"/employer/invitations/{declined['invite_token']}/decline"
-    ).status_code == 200
-    assert client.post(
-        f"/employer/team/invitations/{declined['id']}/resend",
-        headers=owner_headers,
-    ).status_code == 409
+    assert (
+        client.post(f"/employer/invitations/{declined['invite_token']}/decline").status_code == 200
+    )
+    assert (
+        client.post(
+            f"/employer/team/invitations/{declined['id']}/resend",
+            headers=owner_headers,
+        ).status_code
+        == 409
+    )
 
     revoked = client.post(
         "/employer/team/invitations",
@@ -227,10 +227,13 @@ def test_invitation_expiry_resend_reuse_decline_and_revoke(
     )
     assert revoke_response.status_code == 200
     assert revoke_response.json()["status"] == "revoked"
-    assert client.post(
-        f"/employer/invitations/{revoked['invite_token']}/accept",
-        json={"full_name": "Revoked User", "password": PASSWORD},
-    ).status_code == 409
+    assert (
+        client.post(
+            f"/employer/invitations/{revoked['invite_token']}/accept",
+            json={"full_name": "Revoked User", "password": PASSWORD},
+        ).status_code
+        == 409
+    )
 
 
 def test_membership_status_and_ownership_changes_apply_immediately(
@@ -254,23 +257,24 @@ def test_membership_status_and_ownership_changes_apply_immediately(
     )
     assert accepted.status_code == 200
     member_id = accepted.json()["id"]
-    owner_id = client.get(
-        "/employer/company-context", headers=owner_headers
-    ).json()["membership"]["id"]
+    owner_id = client.get("/employer/company-context", headers=owner_headers).json()["membership"][
+        "id"
+    ]
 
     member_login = client.post(
         "/auth/login",
         json={"email": "ownership-hr@example.com", "password": PASSWORD},
     ).json()
-    member_headers = {
-        "Authorization": f"Bearer {member_login['access_token']}"
-    }
+    member_headers = {"Authorization": f"Bearer {member_login['access_token']}"}
 
-    assert client.patch(
-        f"/employer/team/members/{owner_id}",
-        headers=owner_headers,
-        json={"status": "suspended"},
-    ).status_code == 409
+    assert (
+        client.patch(
+            f"/employer/team/members/{owner_id}",
+            headers=owner_headers,
+            json={"status": "suspended"},
+        ).status_code
+        == 409
+    )
 
     suspended = client.patch(
         f"/employer/team/members/{member_id}",
@@ -279,9 +283,7 @@ def test_membership_status_and_ownership_changes_apply_immediately(
     )
     assert suspended.status_code == 200
     assert suspended.json()["status"] == "suspended"
-    assert client.get(
-        "/employer/company-context", headers=member_headers
-    ).status_code == 403
+    assert client.get("/employer/company-context", headers=member_headers).status_code == 403
 
     reactivated = client.patch(
         f"/employer/team/members/{member_id}",
@@ -289,9 +291,7 @@ def test_membership_status_and_ownership_changes_apply_immediately(
         json={"status": "active"},
     )
     assert reactivated.status_code == 200
-    assert client.get(
-        "/employer/company-context", headers=member_headers
-    ).status_code == 200
+    assert client.get("/employer/company-context", headers=member_headers).status_code == 200
 
     transferred = client.post(
         f"/employer/team/members/{member_id}/transfer-ownership",
@@ -299,15 +299,16 @@ def test_membership_status_and_ownership_changes_apply_immediately(
     )
     assert transferred.status_code == 200
     assert transferred.json()["is_owner"] is True
-    old_owner_context = client.get(
-        "/employer/company-context", headers=owner_headers
-    ).json()
+    old_owner_context = client.get("/employer/company-context", headers=owner_headers).json()
     assert "team:manage" not in old_owner_context["permissions"]
-    assert client.patch(
-        f"/employer/team/members/{member_id}",
-        headers=owner_headers,
-        json={"status": "revoked"},
-    ).status_code == 403
+    assert (
+        client.patch(
+            f"/employer/team/members/{member_id}",
+            headers=owner_headers,
+            json={"status": "revoked"},
+        ).status_code
+        == 403
+    )
 
     revoked = client.patch(
         f"/employer/team/members/{owner_id}",
@@ -315,9 +316,7 @@ def test_membership_status_and_ownership_changes_apply_immediately(
         json={"status": "revoked"},
     )
     assert revoked.status_code == 200
-    assert client.get(
-        "/employer/company-context", headers=owner_headers
-    ).status_code == 403
+    assert client.get("/employer/company-context", headers=owner_headers).status_code == 403
 
     actions = set(db_session.execute(select(AdminAuditLog.action)).scalars())
     assert "membership.updated" in actions
@@ -384,14 +383,15 @@ def test_department_scope_can_be_extended_with_explicit_job_assignment(
         },
     ).json()
 
-    scoped_before = client.get(
-        "/employer/team/jobs", headers=head_headers
-    ).json()
+    scoped_before = client.get("/employer/team/jobs", headers=head_headers).json()
     assert [job["id"] for job in scoped_before] == [engineering_job["id"]]
-    assert client.get(
-        f"/applications/employer/jobs/{finance_job['id']}",
-        headers=head_headers,
-    ).status_code == 403
+    assert (
+        client.get(
+            f"/applications/employer/jobs/{finance_job['id']}",
+            headers=head_headers,
+        ).status_code
+        == 403
+    )
 
     assignment = client.put(
         f"/employer/team/jobs/{finance_job['id']}/assignments",
@@ -400,9 +400,7 @@ def test_department_scope_can_be_extended_with_explicit_job_assignment(
     )
     assert assignment.status_code == 200
     assert assignment.json()["membership_ids"] == [membership["id"]]
-    scoped_after = client.get(
-        "/employer/team/jobs", headers=head_headers
-    ).json()
+    scoped_after = client.get("/employer/team/jobs", headers=head_headers).json()
     assert {job["id"] for job in scoped_after} == {
         engineering_job["id"],
         finance_job["id"],
@@ -469,18 +467,14 @@ def test_department_head_can_evaluate_but_hr_owns_final_decision(
         "/auth/login",
         json={"email": "pipeline-candidate@example.com", "password": PASSWORD},
     ).json()
-    candidate_headers = {
-        "Authorization": f"Bearer {candidate_login['access_token']}"
-    }
+    candidate_headers = {"Authorization": f"Bearer {candidate_login['access_token']}"}
     application = client.post(
         "/applications",
         headers=candidate_headers,
         json={"job_id": job.json()["id"]},
     ).json()
 
-    visible = client.get(
-        f"/applications/employer/jobs/{job.json()['id']}", headers=head_headers
-    )
+    visible = client.get(f"/applications/employer/jobs/{job.json()['id']}", headers=head_headers)
     assert visible.status_code == 200
 
     forbidden_decision = client.patch(
@@ -501,9 +495,7 @@ def test_department_head_can_evaluate_but_hr_owns_final_decision(
     assert recommendation.status_code == 200, recommendation.text
     assert recommendation.json()["hiring_recommendation"] == "recommended"
 
-    rounds = client.get(
-        f"/applications/{application['id']}/rounds", headers=head_headers
-    ).json()
+    rounds = client.get(f"/applications/{application['id']}/rounds", headers=head_headers).json()
     forbidden_schedule = client.patch(
         f"/applications/rounds/{rounds[0]['id']}",
         headers=head_headers,
@@ -576,18 +568,12 @@ def test_batch_job_assignments_and_company_activity_are_tenant_scoped(
         "/employer/team/job-assignments",
         headers=owner_headers,
         json={
-            "assignments": [
-                {"job_id": job["id"], "membership_ids": [member["id"]]}
-                for job in jobs
-            ]
+            "assignments": [{"job_id": job["id"], "membership_ids": [member["id"]]} for job in jobs]
         },
     )
     assert update.status_code == 200, update.text
     assert update.json() == {
-        "assignments": [
-            {"job_id": job["id"], "membership_ids": [member["id"]]}
-            for job in jobs
-        ]
+        "assignments": [{"job_id": job["id"], "membership_ids": [member["id"]]} for job in jobs]
     }
 
     batch_read = client.get(
@@ -596,17 +582,16 @@ def test_batch_job_assignments_and_company_activity_are_tenant_scoped(
     )
     assert batch_read.status_code == 200
     batch_read_by_job = {
-        item["job_id"]: item["membership_ids"]
-        for item in batch_read.json()["assignments"]
+        item["job_id"]: item["membership_ids"] for item in batch_read.json()["assignments"]
     }
-    assert batch_read_by_job == {
-        job["id"]: [member["id"]]
-        for job in jobs
-    }
-    assert client.get(
-        "/employer/team/job-assignments",
-        headers=head_headers,
-    ).status_code == 403
+    assert batch_read_by_job == {job["id"]: [member["id"]] for job in jobs}
+    assert (
+        client.get(
+            "/employer/team/job-assignments",
+            headers=head_headers,
+        ).status_code
+        == 403
+    )
 
     activity = client.get(
         "/employer/team/activity",
@@ -620,10 +605,13 @@ def test_batch_job_assignments_and_company_activity_are_tenant_scoped(
     assert event["target_type"] == "job_assignment_batch"
     assert event["details_json"]["job_ids"] == [job["id"] for job in jobs]
     assert len(event["details_json"]["changes"]) == 2
-    assert client.get(
-        "/employer/team/activity",
-        headers=head_headers,
-    ).status_code == 403
+    assert (
+        client.get(
+            "/employer/team/activity",
+            headers=head_headers,
+        ).status_code
+        == 403
+    )
 
 
 def test_batch_job_assignments_are_atomic_and_reject_cross_tenant_ids(
@@ -748,6 +736,5 @@ def test_batch_job_assignments_are_atomic_and_reject_cross_tenant_ids(
         headers=first_headers,
     ).json()
     assert all(
-        item["actor_email"] != "atomic-second@example.com"
-        for item in first_activity["items"]
+        item["actor_email"] != "atomic-second@example.com" for item in first_activity["items"]
     )

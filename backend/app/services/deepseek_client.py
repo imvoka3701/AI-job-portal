@@ -15,7 +15,7 @@ from app.config import settings
 logger = logging.getLogger(__name__)
 
 # ── Token pricing (Deepseek V3 — update when prices change) ─────────────────
-_PRICE_INPUT_PER_1M = 0.27   # USD per 1M input tokens
+_PRICE_INPUT_PER_1M = 0.27  # USD per 1M input tokens
 _PRICE_OUTPUT_PER_1M = 1.10  # USD per 1M output tokens
 
 
@@ -96,6 +96,7 @@ class DeepseekClient:
                     cost = _calc_cost(input_tok, output_tok)
 
                     from app.models.ai_call_log import AICallLog, AICallStatus
+
                     log = AICallLog(
                         feature=feature,
                         user_id=user_id,

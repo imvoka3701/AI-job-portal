@@ -76,8 +76,7 @@ async def upload_resume(
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=(
-                "Không đọc được nội dung CV. "
-                "Vui lòng dùng file PDF có text, không phải ảnh scan."
+                "Không đọc được nội dung CV. Vui lòng dùng file PDF có text, không phải ảnh scan."
             ),
         )
 
@@ -90,7 +89,7 @@ async def upload_resume(
     if not is_valid_cv:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="File này dường như không phải là một CV hợp lệ. Vui lòng tải lên đúng hồ sơ xin việc của bạn."
+            detail="File này dường như không phải là một CV hợp lệ. Vui lòng tải lên đúng hồ sơ xin việc của bạn.",
         )
 
     # ── 5. Generate embedding ────────────────────────────────────────────────
@@ -177,19 +176,22 @@ async def evaluate_resume(
     if resume.user_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not your resume")
     if not resume.raw_text:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Resume has no text content")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Resume has no text content"
+        )
 
     try:
         evaluation = await cv_evaluator_service.evaluate(resume_text=resume.raw_text, db=db)
         updated_resume = crud_resume.update(
-            db,
-            resume=resume,
-            obj_in={"ai_evaluation_json": evaluation.model_dump_json()}
+            db, resume=resume, obj_in={"ai_evaluation_json": evaluation.model_dump_json()}
         )
         return ResumeRead.model_validate(updated_resume)
     except Exception as exc:
         logger.exception("Failed to evaluate resume %s", resume_id)
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to evaluate resume: {exc}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to evaluate resume: {exc}",
+        )
 
 
 import os
@@ -214,13 +216,14 @@ def get_resume_content(
 
     file_path = resume.file_url
     if not os.path.exists(file_path):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found on server")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="File not found on server"
+        )
 
     return FileResponse(
-        path=file_path,
-        media_type="application/octet-stream",
-        filename=f"CV_{resume_id}.pdf"
+        path=file_path, media_type="application/octet-stream", filename=f"CV_{resume_id}.pdf"
     )
+
 
 @router.delete("/{resume_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Delete resume")
 def delete_resume(
@@ -241,5 +244,5 @@ def delete_resume(
         db.rollback()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Không thể xoá CV này vì bạn đã dùng nó để ứng tuyển."
+            detail="Không thể xoá CV này vì bạn đã dùng nó để ứng tuyển.",
         )

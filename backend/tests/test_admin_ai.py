@@ -135,7 +135,9 @@ class TestUpdatePrompt:
 
 class TestTestPrompt:
     def test_mocked_test_call_returns_result(self, client, db_session):
-        admin = _create_user(db_session, email="admin-test@ai-test.example.com", role=UserRole.ADMIN)
+        admin = _create_user(
+            db_session, email="admin-test@ai-test.example.com", role=UserRole.ADMIN
+        )
         headers = _login(client, admin.email)
         fake_response = {
             "choices": [{"message": {"content": "Test AI response"}}],
@@ -158,7 +160,9 @@ class TestTestPrompt:
         assert data["duration_ms"] >= 0
 
     def test_non_admin_cannot_test(self, client, db_session):
-        user = _create_user(db_session, email="cand-test@ai-test.example.com", role=UserRole.CANDIDATE)
+        user = _create_user(
+            db_session, email="cand-test@ai-test.example.com", role=UserRole.CANDIDATE
+        )
         headers = _login(client, user.email)
         r = client.post(
             "/admin/ai/prompts/cv_evaluate/test",
@@ -232,8 +236,12 @@ class TestTestPrompt:
         # 2. Each system prompt must contain the correct type-specific rules
         reject_rules = EMAIL_TYPE_SYSTEM_RULES["reject"]
         invite_rules = EMAIL_TYPE_SYSTEM_RULES["invite"]
-        assert reject_rules in sys_reject, "EMAIL_TYPE_SYSTEM_RULES['reject'] not in reject system prompt"
-        assert invite_rules in sys_invite, "EMAIL_TYPE_SYSTEM_RULES['invite'] not in invite system prompt"
+        assert reject_rules in sys_reject, (
+            "EMAIL_TYPE_SYSTEM_RULES['reject'] not in reject system prompt"
+        )
+        assert invite_rules in sys_invite, (
+            "EMAIL_TYPE_SYSTEM_RULES['invite'] not in invite system prompt"
+        )
 
         # 3. The two system prompts must be different (core regression guard)
         assert sys_reject != sys_invite, (
@@ -241,29 +249,36 @@ class TestTestPrompt:
         )
 
         # 4. Bare persona alone must not equal either composed system prompt
-        assert sys_reject != persona, "reject system prompt equals bare persona — rules not appended"
-        assert sys_invite != persona, "invite system prompt equals bare persona — rules not appended"
-
+        assert sys_reject != persona, (
+            "reject system prompt equals bare persona — rules not appended"
+        )
+        assert sys_invite != persona, (
+            "invite system prompt equals bare persona — rules not appended"
+        )
 
 
 class TestCallLogs:
     def _seed_logs(self, db, user_id):
-        db.add(AICallLog(
-            feature=AIFeature.CV_EVALUATE,
-            user_id=user_id,
-            status=AICallStatus.SUCCESS,
-            duration_ms=450,
-            input_tokens=100,
-            output_tokens=60,
-            cost_usd=0.000093,
-        ))
-        db.add(AICallLog(
-            feature=AIFeature.ROADMAP,
-            user_id=user_id,
-            status=AICallStatus.FAILED,
-            duration_ms=1200,
-            error_message="Timeout",
-        ))
+        db.add(
+            AICallLog(
+                feature=AIFeature.CV_EVALUATE,
+                user_id=user_id,
+                status=AICallStatus.SUCCESS,
+                duration_ms=450,
+                input_tokens=100,
+                output_tokens=60,
+                cost_usd=0.000093,
+            )
+        )
+        db.add(
+            AICallLog(
+                feature=AIFeature.ROADMAP,
+                user_id=user_id,
+                status=AICallStatus.FAILED,
+                duration_ms=1200,
+                error_message="Timeout",
+            )
+        )
         db.commit()
 
     def test_admin_can_list_logs(self, client, db_session):
@@ -277,7 +292,9 @@ class TestCallLogs:
         assert len(data["items"]) == 2
 
     def test_filter_by_feature(self, client, db_session):
-        admin = _create_user(db_session, email="admin-logf@ai-test.example.com", role=UserRole.ADMIN)
+        admin = _create_user(
+            db_session, email="admin-logf@ai-test.example.com", role=UserRole.ADMIN
+        )
         headers = _login(client, admin.email)
         self._seed_logs(db_session, admin.id)
         r = client.get("/admin/ai/logs?feature=cv_evaluate", headers=headers)
@@ -287,7 +304,9 @@ class TestCallLogs:
         assert data["items"][0]["feature"] == "cv_evaluate"
 
     def test_filter_by_status(self, client, db_session):
-        admin = _create_user(db_session, email="admin-logs@ai-test.example.com", role=UserRole.ADMIN)
+        admin = _create_user(
+            db_session, email="admin-logs@ai-test.example.com", role=UserRole.ADMIN
+        )
         headers = _login(client, admin.email)
         self._seed_logs(db_session, admin.id)
         r = client.get("/admin/ai/logs?status=failed", headers=headers)
@@ -297,7 +316,9 @@ class TestCallLogs:
         assert data["items"][0]["status"] == "failed"
 
     def test_pagination_works(self, client, db_session):
-        admin = _create_user(db_session, email="admin-logp@ai-test.example.com", role=UserRole.ADMIN)
+        admin = _create_user(
+            db_session, email="admin-logp@ai-test.example.com", role=UserRole.ADMIN
+        )
         headers = _login(client, admin.email)
         self._seed_logs(db_session, admin.id)
         r = client.get("/admin/ai/logs?page=1&page_size=1", headers=headers)
@@ -315,7 +336,9 @@ class TestCallLogs:
 
 class TestStats:
     def test_empty_stats_returns_zeros(self, client, db_session):
-        admin = _create_user(db_session, email="admin-stat@ai-test.example.com", role=UserRole.ADMIN)
+        admin = _create_user(
+            db_session, email="admin-stat@ai-test.example.com", role=UserRole.ADMIN
+        )
         headers = _login(client, admin.email)
         r = client.get("/admin/ai/stats", headers=headers)
         assert r.status_code == 200, r.text
@@ -325,20 +348,26 @@ class TestStats:
         assert isinstance(data["by_feature"], list)
 
     def test_stats_error_rate(self, client, db_session):
-        admin = _create_user(db_session, email="admin-stat2@ai-test.example.com", role=UserRole.ADMIN)
+        admin = _create_user(
+            db_session, email="admin-stat2@ai-test.example.com", role=UserRole.ADMIN
+        )
         headers = _login(client, admin.email)
         for _ in range(2):
-            db_session.add(AICallLog(
-                feature=AIFeature.CV_EVALUATE,
-                status=AICallStatus.SUCCESS,
-                duration_ms=300,
-                cost_usd=0.0001,
-            ))
-        db_session.add(AICallLog(
-            feature=AIFeature.ROADMAP,
-            status=AICallStatus.FAILED,
-            duration_ms=500,
-        ))
+            db_session.add(
+                AICallLog(
+                    feature=AIFeature.CV_EVALUATE,
+                    status=AICallStatus.SUCCESS,
+                    duration_ms=300,
+                    cost_usd=0.0001,
+                )
+            )
+        db_session.add(
+            AICallLog(
+                feature=AIFeature.ROADMAP,
+                status=AICallStatus.FAILED,
+                duration_ms=500,
+            )
+        )
         db_session.commit()
         r = client.get("/admin/ai/stats", headers=headers)
         assert r.status_code == 200
@@ -346,7 +375,9 @@ class TestStats:
         assert abs(data["error_rate_pct"] - 33.33) < 0.5
 
     def test_non_admin_gets_403(self, client, db_session):
-        user = _create_user(db_session, email="emp-stat@ai-test.example.com", role=UserRole.EMPLOYER)
+        user = _create_user(
+            db_session, email="emp-stat@ai-test.example.com", role=UserRole.EMPLOYER
+        )
         headers = _login(client, user.email)
         r = client.get("/admin/ai/stats", headers=headers)
         assert r.status_code == 403

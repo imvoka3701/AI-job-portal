@@ -79,7 +79,9 @@ class InterviewQuestionsService:
                 last_error = exc
                 logger.warning(
                     "Interview questions attempt %d/%d failed: %s",
-                    attempt + 1, 1 + MAX_RETRIES, exc,
+                    attempt + 1,
+                    1 + MAX_RETRIES,
+                    exc,
                 )
                 if attempt < MAX_RETRIES:
                     continue

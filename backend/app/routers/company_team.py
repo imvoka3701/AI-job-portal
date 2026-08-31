@@ -112,9 +112,7 @@ def list_members(
     role: str | None = Query(None),
     member_status: str | None = Query(None, alias="status"),
     department_id: int | None = Query(None, ge=1),
-    context: CompanyContext = Depends(
-        require_company_permission(CompanyPermission.TEAM_VIEW)
-    ),
+    context: CompanyContext = Depends(require_company_permission(CompanyPermission.TEAM_VIEW)),
     db: Session = Depends(get_db),
 ) -> list[MembershipRead]:
     memberships = crud_company.list_members(
@@ -132,9 +130,7 @@ def list_members(
 def update_member(
     membership_id: int,
     data: MembershipUpdate,
-    context: CompanyContext = Depends(
-        require_company_permission(CompanyPermission.TEAM_MANAGE)
-    ),
+    context: CompanyContext = Depends(require_company_permission(CompanyPermission.TEAM_MANAGE)),
     db: Session = Depends(get_db),
 ) -> MembershipRead:
     membership = crud_company.get_membership(db, membership_id=membership_id)
@@ -152,9 +148,7 @@ def update_member(
 )
 def transfer_ownership(
     membership_id: int,
-    context: CompanyContext = Depends(
-        require_company_permission(CompanyPermission.TEAM_MANAGE)
-    ),
+    context: CompanyContext = Depends(require_company_permission(CompanyPermission.TEAM_MANAGE)),
     db: Session = Depends(get_db),
 ) -> MembershipRead:
     new_owner = crud_company.get_membership(db, membership_id=membership_id)
@@ -171,9 +165,7 @@ def transfer_ownership(
 
 @router.get("/departments", response_model=list[DepartmentRead])
 def list_departments(
-    context: CompanyContext = Depends(
-        require_company_permission(CompanyPermission.TEAM_VIEW)
-    ),
+    context: CompanyContext = Depends(require_company_permission(CompanyPermission.TEAM_VIEW)),
     db: Session = Depends(get_db),
 ) -> list[DepartmentRead]:
     return [
@@ -189,9 +181,7 @@ def list_departments(
 )
 def create_department(
     data: DepartmentCreate,
-    context: CompanyContext = Depends(
-        require_company_permission(CompanyPermission.TEAM_MANAGE)
-    ),
+    context: CompanyContext = Depends(require_company_permission(CompanyPermission.TEAM_MANAGE)),
     db: Session = Depends(get_db),
 ) -> DepartmentRead:
     department = company_service.create_department(
@@ -204,9 +194,7 @@ def create_department(
 def update_department(
     department_id: int,
     data: DepartmentUpdate,
-    context: CompanyContext = Depends(
-        require_company_permission(CompanyPermission.TEAM_MANAGE)
-    ),
+    context: CompanyContext = Depends(require_company_permission(CompanyPermission.TEAM_MANAGE)),
     db: Session = Depends(get_db),
 ) -> DepartmentRead:
     department = crud_company.get_department(db, department_id=department_id)
@@ -220,9 +208,7 @@ def update_department(
 
 @router.get("/team/invitations", response_model=list[InvitationRead])
 def list_invitations(
-    context: CompanyContext = Depends(
-        require_company_permission(CompanyPermission.TEAM_MANAGE)
-    ),
+    context: CompanyContext = Depends(require_company_permission(CompanyPermission.TEAM_MANAGE)),
     db: Session = Depends(get_db),
 ) -> list[InvitationRead]:
     return [
@@ -238,9 +224,7 @@ def list_invitations(
 )
 def create_invitation(
     data: InvitationCreate,
-    context: CompanyContext = Depends(
-        require_company_permission(CompanyPermission.TEAM_MANAGE)
-    ),
+    context: CompanyContext = Depends(require_company_permission(CompanyPermission.TEAM_MANAGE)),
     db: Session = Depends(get_db),
 ) -> InvitationCreated:
     invitation, token = company_service.create_invitation(
@@ -255,9 +239,7 @@ def create_invitation(
 )
 def resend_invitation(
     invitation_id: int,
-    context: CompanyContext = Depends(
-        require_company_permission(CompanyPermission.TEAM_MANAGE)
-    ),
+    context: CompanyContext = Depends(require_company_permission(CompanyPermission.TEAM_MANAGE)),
     db: Session = Depends(get_db),
 ) -> InvitationCreated:
     invitation = crud_company.get_invitation(db, invitation_id=invitation_id)
@@ -272,26 +254,20 @@ def resend_invitation(
 @router.post("/team/invitations/{invitation_id}/revoke", response_model=InvitationRead)
 def revoke_invitation(
     invitation_id: int,
-    context: CompanyContext = Depends(
-        require_company_permission(CompanyPermission.TEAM_MANAGE)
-    ),
+    context: CompanyContext = Depends(require_company_permission(CompanyPermission.TEAM_MANAGE)),
     db: Session = Depends(get_db),
 ) -> InvitationRead:
     invitation = crud_company.get_invitation(db, invitation_id=invitation_id)
     if invitation is None or invitation.company_id != context.company.id:
         raise HTTPException(status_code=404, detail="Lời mời không tồn tại.")
     return _invitation_read(
-        company_service.revoke_invitation(
-            db, invitation=invitation, actor=context.user
-        )
+        company_service.revoke_invitation(db, invitation=invitation, actor=context.user)
     )  # type: ignore[return-value]
 
 
 @router.get("/invitations/{token}", response_model=InvitationRead)
 def get_invitation(token: str, db: Session = Depends(get_db)) -> InvitationRead:
-    return _invitation_read(
-        company_service.get_invitation_by_token(db, token=token)
-    )  # type: ignore[return-value]
+    return _invitation_read(company_service.get_invitation_by_token(db, token=token))  # type: ignore[return-value]
 
 
 @router.post("/invitations/{token}/accept", response_model=MembershipRead)
@@ -300,24 +276,18 @@ def accept_invitation(
     data: InvitationAccept,
     db: Session = Depends(get_db),
 ) -> MembershipRead:
-    return _membership_read(
-        company_service.accept_invitation(db, token=token, data=data)
-    )
+    return _membership_read(company_service.accept_invitation(db, token=token, data=data))
 
 
 @router.post("/invitations/{token}/decline", response_model=InvitationRead)
 def decline_invitation(token: str, db: Session = Depends(get_db)) -> InvitationRead:
-    return _invitation_read(
-        company_service.decline_invitation(db, token=token)
-    )  # type: ignore[return-value]
+    return _invitation_read(company_service.decline_invitation(db, token=token))  # type: ignore[return-value]
 
 
 @router.get("/team/jobs/{job_id}/assignments", response_model=JobAssignmentRead)
 def get_job_assignments(
     job_id: int,
-    context: CompanyContext = Depends(
-        require_company_permission(CompanyPermission.JOB_MANAGE)
-    ),
+    context: CompanyContext = Depends(require_company_permission(CompanyPermission.JOB_MANAGE)),
     db: Session = Depends(get_db),
 ) -> JobAssignmentRead:
     job = crud_job.get_by_id(db, job_id=job_id)
@@ -336,9 +306,7 @@ def get_job_assignments(
     summary="List all job assignments for the company",
 )
 def get_job_assignments_batch(
-    context: CompanyContext = Depends(
-        require_company_permission(CompanyPermission.JOB_MANAGE)
-    ),
+    context: CompanyContext = Depends(require_company_permission(CompanyPermission.JOB_MANAGE)),
     db: Session = Depends(get_db),
 ) -> JobAssignmentsBatchRead:
     """Return assignments for every company job in one request."""
@@ -366,9 +334,7 @@ def get_job_assignments_batch(
 )
 def update_job_assignments_batch(
     data: JobAssignmentsBatchUpdate,
-    context: CompanyContext = Depends(
-        require_company_permission(CompanyPermission.JOB_MANAGE)
-    ),
+    context: CompanyContext = Depends(require_company_permission(CompanyPermission.JOB_MANAGE)),
     db: Session = Depends(get_db),
 ) -> JobAssignmentsBatchRead:
     """Validate the complete batch before replacing any assignment rows."""
@@ -383,9 +349,7 @@ def update_job_assignments_batch(
 
 @router.get("/team/jobs", response_model=list[JobRead])
 def list_scoped_jobs(
-    context: CompanyContext = Depends(
-        require_company_permission(CompanyPermission.JOB_VIEW)
-    ),
+    context: CompanyContext = Depends(require_company_permission(CompanyPermission.JOB_VIEW)),
     db: Session = Depends(get_db),
 ) -> list[JobRead]:
     jobs = crud_company.list_scoped_jobs(
@@ -394,8 +358,7 @@ def list_scoped_jobs(
         membership_id=context.membership.id,
         department_id=context.membership.department_id,
         unrestricted=(
-            context.membership.is_owner
-            or context.membership.member_role == MembershipRole.HR
+            context.membership.is_owner or context.membership.member_role == MembershipRole.HR
         ),
     )
     return [JobRead.model_validate(job) for job in jobs]
@@ -405,9 +368,7 @@ def list_scoped_jobs(
 def update_job_assignments(
     job_id: int,
     data: JobAssignmentsUpdate,
-    context: CompanyContext = Depends(
-        require_company_permission(CompanyPermission.JOB_MANAGE)
-    ),
+    context: CompanyContext = Depends(require_company_permission(CompanyPermission.JOB_MANAGE)),
     db: Session = Depends(get_db),
 ) -> JobAssignmentRead:
     job = crud_job.get_by_id(db, job_id=job_id)
@@ -433,9 +394,7 @@ def list_company_activity(
     target_type: str | None = Query(None, max_length=50),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
-    context: CompanyContext = Depends(
-        require_company_permission(CompanyPermission.TEAM_MANAGE)
-    ),
+    context: CompanyContext = Depends(require_company_permission(CompanyPermission.TEAM_MANAGE)),
     db: Session = Depends(get_db),
 ) -> CompanyActivityPage:
     """Return a newest-first activity trail strictly scoped by company_id."""

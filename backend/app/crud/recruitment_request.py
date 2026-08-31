@@ -32,23 +32,22 @@ class CRUDRecruitmentRequest:
         skip: int = 0,
         limit: int = 20,
     ) -> tuple[list[RecruitmentRequest], int]:
-        filtered = select(RecruitmentRequest).where(
-            RecruitmentRequest.company_id == company_id
-        )
+        filtered = select(RecruitmentRequest).where(RecruitmentRequest.company_id == company_id)
         if department_id is not None:
             filtered = filtered.where(RecruitmentRequest.department_id == department_id)
         if request_status is not None:
             filtered = filtered.where(RecruitmentRequest.status == request_status)
-        total = db.execute(
-            select(func.count()).select_from(filtered.subquery())
-        ).scalar() or 0
+        total = db.execute(select(func.count()).select_from(filtered.subquery())).scalar() or 0
         items = list(
             db.execute(
                 filtered.options(*self._with_relations())
                 .order_by(RecruitmentRequest.created_at.desc())
                 .offset(skip)
                 .limit(limit)
-            ).scalars().unique().all()
+            )
+            .scalars()
+            .unique()
+            .all()
         )
         return items, total
 

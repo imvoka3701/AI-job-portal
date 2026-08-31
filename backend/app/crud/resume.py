@@ -21,6 +21,7 @@ class CRUDResume:
         db.commit()
         db.refresh(resume)
         return resume
+
     def update(self, db: Session, *, resume: Resume, obj_in: dict) -> Resume:
         for field, value in obj_in.items():
             setattr(resume, field, value)

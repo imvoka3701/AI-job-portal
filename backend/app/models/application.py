@@ -56,9 +56,7 @@ class Application(Base):
         ForeignKey("cv_documents.id", ondelete="SET NULL"), nullable=True
     )
 
-    applied_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    applied_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )

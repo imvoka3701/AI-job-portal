@@ -29,9 +29,7 @@ class Notification(Base):
     # Foreign key
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
 
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     def __repr__(self) -> str:
         return f"<Notification {self.title} user={self.user_id}>"

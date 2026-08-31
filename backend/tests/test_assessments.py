@@ -6,13 +6,18 @@ from sqlalchemy.orm import Session
 from app.models.user import User
 
 
-def _get_auth_headers(client: TestClient, db_session: Session, email: str, role: str = "candidate") -> dict[str, str]:
-    client.post("/auth/register", json={
-        "email": email,
-        "password": "Password123!",
-        "full_name": "Assessment Tester",
-        "role": role,
-    })
+def _get_auth_headers(
+    client: TestClient, db_session: Session, email: str, role: str = "candidate"
+) -> dict[str, str]:
+    client.post(
+        "/auth/register",
+        json={
+            "email": email,
+            "password": "Password123!",
+            "full_name": "Assessment Tester",
+            "role": role,
+        },
+    )
     if role == "employer":
         user = db_session.query(User).filter(User.email == email).first()
         if user:
@@ -137,11 +142,15 @@ class TestAssessmentPersistence:
         headers2 = _get_auth_headers(client, db_session, "user2_assess@test.com")
 
         answers = {f"mbti-{i:02d}": 3 for i in range(1, 41)}
-        resp1 = client.post("/tools/mbti/attempts", json={
-            "assessment_type": "mbti",
-            "questionnaire_version": "mbti-v1",
-            "answers": answers,
-        }, headers=headers1)
+        resp1 = client.post(
+            "/tools/mbti/attempts",
+            json={
+                "assessment_type": "mbti",
+                "questionnaire_version": "mbti-v1",
+                "answers": answers,
+            },
+            headers=headers1,
+        )
         attempt_id = resp1.json()["id"]
 
         # User2 tries to delete User1's attempt

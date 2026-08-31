@@ -87,9 +87,7 @@ def get_job(job_id: int, db: Session = Depends(get_db)) -> JobRead:
 )
 def create_job(
     data: JobCreate,
-    context: CompanyContext = Depends(
-        require_company_permission(CompanyPermission.JOB_MANAGE)
-    ),
+    context: CompanyContext = Depends(require_company_permission(CompanyPermission.JOB_MANAGE)),
     db: Session = Depends(get_db),
 ) -> JobRead:
     """Create a new job posting (Employer only). Automatically generates an AI embedding."""
@@ -131,9 +129,7 @@ def create_job(
     # This guarantees every job ALWAYS has an embedding — no race condition
     # where a candidate matches against a job that hasn't been embedded yet.
     jd_text = " ".join(
-        part
-        for part in [data.title, data.description, data.requirements, data.benefits]
-        if part
+        part for part in [data.title, data.description, data.requirements, data.benefits] if part
     )
     try:
         embedding = generate_embedding(jd_text)
@@ -160,9 +156,7 @@ def create_job(
 def update_job(
     job_id: int,
     data: JobUpdate,
-    context: CompanyContext = Depends(
-        require_company_permission(CompanyPermission.JOB_MANAGE)
-    ),
+    context: CompanyContext = Depends(require_company_permission(CompanyPermission.JOB_MANAGE)),
     db: Session = Depends(get_db),
 ) -> JobRead:
     """Update an existing job posting (owner only)."""
@@ -172,7 +166,11 @@ def update_job(
     require_job_scope(db, context=context, job=job)
     if "department_id" in data.model_fields_set and data.department_id is not None:
         department = crud_company.get_department(db, department_id=data.department_id)
-        if department is None or department.company_id != context.company.id or not department.is_active:
+        if (
+            department is None
+            or department.company_id != context.company.id
+            or not department.is_active
+        ):
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail="Phòng ban không thuộc doanh nghiệp hoặc đã ngừng hoạt động.",
@@ -184,9 +182,7 @@ def update_job(
 @router.delete("/{job_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Delete a job posting")
 def delete_job(
     job_id: int,
-    context: CompanyContext = Depends(
-        require_company_permission(CompanyPermission.JOB_MANAGE)
-    ),
+    context: CompanyContext = Depends(require_company_permission(CompanyPermission.JOB_MANAGE)),
     db: Session = Depends(get_db),
 ) -> None:
     """Delete a job posting (owner only)."""

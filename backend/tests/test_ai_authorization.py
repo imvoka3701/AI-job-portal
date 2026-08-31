@@ -11,15 +11,18 @@ from app.routers.ai import _authorize_resume_access
 # Mock Models & Helpers for Testing
 # ---------------------------------------------------------
 
+
 class MockUser:
     def __init__(self, id: int, role: UserRole):
         self.id = id
         self.role = role
 
+
 class MockResume:
     def __init__(self, id: int, user_id: int):
         self.id = id
         self.user_id = user_id
+
 
 class MockJob:
     def __init__(self, id: int, company_id: int | None = None, department_id: int | None = None):
@@ -27,10 +30,12 @@ class MockJob:
         self.company_id = company_id
         self.department_id = department_id
 
+
 class MockApplication:
     def __init__(self, id: int, job: MockJob):
         self.id = id
         self.job = job
+
 
 class MockContext:
     def __init__(self, permissions: list[CompanyPermission]):
@@ -39,9 +44,11 @@ class MockContext:
     def has(self, permission: CompanyPermission) -> bool:
         return permission in self.permissions
 
+
 # ---------------------------------------------------------
 # Test Cases
 # ---------------------------------------------------------
+
 
 def test_candidate_success():
     """Candidate accessing their own resume."""
@@ -69,7 +76,9 @@ def test_candidate_unauthorized():
 @patch("app.routers.ai.build_company_context")
 @patch("app.routers.ai.crud_application")
 @patch("app.routers.ai.require_application_scope")
-def test_hr_success(mock_require_application_scope, mock_crud_application, mock_build_company_context):
+def test_hr_success(
+    mock_require_application_scope, mock_crud_application, mock_build_company_context
+):
     """Employer with AI_RECRUITMENT permission accessing a resume correctly submitted to their scope."""
     db = MagicMock()
     current_user = MockUser(id=2, role=UserRole.EMPLOYER)
@@ -91,7 +100,9 @@ def test_hr_success(mock_require_application_scope, mock_crud_application, mock_
 
     mock_build_company_context.assert_called_once_with(db, current_user)
     mock_crud_application.get_by_resume.assert_called_once_with(db, resume_id=resume.id)
-    mock_require_application_scope.assert_called_once_with(db, context=mock_context, application=mock_app)
+    mock_require_application_scope.assert_called_once_with(
+        db, context=mock_context, application=mock_app
+    )
 
 
 @patch("app.routers.ai.build_company_context")
@@ -109,13 +120,18 @@ def test_hr_missing_permission(mock_build_company_context):
         _authorize_resume_access(db, current_user=current_user, resume=resume)
 
     assert exc_info.value.status_code == status.HTTP_403_FORBIDDEN
-    assert exc_info.value.detail == "Bạn không có quyền sử dụng tính năng AI tuyển dụng. Vui lòng liên hệ Admin."
+    assert (
+        exc_info.value.detail
+        == "Bạn không có quyền sử dụng tính năng AI tuyển dụng. Vui lòng liên hệ Admin."
+    )
 
 
 @patch("app.routers.ai.build_company_context")
 @patch("app.routers.ai.crud_application")
 @patch("app.routers.ai.require_application_scope")
-def test_hr_tenant_violation(mock_require_application_scope, mock_crud_application, mock_build_company_context):
+def test_hr_tenant_violation(
+    mock_require_application_scope, mock_crud_application, mock_build_company_context
+):
     """Employer attempting to access a resume submitted to a DIFFERENT company (Tenant Violation)."""
     db = MagicMock()
     current_user = MockUser(id=2, role=UserRole.EMPLOYER)
@@ -137,7 +153,9 @@ def test_hr_tenant_violation(mock_require_application_scope, mock_crud_applicati
 @patch("app.routers.ai.build_company_context")
 @patch("app.routers.ai.crud_application")
 @patch("app.routers.ai.require_application_scope")
-def test_hr_department_violation(mock_require_application_scope, mock_crud_application, mock_build_company_context):
+def test_hr_department_violation(
+    mock_require_application_scope, mock_crud_application, mock_build_company_context
+):
     """Employer attempting to access a resume outside their permitted department scope."""
     db = MagicMock()
     current_user = MockUser(id=2, role=UserRole.EMPLOYER)
@@ -153,15 +171,19 @@ def test_hr_department_violation(mock_require_application_scope, mock_crud_appli
     def mock_require_scope(*args, **kwargs):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Job nằm ngoài phòng ban hoặc phạm vi được phân công."
+            detail="Job nằm ngoài phòng ban hoặc phạm vi được phân công.",
         )
+
     mock_require_application_scope.side_effect = mock_require_scope
 
     with pytest.raises(HTTPException) as exc_info:
         _authorize_resume_access(db, current_user=current_user, resume=resume)
 
     assert exc_info.value.status_code == status.HTTP_403_FORBIDDEN
-    assert exc_info.value.detail == "CV nằm ngoài phạm vi phòng ban hoặc dữ liệu tuyển dụng được phân công của bạn."
+    assert (
+        exc_info.value.detail
+        == "CV nằm ngoài phạm vi phòng ban hoặc dữ liệu tuyển dụng được phân công của bạn."
+    )
 
 
 @patch("app.routers.ai.build_company_context")
@@ -183,9 +205,9 @@ def test_hr_target_job_violation(mock_require_job_scope, mock_crud_job, mock_bui
     # Simulate that require_job_scope raises 403 (employer does not have access to the target job)
     def mock_require_scope(*args, **kwargs):
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Job không thuộc doanh nghiệp của bạn."
+            status_code=status.HTTP_403_FORBIDDEN, detail="Job không thuộc doanh nghiệp của bạn."
         )
+
     mock_require_job_scope.side_effect = mock_require_scope
 
     with pytest.raises(HTTPException) as exc_info:

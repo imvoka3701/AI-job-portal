@@ -26,7 +26,9 @@ class CvSuggestionService:
     @staticmethod
     def _parse_response(content: str, response_model: type[T]) -> T:
         cleaned = content.strip()
-        fenced = re.fullmatch(r"```(?:json)?\s*(.*?)\s*```", cleaned, flags=re.DOTALL | re.IGNORECASE)
+        fenced = re.fullmatch(
+            r"```(?:json)?\s*(.*?)\s*```", cleaned, flags=re.DOTALL | re.IGNORECASE
+        )
         if fenced:
             cleaned = fenced.group(1).strip()
         return response_model.model_validate(json.loads(cleaned))
@@ -38,7 +40,10 @@ class CvSuggestionService:
             try:
                 response = await deepseek_client.create_chat_completion(
                     messages=[
-                        {"role": "system", "content": "Bạn là trợ lý viết CV. Chỉ trả JSON đúng schema được yêu cầu, không bịa thông tin cá nhân, không đưa quyết định tuyển dụng."},
+                        {
+                            "role": "system",
+                            "content": "Bạn là trợ lý viết CV. Chỉ trả JSON đúng schema được yêu cầu, không bịa thông tin cá nhân, không đưa quyết định tuyển dụng.",
+                        },
                         {"role": "user", "content": instruction},
                     ],
                     model=settings.LLM_MODEL,
@@ -47,7 +52,12 @@ class CvSuggestionService:
                 if not content:
                     raise ValueError("Empty response from Deepseek")
                 result = self._parse_response(content, response_model)
-                logger.info("CV AI task=%s completed in %.2fs attempt=%d", task, perf_counter() - started_at, attempt + 1)
+                logger.info(
+                    "CV AI task=%s completed in %.2fs attempt=%d",
+                    task,
+                    perf_counter() - started_at,
+                    attempt + 1,
+                )
                 return result
             except Exception as exc:
                 last_error = exc
@@ -61,28 +71,40 @@ class CvSuggestionService:
                 )
         raise normalize_ai_error(last_error)
 
-    async def suggest_summary(self, *, current_text: str, target_role: str, language: str) -> CvSummarySuggestionResponse:
+    async def suggest_summary(
+        self, *, current_text: str, target_role: str, language: str
+    ) -> CvSummarySuggestionResponse:
         return await self._request(
             task="summary",
-            instruction=(f'JSON schema: {{"suggestion":"...", "rationale":"..."}}. Viết phần summary CV cho vị trí "{target_role}" bằng {language}. '
-                         f'Nội dung hiện tại (có thể rỗng): {current_text}. Không thêm số liệu hoặc kinh nghiệm không có trong nội dung.'),
+            instruction=(
+                f'JSON schema: {{"suggestion":"...", "rationale":"..."}}. Viết phần summary CV cho vị trí "{target_role}" bằng {language}. '
+                f"Nội dung hiện tại (có thể rỗng): {current_text}. Không thêm số liệu hoặc kinh nghiệm không có trong nội dung."
+            ),
             response_model=CvSummarySuggestionResponse,
         )
 
-    async def rewrite_experience(self, *, experience_text: str, target_role: str, language: str, job_context: str = "") -> CvExperienceSuggestionResponse:
+    async def rewrite_experience(
+        self, *, experience_text: str, target_role: str, language: str, job_context: str = ""
+    ) -> CvExperienceSuggestionResponse:
         job_hint = f" Ngữ cảnh công việc mục tiêu: {job_context[:400]}." if job_context else ""
         return await self._request(
             task="experience",
-            instruction=(f'JSON schema: {{"bullets":["..."], "rationale":"..."}}. Viết lại tối đa 5 bullet kinh nghiệm theo hướng thành tựu cho vị trí "{target_role}" bằng {language}.{job_hint} '
-                         f'Nội dung gốc: {experience_text}. Chỉ dùng thông tin đã cung cấp, không bịa số liệu.'),
+            instruction=(
+                f'JSON schema: {{"bullets":["..."], "rationale":"..."}}. Viết lại tối đa 5 bullet kinh nghiệm theo hướng thành tựu cho vị trí "{target_role}" bằng {language}.{job_hint} '
+                f"Nội dung gốc: {experience_text}. Chỉ dùng thông tin đã cung cấp, không bịa số liệu."
+            ),
             response_model=CvExperienceSuggestionResponse,
         )
 
-    async def suggest_skills(self, *, current_skills: list[str], target_role: str, job_context: str, language: str) -> CvSkillsSuggestionResponse:
+    async def suggest_skills(
+        self, *, current_skills: list[str], target_role: str, job_context: str, language: str
+    ) -> CvSkillsSuggestionResponse:
         return await self._request(
             task="skills",
-            instruction=(f'JSON schema: {{"skills":["..."], "rationale":"..."}}. Gợi ý tối đa 10 kỹ năng phù hợp với vị trí "{target_role}" bằng {language}. '
-                         f'Kỹ năng hiện có: {current_skills}. Context công việc: {job_context}. Chỉ đề xuất kỹ năng liên quan, không khẳng định người dùng đã có kỹ năng đó.'),
+            instruction=(
+                f'JSON schema: {{"skills":["..."], "rationale":"..."}}. Gợi ý tối đa 10 kỹ năng phù hợp với vị trí "{target_role}" bằng {language}. '
+                f"Kỹ năng hiện có: {current_skills}. Context công việc: {job_context}. Chỉ đề xuất kỹ năng liên quan, không khẳng định người dùng đã có kỹ năng đó."
+            ),
             response_model=CvSkillsSuggestionResponse,
         )
 

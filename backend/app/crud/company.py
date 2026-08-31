@@ -30,7 +30,9 @@ class CRUDCompany:
                 CompanyMembership.user_id == user_id,
                 CompanyMembership.status == MembershipStatus.ACTIVE,
             )
-            .options(joinedload(CompanyMembership.company), joinedload(CompanyMembership.department))
+            .options(
+                joinedload(CompanyMembership.company), joinedload(CompanyMembership.department)
+            )
             .order_by(CompanyMembership.id)
         )
         return db.execute(stmt).scalars().first()
@@ -41,7 +43,9 @@ class CRUDCompany:
         stmt = (
             select(CompanyMembership)
             .where(CompanyMembership.user_id == user_id)
-            .options(joinedload(CompanyMembership.company), joinedload(CompanyMembership.department))
+            .options(
+                joinedload(CompanyMembership.company), joinedload(CompanyMembership.department)
+            )
             .order_by(CompanyMembership.id.desc())
         )
         return db.execute(stmt).scalars().first()
@@ -91,16 +95,26 @@ class CRUDCompany:
             stmt = stmt.where(CompanyMembership.status == status)
         if department_id is not None:
             stmt = stmt.where(CompanyMembership.department_id == department_id)
-        return list(db.execute(stmt.order_by(CompanyMembership.is_owner.desc(), User.full_name)).scalars().unique().all())
+        return list(
+            db.execute(stmt.order_by(CompanyMembership.is_owner.desc(), User.full_name))
+            .scalars()
+            .unique()
+            .all()
+        )
 
     def count_owners(self, db: Session, *, company_id: int) -> int:
-        return db.execute(
-            select(func.count()).select_from(CompanyMembership).where(
-                CompanyMembership.company_id == company_id,
-                CompanyMembership.is_owner.is_(True),
-                CompanyMembership.status == MembershipStatus.ACTIVE,
-            )
-        ).scalar() or 0
+        return (
+            db.execute(
+                select(func.count())
+                .select_from(CompanyMembership)
+                .where(
+                    CompanyMembership.company_id == company_id,
+                    CompanyMembership.is_owner.is_(True),
+                    CompanyMembership.status == MembershipStatus.ACTIVE,
+                )
+            ).scalar()
+            or 0
+        )
 
     def get_department(self, db: Session, *, department_id: int) -> Department | None:
         return db.get(Department, department_id)
@@ -111,14 +125,18 @@ class CRUDCompany:
                 select(Department)
                 .where(Department.company_id == company_id)
                 .order_by(Department.is_active.desc(), Department.name)
-            ).scalars().all()
+            )
+            .scalars()
+            .all()
         )
 
     def list_invitations(self, db: Session, *, company_id: int) -> list[CompanyInvitation]:
         stmt = (
             select(CompanyInvitation)
             .where(CompanyInvitation.company_id == company_id)
-            .options(joinedload(CompanyInvitation.company), joinedload(CompanyInvitation.department))
+            .options(
+                joinedload(CompanyInvitation.company), joinedload(CompanyInvitation.department)
+            )
             .order_by(CompanyInvitation.created_at.desc())
         )
         return list(db.execute(stmt).scalars().all())
@@ -127,7 +145,9 @@ class CRUDCompany:
         stmt = (
             select(CompanyInvitation)
             .where(CompanyInvitation.id == invitation_id)
-            .options(joinedload(CompanyInvitation.company), joinedload(CompanyInvitation.department))
+            .options(
+                joinedload(CompanyInvitation.company), joinedload(CompanyInvitation.department)
+            )
         )
         return db.execute(stmt).scalar_one_or_none()
 
@@ -135,7 +155,9 @@ class CRUDCompany:
         stmt = (
             select(CompanyInvitation)
             .where(CompanyInvitation.token_hash == token_hash)
-            .options(joinedload(CompanyInvitation.company), joinedload(CompanyInvitation.department))
+            .options(
+                joinedload(CompanyInvitation.company), joinedload(CompanyInvitation.department)
+            )
         )
         return db.execute(stmt).scalar_one_or_none()
 
@@ -145,7 +167,9 @@ class CRUDCompany:
         stmt = (
             select(CompanyInvitation)
             .where(CompanyInvitation.message_id == message_id)
-            .options(joinedload(CompanyInvitation.company), joinedload(CompanyInvitation.department))
+            .options(
+                joinedload(CompanyInvitation.company), joinedload(CompanyInvitation.department)
+            )
         )
         return db.execute(stmt).scalar_one_or_none()
 
@@ -162,9 +186,9 @@ class CRUDCompany:
 
     def get_job_assignment_membership_ids(self, db: Session, *, job_id: int) -> list[int]:
         return list(
-            db.execute(
-                select(JobAssignment.membership_id).where(JobAssignment.job_id == job_id)
-            ).scalars().all()
+            db.execute(select(JobAssignment.membership_id).where(JobAssignment.job_id == job_id))
+            .scalars()
+            .all()
         )
 
     def get_job_assignments_map(
@@ -201,7 +225,9 @@ class CRUDCompany:
                     CompanyMembership.company_id == company_id,
                     CompanyMembership.status == MembershipStatus.ACTIVE,
                 )
-            ).scalars().all()
+            )
+            .scalars()
+            .all()
         )
 
     def replace_job_assignments_batch(
@@ -226,12 +252,15 @@ class CRUDCompany:
         )
 
     def is_assigned_to_job(self, db: Session, *, job_id: int, membership_id: int) -> bool:
-        return db.execute(
-            select(JobAssignment.id).where(
-                JobAssignment.job_id == job_id,
-                JobAssignment.membership_id == membership_id,
-            )
-        ).scalar_one_or_none() is not None
+        return (
+            db.execute(
+                select(JobAssignment.id).where(
+                    JobAssignment.job_id == job_id,
+                    JobAssignment.membership_id == membership_id,
+                )
+            ).scalar_one_or_none()
+            is not None
+        )
 
     def list_scoped_jobs(
         self,
@@ -256,9 +285,10 @@ class CRUDCompany:
                 )
             )
         return list(
-            db.execute(
-                stmt.options(joinedload(Job.employer)).order_by(Job.created_at.desc())
-            ).scalars().unique().all()
+            db.execute(stmt.options(joinedload(Job.employer)).order_by(Job.created_at.desc()))
+            .scalars()
+            .unique()
+            .all()
         )
 
 

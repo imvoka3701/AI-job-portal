@@ -18,7 +18,13 @@ def _make_minimal_pdf(text: str) -> bytes:
     obj2 = b"2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n"
     obj3 = b"3 0 obj<</Type/Page/MediaBox[0 0 612 792]/Parent 2 0 R/Contents 4 0 R/Resources<</Font<</F1 5 0 R>>>>>>endobj\n"
     stream_body = ("BT /F1 12 Tf 72 700 Td (" + escaped + ") Tj ET").encode("ascii")
-    obj4 = b"4 0 obj<</Length " + str(len(stream_body)).encode() + b">>stream\n" + stream_body + b"\nendstream\nendobj\n"
+    obj4 = (
+        b"4 0 obj<</Length "
+        + str(len(stream_body)).encode()
+        + b">>stream\n"
+        + stream_body
+        + b"\nendstream\nendobj\n"
+    )
     obj5 = b"5 0 obj<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>endobj\n"
     parts = [obj1, obj2, obj3, obj4, obj5]
     offset = len(header)
@@ -30,7 +36,9 @@ def _make_minimal_pdf(text: str) -> bytes:
     xref_lines = b"xref\n0 6\n0000000000 65535 f \n"
     for o in xrefs:
         xref_lines += (f"{o:010d} 00000 n \n").encode()
-    trailer = b"trailer<</Size 6/Root 1 0 R>>\nstartxref\n" + str(xref_start).encode() + b"\n%%EOF\n"
+    trailer = (
+        b"trailer<</Size 6/Root 1 0 R>>\nstartxref\n" + str(xref_start).encode() + b"\n%%EOF\n"
+    )
     return header + b"".join(parts) + xref_lines + trailer
 
 
@@ -42,9 +50,15 @@ def _register_and_login(
     full_name: str = "Test",
     role: str = "candidate",
 ) -> dict[str, str]:
-    resp = client.post("/auth/register", json={
-        "email": email, "password": password, "full_name": full_name, "role": role,
-    })
+    resp = client.post(
+        "/auth/register",
+        json={
+            "email": email,
+            "password": password,
+            "full_name": full_name,
+            "role": role,
+        },
+    )
     assert resp.status_code in (200, 201), resp.text
     login_resp = client.post("/auth/login", json={"email": email, "password": password})
     assert login_resp.status_code == 200, login_resp.text
@@ -58,8 +72,10 @@ class TestResumeUpload:
     def test_upload_pdf_success(self, client: TestClient, db_session: Session, monkeypatch):
         """Upload a valid PDF — should create resume with embedding."""
         from app.services.cv_evaluator import cv_evaluator_service
+
         async def valid_cv(_text):
             return True
+
         monkeypatch.setattr(cv_evaluator_service, "validate_is_cv", valid_cv)
         headers = _register_and_login(client, db_session, "ru@t.com", "p")
         pdf = _make_minimal_pdf(
@@ -120,10 +136,16 @@ class TestResumeCRUD:
 
         headers = _register_and_login(client, db_session, "rbi@t.com", "p")
         me = client.get("/users/me", headers=headers).json()
-        resume = crud_resume.create(db_session, obj_in=ResumeCreate(
-            title="test.pdf", file_url="u/test.pdf", raw_text="Dev skills...",
-            embedding=[0.05] * 384,
-        ), user_id=me["id"])
+        resume = crud_resume.create(
+            db_session,
+            obj_in=ResumeCreate(
+                title="test.pdf",
+                file_url="u/test.pdf",
+                raw_text="Dev skills...",
+                embedding=[0.05] * 384,
+            ),
+            user_id=me["id"],
+        )
 
         resp = client.get(f"/resumes/{resume.id}", headers=headers)
         assert resp.status_code == 200
@@ -135,10 +157,16 @@ class TestResumeCRUD:
 
         headers = _register_and_login(client, db_session, "rd@t.com", "p")
         me = client.get("/users/me", headers=headers).json()
-        resume = crud_resume.create(db_session, obj_in=ResumeCreate(
-            title="del.pdf", file_url="u/del.pdf", raw_text="Skills...",
-            embedding=[0.05] * 384,
-        ), user_id=me["id"])
+        resume = crud_resume.create(
+            db_session,
+            obj_in=ResumeCreate(
+                title="del.pdf",
+                file_url="u/del.pdf",
+                raw_text="Skills...",
+                embedding=[0.05] * 384,
+            ),
+            user_id=me["id"],
+        )
 
         resp = client.delete(f"/resumes/{resume.id}", headers=headers)
         assert resp.status_code == 204
@@ -154,20 +182,32 @@ class TestResumeCRUD:
         h1 = _register_and_login(client, db_session, "ro1@t.com", "p", "U1")
         h2 = _register_and_login(client, db_session, "ro2@t.com", "p", "U2")
         me1 = client.get("/users/me", headers=h1).json()
-        resume = crud_resume.create(db_session, obj_in=ResumeCreate(
-            title="mine.pdf", file_url="u/mine.pdf", raw_text="Skills...",
-            embedding=[0.05] * 384,
-        ), user_id=me1["id"])
+        resume = crud_resume.create(
+            db_session,
+            obj_in=ResumeCreate(
+                title="mine.pdf",
+                file_url="u/mine.pdf",
+                raw_text="Skills...",
+                embedding=[0.05] * 384,
+            ),
+            user_id=me1["id"],
+        )
 
         resp = client.delete(f"/resumes/{resume.id}", headers=h2)
-        assert resp.status_code in (403, 404), f"Should not allow delete by other user, got {resp.status_code}"
+        assert resp.status_code in (403, 404), (
+            f"Should not allow delete by other user, got {resp.status_code}"
+        )
 
 
 class TestResumeEmbedding:
-    def test_embedding_generated_on_upload(self, client: TestClient, db_session: Session, monkeypatch):
+    def test_embedding_generated_on_upload(
+        self, client: TestClient, db_session: Session, monkeypatch
+    ):
         from app.services.cv_evaluator import cv_evaluator_service
+
         async def valid_cv(_text):
             return True
+
         monkeypatch.setattr(cv_evaluator_service, "validate_is_cv", valid_cv)
         """After uploading a valid PDF, embedding should be stored (not NULL)."""
         headers = _register_and_login(client, db_session, "re@t.com", "p")
@@ -186,6 +226,7 @@ class TestResumeEmbedding:
         # Verify embedding was generated — query the resume
         resume_id = resp.json()["id"]
         from app.models.resume import Resume
+
         resume = db_session.query(Resume).filter(Resume.id == resume_id).first()
         assert resume is not None
         assert resume.embedding is not None, "Embedding must be generated"

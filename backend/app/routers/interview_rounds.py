@@ -20,7 +20,11 @@ from app.schemas.interview_round import RoundCreate, RoundRead, RoundUpdate
 router = APIRouter(prefix="/applications", tags=["Interview Rounds"])
 
 
-@router.get("/{application_id}/rounds", response_model=list[RoundRead], summary="Get rounds for an application")
+@router.get(
+    "/{application_id}/rounds",
+    response_model=list[RoundRead],
+    summary="Get rounds for an application",
+)
 def get_rounds(
     application_id: int,
     current_user: User = Depends(get_current_user),
@@ -62,8 +66,10 @@ def create_round(
         raise HTTPException(status_code=404, detail="Application not found")
     require_application_scope(db, context=context, application=app)
     round_obj = crud_interview_round.create(
-        db, application_id=application_id,
-        round_type=data.round_type, round_name=data.round_name,
+        db,
+        application_id=application_id,
+        round_type=data.round_type,
+        round_name=data.round_name,
     )
     return RoundRead.model_validate(round_obj)
 
@@ -87,7 +93,9 @@ def update_round(
         raise HTTPException(status_code=404, detail="Round not found")
     require_application_scope(db, context=context, application=round_obj.application)
     scheduling_fields = {"scheduled_at", "location"}
-    if data.model_fields_set & scheduling_fields and not context.has(CompanyPermission.INTERVIEW_MANAGE):
+    if data.model_fields_set & scheduling_fields and not context.has(
+        CompanyPermission.INTERVIEW_MANAGE
+    ):
         raise HTTPException(
             status_code=403,
             detail="Chỉ nhân sự được thay đổi lịch và địa điểm phỏng vấn.",
@@ -95,6 +103,8 @@ def update_round(
     if data.model_fields_set & {"status", "feedback", "notes"}:
         round_obj.reviewer_id = context.user.id
     updated = crud_interview_round.update(
-        db, db_obj=round_obj, data=data.model_dump(exclude_unset=True),
+        db,
+        db_obj=round_obj,
+        data=data.model_dump(exclude_unset=True),
     )
     return RoundRead.model_validate(updated)

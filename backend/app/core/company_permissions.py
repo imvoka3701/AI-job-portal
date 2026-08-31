@@ -89,8 +89,12 @@ def build_company_context(db: Session, current_user: User) -> CompanyContext:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Employer only.")
     membership = company_service.ensure_employer_membership(db, user=current_user)
     if not membership.company.is_active:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Doanh nghiệp đang bị khóa.")
-    permissions = set(HR_PERMISSIONS if membership.member_role == MembershipRole.HR else HEAD_PERMISSIONS)
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Doanh nghiệp đang bị khóa."
+        )
+    permissions = set(
+        HR_PERMISSIONS if membership.member_role == MembershipRole.HR else HEAD_PERMISSIONS
+    )
     if membership.is_owner:
         permissions.add(CompanyPermission.TEAM_MANAGE)
     return CompanyContext(
@@ -119,7 +123,9 @@ def require_job_scope(db: Session, *, context: CompanyContext, job: Job) -> None
         db.commit()
         db.refresh(job)
     if job.company_id != context.company.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Job không thuộc doanh nghiệp của bạn.")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Job không thuộc doanh nghiệp của bạn."
+        )
     if context.membership.is_owner or context.membership.member_role == MembershipRole.HR:
         return
     same_department = (

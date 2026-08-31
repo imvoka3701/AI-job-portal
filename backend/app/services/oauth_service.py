@@ -125,7 +125,9 @@ class OAuthService:
 
         # 5. Frontend redirect URL
         role_path = "/employer/dashboard" if user.role == UserRole.EMPLOYER else "/dashboard"
-        frontend_url = f"{settings.FRONTEND_URL}/auth/google/callback?token={jwt_token}&redirect={role_path}"
+        frontend_url = (
+            f"{settings.FRONTEND_URL}/auth/google/callback?token={jwt_token}&redirect={role_path}"
+        )
 
         return jwt_token, frontend_url
 
@@ -203,7 +205,9 @@ class OAuthService:
         return user
 
     def _create_access_token(self, payload: TokenPayload) -> str:
-        expire = datetime.now(timezone.utc) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+        expire = datetime.now(timezone.utc) + timedelta(
+            minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
+        )
         to_encode = {"sub": str(payload.sub), "role": payload.role.value, "exp": expire}
         return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 

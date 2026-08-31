@@ -9,7 +9,10 @@ from app.services.cv_suggestions import cv_suggestion_service
 
 
 def _login(client: TestClient, email: str) -> dict[str, str]:
-    registered = client.post("/auth/register", json={"email": email, "password": "p", "full_name": email, "role": "candidate"})
+    registered = client.post(
+        "/auth/register",
+        json={"email": email, "password": "p", "full_name": email, "role": "candidate"},
+    )
     assert registered.status_code in (200, 201), registered.text
     login = client.post("/auth/login", json={"email": email, "password": "p"})
     assert login.status_code == 200, login.text
@@ -20,7 +23,15 @@ class TestCvDocuments:
     def test_create_list_update_and_delete(self, client: TestClient, db_session: Session):
         headers = _login(client, "cv-owner@example.com")
         content = {"version": 1, "personal": {"full_name": "Owner"}, "summary": "Backend developer"}
-        created = client.post("/cv-documents", json={"title": "Backend CV", "template_key": "modern-two-column", "content_json": content}, headers=headers)
+        created = client.post(
+            "/cv-documents",
+            json={
+                "title": "Backend CV",
+                "template_key": "modern-two-column",
+                "content_json": content,
+            },
+            headers=headers,
+        )
         assert created.status_code == 201, created.text
         document = created.json()
         assert document["status"] == "draft"
@@ -30,7 +41,11 @@ class TestCvDocuments:
         assert listed.status_code == 200
         assert listed.json()[0]["id"] == document["id"]
 
-        updated = client.patch(f"/cv-documents/{document['id']}", json={"status": "published", "content_json": {**content, "summary": "Updated"}}, headers=headers)
+        updated = client.patch(
+            f"/cv-documents/{document['id']}",
+            json={"status": "published", "content_json": {**content, "summary": "Updated"}},
+            headers=headers,
+        )
         assert updated.status_code == 200
         assert updated.json()["status"] == "published"
         assert updated.json()["content_json"]["summary"] == "Updated"
@@ -41,7 +56,9 @@ class TestCvDocuments:
 
     def test_reject_invalid_template(self, client: TestClient):
         headers = _login(client, "cv-invalid@example.com")
-        response = client.post("/cv-documents", json={"template_key": "unknown-template"}, headers=headers)
+        response = client.post(
+            "/cv-documents", json={"template_key": "unknown-template"}, headers=headers
+        )
         assert response.status_code == 422
 
     def test_cannot_access_another_users_document(self, client: TestClient):
@@ -50,20 +67,34 @@ class TestCvDocuments:
         created = client.post("/cv-documents", json={"title": "Private CV"}, headers=owner_headers)
         document_id = created.json()["id"]
         assert client.get(f"/cv-documents/{document_id}", headers=other_headers).status_code == 404
-        assert client.patch(f"/cv-documents/{document_id}", json={"title": "Hijack"}, headers=other_headers).status_code == 404
-        assert client.delete(f"/cv-documents/{document_id}", headers=other_headers).status_code == 404
+        assert (
+            client.patch(
+                f"/cv-documents/{document_id}", json={"title": "Hijack"}, headers=other_headers
+            ).status_code
+            == 404
+        )
+        assert (
+            client.delete(f"/cv-documents/{document_id}", headers=other_headers).status_code == 404
+        )
 
     def test_ai_suggestion_returns_structured_success(self, client: TestClient, monkeypatch):
         headers = _login(client, "cv-ai-success@example.com")
         document = client.post("/cv-documents", json={"title": "AI CV"}, headers=headers).json()
 
         async def fake_summary(**_kwargs):
-            return CvSummarySuggestionResponse(suggestion="Tóm tắt có cấu trúc", rationale="Bám sát vị trí mục tiêu")
+            return CvSummarySuggestionResponse(
+                suggestion="Tóm tắt có cấu trúc", rationale="Bám sát vị trí mục tiêu"
+            )
 
         monkeypatch.setattr(cv_suggestion_service, "suggest_summary", fake_summary)
         response = client.post(
             "/ai/cv/suggest-summary",
-            json={"cv_document_id": document["id"], "current_text": "", "target_role": "Backend Developer", "language": "vi"},
+            json={
+                "cv_document_id": document["id"],
+                "current_text": "",
+                "target_role": "Backend Developer",
+                "language": "vi",
+            },
             headers=headers,
         )
         assert response.status_code == 200
@@ -79,7 +110,12 @@ class TestCvDocuments:
         monkeypatch.setattr(cv_suggestion_service, "suggest_summary", timeout_summary)
         response = client.post(
             "/ai/cv/suggest-summary",
-            json={"cv_document_id": document["id"], "current_text": "", "target_role": "Backend Developer", "language": "vi"},
+            json={
+                "cv_document_id": document["id"],
+                "current_text": "",
+                "target_role": "Backend Developer",
+                "language": "vi",
+            },
             headers=headers,
         )
         assert response.status_code == 504

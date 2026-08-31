@@ -262,9 +262,7 @@ class TestFlow2HRRecruitment:
 class TestFlow3AdminOversight:
     """Flow: Admin Dashboard → Stats → View Users → View Jobs → Audit Logs."""
 
-    def test_admin_can_view_stats_and_manage(
-        self, client: TestClient, db_session: Session
-    ):
+    def test_admin_can_view_stats_and_manage(self, client: TestClient, db_session: Session):
         # Setup: Create some data
         emp_headers = _register_employer(client, db_session, email="emp2@test.com")
         client.post("/jobs", json=JOB_PAYLOAD, headers=emp_headers)
@@ -301,9 +299,7 @@ class TestFlow3AdminOversight:
 class TestFlow4TeamCollaboration:
     """Flow: Owner invites Dept Head → Accept → View scoped apps → Recommend."""
 
-    def test_department_head_recommendation_flow(
-        self, client: TestClient, db_session: Session
-    ):
+    def test_department_head_recommendation_flow(self, client: TestClient, db_session: Session):
         # Step 1: Owner creates company
         owner_headers = _register_employer(
             client, db_session, email="owner@corp.vn", company_name="Corp VN"
@@ -390,9 +386,7 @@ class TestFlow4TeamCollaboration:
 class TestFlow5CVBuilderTools:
     """Flow: Create CV → Preview → Apply with Builder CV."""
 
-    def test_cv_builder_create_and_apply(
-        self, client: TestClient, db_session: Session
-    ):
+    def test_cv_builder_create_and_apply(self, client: TestClient, db_session: Session):
         cand_headers = _register_candidate(client, email="builder@test.com")
 
         # Step 1: Create a CV document via builder
@@ -460,9 +454,7 @@ class TestFlow5CVBuilderTools:
 class TestFlow6RecruitmentRequest:
     """Flow: Dept Head Creates Request → Submit → HR/Owner Approves."""
 
-    def test_recruitment_request_lifecycle(
-        self, client: TestClient, db_session: Session
-    ):
+    def test_recruitment_request_lifecycle(self, client: TestClient, db_session: Session):
         owner_headers = _register_employer(
             client, db_session, email="owner6@corp.vn", company_name="Corp6"
         )

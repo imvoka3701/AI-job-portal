@@ -10,12 +10,14 @@ from app.models.interview_round import InterviewRound
 class CRUDCriteriaScore:
     def get_by_round(self, db: Session, *, round_id: int) -> list[CriteriaScore]:
         return list(
-            db.execute(
-                select(CriteriaScore).where(CriteriaScore.round_id == round_id)
-            ).scalars().all()
+            db.execute(select(CriteriaScore).where(CriteriaScore.round_id == round_id))
+            .scalars()
+            .all()
         )
 
-    def bulk_replace(self, db: Session, *, round_id: int, criteria: list[dict]) -> list[CriteriaScore]:
+    def bulk_replace(
+        self, db: Session, *, round_id: int, criteria: list[dict]
+    ) -> list[CriteriaScore]:
         """Delete existing criteria for round, insert new ones, update round.score."""
         # Delete old
         db.execute(delete(CriteriaScore).where(CriteriaScore.round_id == round_id))

@@ -65,6 +65,7 @@ class MembershipUpdate(BaseModel):
     department_id: int | None = None
     status: MembershipStatus | None = None
 
+
 class CompanyContextRead(BaseModel):
     company: CompanyRead
     membership: MembershipRead

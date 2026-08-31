@@ -50,29 +50,33 @@ def _job_scope(context: CompanyContext) -> tuple[str, dict[str, int | None]]:
     summary="Get employer dashboard statistics",
 )
 def get_employer_stats(
-    context: CompanyContext = Depends(
-        require_company_permission(CompanyPermission.ANALYTICS_VIEW)
-    ),
+    context: CompanyContext = Depends(require_company_permission(CompanyPermission.ANALYTICS_VIEW)),
     db: Session = Depends(get_db),
 ) -> EmployerStatsResponse:
     """Aggregated KPIs for the employer dashboard."""
     scope_clause, scope_params = _job_scope(context)
 
     # ── Total jobs ─────────────────────────────────────────────────────────
-    total_jobs = db.execute(
-        text(f"SELECT COUNT(*) FROM jobs j WHERE {scope_clause}"),
-        scope_params,
-    ).scalar() or 0
+    total_jobs = (
+        db.execute(
+            text(f"SELECT COUNT(*) FROM jobs j WHERE {scope_clause}"),
+            scope_params,
+        ).scalar()
+        or 0
+    )
 
     # ── Total applications across all jobs ─────────────────────────────────
-    total_apps = db.execute(
-        text(
-            "SELECT COUNT(*) FROM applications a "
-            "JOIN jobs j ON a.job_id = j.id "
-            f"WHERE {scope_clause}"
-        ),
-        scope_params,
-    ).scalar() or 0
+    total_apps = (
+        db.execute(
+            text(
+                "SELECT COUNT(*) FROM applications a "
+                "JOIN jobs j ON a.job_id = j.id "
+                f"WHERE {scope_clause}"
+            ),
+            scope_params,
+        ).scalar()
+        or 0
+    )
 
     # ── Average AI match score ─────────────────────────────────────────────
     avg_score_row = db.execute(
@@ -83,7 +87,11 @@ def get_employer_stats(
         ),
         scope_params,
     ).fetchone()
-    avg_ai_match: float | None = round(float(avg_score_row[0]), 1) if avg_score_row and avg_score_row[0] is not None else None
+    avg_ai_match: float | None = (
+        round(float(avg_score_row[0]), 1)
+        if avg_score_row and avg_score_row[0] is not None
+        else None
+    )
 
     # ── Applications over time (last 30 days) ──────────────────────────────
     thirty_days_ago = datetime.utcnow() - timedelta(days=30)
@@ -98,9 +106,7 @@ def get_employer_stats(
         ),
         {**scope_params, "since": thirty_days_ago},
     ).fetchall()
-    applications_over_time = [
-        {"date": str(row.day), "count": row.cnt} for row in rows
-    ]
+    applications_over_time = [{"date": str(row.day), "count": row.cnt} for row in rows]
 
     # ── Active jobs with applicant count & avg AI score ────────────────────
     job_rows = db.execute(
@@ -124,7 +130,9 @@ def get_employer_stats(
             job_type=row.job_type,
             experience_level=row.experience_level,
             location=row.location,
-            created_at=row.created_at.isoformat() if hasattr(row.created_at, 'isoformat') else str(row.created_at or ''),
+            created_at=row.created_at.isoformat()
+            if hasattr(row.created_at, "isoformat")
+            else str(row.created_at or ""),
             applicant_count=row.applicant_count or 0,
             avg_ai_match=float(row.avg_score) if row.avg_score is not None else None,
         )
@@ -151,7 +159,13 @@ def get_employer_stats(
     funnel = [
         {
             "round_type": r.round_type,
-            "round_name": {"cv_screen": "Duyệt CV", "tech": "PV Kỹ thuật", "hr": "PV HR", "final": "Vòng cuối", "custom": "Khác"}.get(r.round_type, r.round_type),
+            "round_name": {
+                "cv_screen": "Duyệt CV",
+                "tech": "PV Kỹ thuật",
+                "hr": "PV HR",
+                "final": "Vòng cuối",
+                "custom": "Khác",
+            }.get(r.round_type, r.round_type),
             "entered": r.entered,
             "passed": r.passed,
             "failed": r.failed,
@@ -172,7 +186,9 @@ def get_employer_stats(
             ),
             scope_params,
         ).fetchone()
-        time_to_hire_avg_days = round(float(tth_row.avg_days), 1) if tth_row and tth_row.avg_days else None
+        time_to_hire_avg_days = (
+            round(float(tth_row.avg_days), 1) if tth_row and tth_row.avg_days else None
+        )
     except Exception:
         # SQLite fallback — use julianday()
         tth_row = db.execute(
@@ -183,7 +199,9 @@ def get_employer_stats(
             ),
             scope_params,
         ).fetchone()
-        time_to_hire_avg_days = round(float(tth_row.avg_days), 1) if tth_row and tth_row.avg_days else None
+        time_to_hire_avg_days = (
+            round(float(tth_row.avg_days), 1) if tth_row and tth_row.avg_days else None
+        )
 
     return EmployerStatsResponse(
         total_jobs=total_jobs,
@@ -226,6 +244,7 @@ def get_interviews(
     ).fetchall()
 
     import datetime as _dt
+
     return [
         InterviewSummary(
             round_id=r.round_id,
@@ -236,7 +255,11 @@ def get_interviews(
             round_number=r.round_number,
             round_type=r.round_type,
             round_name=r.round_name,
-            scheduled_at=r.scheduled_at.isoformat() if isinstance(r.scheduled_at, _dt.datetime) else str(r.scheduled_at) if r.scheduled_at else "",
+            scheduled_at=r.scheduled_at.isoformat()
+            if isinstance(r.scheduled_at, _dt.datetime)
+            else str(r.scheduled_at)
+            if r.scheduled_at
+            else "",
             location=r.location,
             status=r.status,
         )
@@ -253,9 +276,7 @@ def get_interviews(
     summary="Get company profile settings",
 )
 def get_company_settings(
-    context: CompanyContext = Depends(
-        require_company_permission(CompanyPermission.ANALYTICS_VIEW)
-    ),
+    context: CompanyContext = Depends(require_company_permission(CompanyPermission.ANALYTICS_VIEW)),
 ) -> CompanySettingsRead:
     """Return the current company profile for the employer settings page."""
     return CompanySettingsRead.model_validate(context.company)
@@ -268,9 +289,7 @@ def get_company_settings(
 )
 def update_company_settings(
     data: CompanySettingsUpdate,
-    context: CompanyContext = Depends(
-        require_company_permission(CompanyPermission.TEAM_MANAGE)
-    ),
+    context: CompanyContext = Depends(require_company_permission(CompanyPermission.TEAM_MANAGE)),
     db: Session = Depends(get_db),
 ) -> CompanySettingsRead:
     """Update company profile fields. Only owners / HR can update."""

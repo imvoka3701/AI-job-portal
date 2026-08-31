@@ -20,9 +20,7 @@ def get_my_notifications(
     limit: int = 20,
 ) -> list[NotificationRead]:
     """List notifications for the current user, newest first."""
-    notifs = crud_notification.get_by_user(
-        db, user_id=current_user.id, skip=skip, limit=limit
-    )
+    notifs = crud_notification.get_by_user(db, user_id=current_user.id, skip=skip, limit=limit)
     return [NotificationRead.model_validate(n) for n in notifs]
 
 

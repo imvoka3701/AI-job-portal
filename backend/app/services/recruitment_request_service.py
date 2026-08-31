@@ -33,7 +33,10 @@ class RecruitmentRequestService:
         actor: User,
         data: RecruitmentRequestCreate,
     ) -> RecruitmentRequest:
-        if membership.member_role != MembershipRole.DEPARTMENT_HEAD or membership.department_id is None:
+        if (
+            membership.member_role != MembershipRole.DEPARTMENT_HEAD
+            or membership.department_id is None
+        ):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Chỉ Trưởng bộ phận có phòng ban được tạo nhu cầu tuyển dụng.",
@@ -59,7 +62,9 @@ class RecruitmentRequestService:
             db,
             request=request,
             actor=actor,
-            action="recruitment_request.submitted" if data.submit else "recruitment_request.created",
+            action="recruitment_request.submitted"
+            if data.submit
+            else "recruitment_request.created",
             details={"status": request.status.value, "headcount": request.headcount},
         )
         db.commit()
@@ -79,7 +84,9 @@ class RecruitmentRequestService:
             RecruitmentRequestStatus.DRAFT,
             RecruitmentRequestStatus.REJECTED,
         }:
-            raise HTTPException(status_code=409, detail="Chỉ sửa được yêu cầu nháp hoặc bị từ chối.")
+            raise HTTPException(
+                status_code=409, detail="Chỉ sửa được yêu cầu nháp hoặc bị từ chối."
+            )
         changes = data.model_dump(exclude_unset=True)
         for field, value in changes.items():
             setattr(request, field, value)
@@ -88,7 +95,13 @@ class RecruitmentRequestService:
             request.review_note = None
             request.reviewed_by_id = None
             request.reviewed_at = None
-        self._audit(db, request=request, actor=actor, action="recruitment_request.updated", details={"fields": sorted(changes)})
+        self._audit(
+            db,
+            request=request,
+            actor=actor,
+            action="recruitment_request.updated",
+            details={"fields": sorted(changes)},
+        )
         db.commit()
         return crud_recruitment_request.get(db, request_id=request.id)  # type: ignore[return-value]
 
@@ -105,13 +118,17 @@ class RecruitmentRequestService:
             RecruitmentRequestStatus.DRAFT,
             RecruitmentRequestStatus.REJECTED,
         }:
-            raise HTTPException(status_code=409, detail="Yêu cầu không thể gửi duyệt ở trạng thái hiện tại.")
+            raise HTTPException(
+                status_code=409, detail="Yêu cầu không thể gửi duyệt ở trạng thái hiện tại."
+            )
         request.status = RecruitmentRequestStatus.SUBMITTED
         request.submitted_at = _now()
         request.review_note = None
         request.reviewed_by_id = None
         request.reviewed_at = None
-        self._audit(db, request=request, actor=actor, action="recruitment_request.submitted", details={})
+        self._audit(
+            db, request=request, actor=actor, action="recruitment_request.submitted", details={}
+        )
         db.commit()
         return crud_recruitment_request.get(db, request_id=request.id)  # type: ignore[return-value]
 
@@ -153,10 +170,14 @@ class RecruitmentRequestService:
             RecruitmentRequestStatus.SUBMITTED,
             RecruitmentRequestStatus.REJECTED,
         }:
-            raise HTTPException(status_code=409, detail="Yêu cầu không thể hủy ở trạng thái hiện tại.")
+            raise HTTPException(
+                status_code=409, detail="Yêu cầu không thể hủy ở trạng thái hiện tại."
+            )
         request.status = RecruitmentRequestStatus.CANCELLED
         request.cancelled_at = _now()
-        self._audit(db, request=request, actor=actor, action="recruitment_request.cancelled", details={})
+        self._audit(
+            db, request=request, actor=actor, action="recruitment_request.cancelled", details={}
+        )
         db.commit()
         return crud_recruitment_request.get(db, request_id=request.id)  # type: ignore[return-value]
 
@@ -171,9 +192,13 @@ class RecruitmentRequestService:
         if request is None or request.company_id != company_id:
             raise HTTPException(status_code=404, detail="Nhu cầu tuyển dụng không tồn tại.")
         if request.status != RecruitmentRequestStatus.APPROVED:
-            raise HTTPException(status_code=409, detail="Chỉ yêu cầu đã duyệt mới được chuyển thành tin tuyển dụng.")
+            raise HTTPException(
+                status_code=409, detail="Chỉ yêu cầu đã duyệt mới được chuyển thành tin tuyển dụng."
+            )
         if request.converted_job_id is not None:
-            raise HTTPException(status_code=409, detail="Yêu cầu đã được chuyển thành tin tuyển dụng.")
+            raise HTTPException(
+                status_code=409, detail="Yêu cầu đã được chuyển thành tin tuyển dụng."
+            )
         return request
 
     def mark_converted(
@@ -202,7 +227,9 @@ class RecruitmentRequestService:
         actor: User,
     ) -> None:
         if request.requested_by_id != actor.id or request.department_id != membership.department_id:
-            raise HTTPException(status_code=403, detail="Bạn chỉ được thao tác yêu cầu của chính mình.")
+            raise HTTPException(
+                status_code=403, detail="Bạn chỉ được thao tác yêu cầu của chính mình."
+            )
 
     @staticmethod
     def _audit(

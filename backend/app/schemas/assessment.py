@@ -10,8 +10,10 @@ AssessmentType = Literal["mbti", "mi"]
 
 # ── Question & Questionnaire Schemas ───────────────────────────────────────────
 
+
 class AssessmentQuestion(BaseModel):
     """A single question in the questionnaire."""
+
     id: str
     order: int
     text: str
@@ -19,6 +21,7 @@ class AssessmentQuestion(BaseModel):
 
 class AssessmentQuestionnaire(BaseModel):
     """Full questionnaire returned to the client."""
+
     assessment_type: AssessmentType
     version: str
     title: str
@@ -28,8 +31,10 @@ class AssessmentQuestionnaire(BaseModel):
 
 # ── Scoring & Result Schemas ───────────────────────────────────────────────────
 
+
 class AssessmentResult(BaseModel):
     """Calculated personality/intelligence result."""
+
     code: str
     title: str
     summary: str
@@ -41,8 +46,10 @@ class AssessmentResult(BaseModel):
 
 # ── Submission & Persistence Schemas ──────────────────────────────────────────
 
+
 class AssessmentAttemptCreate(BaseModel):
     """Payload to score or persist an assessment attempt."""
+
     assessment_type: AssessmentType
     questionnaire_version: str
     answers: dict[str, int] = Field(
@@ -53,6 +60,7 @@ class AssessmentAttemptCreate(BaseModel):
 
 class AssessmentAttemptRead(BaseModel):
     """Persisted assessment attempt record."""
+
     model_config = ConfigDict(from_attributes=True)
 
     id: int

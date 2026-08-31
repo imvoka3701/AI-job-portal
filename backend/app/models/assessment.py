@@ -27,6 +27,4 @@ class AssessmentAttempt(Base):
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
 
-    __table_args__ = (
-        Index("ix_assessment_attempt_user_type", "user_id", "assessment_type"),
-    )
+    __table_args__ = (Index("ix_assessment_attempt_user_type", "user_id", "assessment_type"),)

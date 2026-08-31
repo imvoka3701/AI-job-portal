@@ -104,7 +104,12 @@ def list_requests(
     )
 
 
-@router.post("", response_model=RecruitmentRequestRead, status_code=status.HTTP_201_CREATED, summary="Create recruitment request")
+@router.post(
+    "",
+    response_model=RecruitmentRequestRead,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create recruitment request",
+)
 def create_request(
     data: RecruitmentRequestCreate,
     context: CompanyContext = Depends(
@@ -112,16 +117,20 @@ def create_request(
     ),
     db: Session = Depends(get_db),
 ) -> RecruitmentRequestRead:
-    return _read(recruitment_request_service.create(
-        db,
-        company_id=context.company.id,
-        membership=context.membership,
-        actor=context.user,
-        data=data,
-    ))
+    return _read(
+        recruitment_request_service.create(
+            db,
+            company_id=context.company.id,
+            membership=context.membership,
+            actor=context.user,
+            data=data,
+        )
+    )
 
 
-@router.get("/{request_id}", response_model=RecruitmentRequestRead, summary="Get recruitment request")
+@router.get(
+    "/{request_id}", response_model=RecruitmentRequestRead, summary="Get recruitment request"
+)
 def get_request(
     request_id: int,
     context: CompanyContext = Depends(
@@ -132,7 +141,11 @@ def get_request(
     return _read(_get_scoped(db, request_id=request_id, context=context))
 
 
-@router.patch("/{request_id}", response_model=RecruitmentRequestRead, summary="Update recruitment request draft")
+@router.patch(
+    "/{request_id}",
+    response_model=RecruitmentRequestRead,
+    summary="Update recruitment request draft",
+)
 def update_request(
     request_id: int,
     data: RecruitmentRequestUpdate,
@@ -142,12 +155,18 @@ def update_request(
     db: Session = Depends(get_db),
 ) -> RecruitmentRequestRead:
     request = _get_scoped(db, request_id=request_id, context=context)
-    return _read(recruitment_request_service.update(
-        db, request=request, membership=context.membership, actor=context.user, data=data
-    ))
+    return _read(
+        recruitment_request_service.update(
+            db, request=request, membership=context.membership, actor=context.user, data=data
+        )
+    )
 
 
-@router.post("/{request_id}/submit", response_model=RecruitmentRequestRead, summary="Submit recruitment request")
+@router.post(
+    "/{request_id}/submit",
+    response_model=RecruitmentRequestRead,
+    summary="Submit recruitment request",
+)
 def submit_request(
     request_id: int,
     context: CompanyContext = Depends(
@@ -156,12 +175,18 @@ def submit_request(
     db: Session = Depends(get_db),
 ) -> RecruitmentRequestRead:
     request = _get_scoped(db, request_id=request_id, context=context)
-    return _read(recruitment_request_service.submit(
-        db, request=request, membership=context.membership, actor=context.user
-    ))
+    return _read(
+        recruitment_request_service.submit(
+            db, request=request, membership=context.membership, actor=context.user
+        )
+    )
 
 
-@router.post("/{request_id}/review", response_model=RecruitmentRequestRead, summary="Approve or reject recruitment request")
+@router.post(
+    "/{request_id}/review",
+    response_model=RecruitmentRequestRead,
+    summary="Approve or reject recruitment request",
+)
 def review_request(
     request_id: int,
     data: RecruitmentRequestReview,
@@ -171,12 +196,16 @@ def review_request(
     db: Session = Depends(get_db),
 ) -> RecruitmentRequestRead:
     request = _get_scoped(db, request_id=request_id, context=context)
-    return _read(recruitment_request_service.review(
-        db, request=request, actor=context.user, data=data
-    ))
+    return _read(
+        recruitment_request_service.review(db, request=request, actor=context.user, data=data)
+    )
 
 
-@router.post("/{request_id}/cancel", response_model=RecruitmentRequestRead, summary="Cancel recruitment request")
+@router.post(
+    "/{request_id}/cancel",
+    response_model=RecruitmentRequestRead,
+    summary="Cancel recruitment request",
+)
 def cancel_request(
     request_id: int,
     context: CompanyContext = Depends(
@@ -185,6 +214,8 @@ def cancel_request(
     db: Session = Depends(get_db),
 ) -> RecruitmentRequestRead:
     request = _get_scoped(db, request_id=request_id, context=context)
-    return _read(recruitment_request_service.cancel(
-        db, request=request, membership=context.membership, actor=context.user
-    ))
+    return _read(
+        recruitment_request_service.cancel(
+            db, request=request, membership=context.membership, actor=context.user
+        )
+    )

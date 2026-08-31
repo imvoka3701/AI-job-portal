@@ -41,9 +41,7 @@ def _register_approved_employer(
 
 
 class TestGetSettings:
-    def test_get_settings_returns_company_profile(
-        self, client: TestClient, db_session: Session
-    ):
+    def test_get_settings_returns_company_profile(self, client: TestClient, db_session: Session):
         """Test GET /employer/settings returns the company profile."""
         headers = _register_approved_employer(client, db_session)
         response = client.get("/employer/settings", headers=headers)
@@ -58,9 +56,7 @@ class TestGetSettings:
         response = client.get("/employer/settings")
         assert response.status_code == 401
 
-    def test_get_settings_candidate_forbidden(
-        self, client: TestClient, db_session: Session
-    ):
+    def test_get_settings_candidate_forbidden(self, client: TestClient, db_session: Session):
         """Test candidate role cannot access employer settings."""
         client.post(
             "/auth/register",
@@ -81,9 +77,7 @@ class TestGetSettings:
 
 
 class TestUpdateSettings:
-    def test_patch_updates_company_profile(
-        self, client: TestClient, db_session: Session
-    ):
+    def test_patch_updates_company_profile(self, client: TestClient, db_session: Session):
         """Test PATCH /employer/settings updates fields."""
         headers = _register_approved_employer(client, db_session)
         response = client.patch(
@@ -133,9 +127,7 @@ class TestUpdateSettings:
         get_response = client.get("/employer/settings", headers=headers)
         assert get_response.json()["website"] == "https://persistent.vn"
 
-    def test_patch_empty_body_returns_400(
-        self, client: TestClient, db_session: Session
-    ):
+    def test_patch_empty_body_returns_400(self, client: TestClient, db_session: Session):
         """Test PATCH with no fields returns 400."""
         headers = _register_approved_employer(client, db_session)
         response = client.patch("/employer/settings", json={}, headers=headers)

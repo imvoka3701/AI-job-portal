@@ -57,9 +57,7 @@ class AuthService:
                 )
             raise ValueError("Tài khoản đã bị khóa. Vui lòng liên hệ quản trị viên.")
 
-        access_token = self._create_access_token(
-            TokenPayload(sub=user.id, role=user.role)
-        )
+        access_token = self._create_access_token(TokenPayload(sub=user.id, role=user.role))
         return Token(access_token=access_token)
 
     def _create_access_token(self, payload: TokenPayload) -> str:

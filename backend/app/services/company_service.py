@@ -100,7 +100,16 @@ class CompanyService:
         department = Department(company_id=company_id, **data.model_dump())
         db.add(department)
         db.flush()
-        self._audit(db, actor, "department.created", "department", department.id, data.name, {}, company_id=company_id)
+        self._audit(
+            db,
+            actor,
+            "department.created",
+            "department",
+            department.id,
+            data.name,
+            {},
+            company_id=company_id,
+        )
         try:
             db.commit()
         except IntegrityError as exc:
@@ -120,7 +129,16 @@ class CompanyService:
         changes = data.model_dump(exclude_unset=True)
         for field, value in changes.items():
             setattr(department, field, value)
-        self._audit(db, actor, "department.updated", "department", department.id, department.name, changes, company_id=department.company_id)
+        self._audit(
+            db,
+            actor,
+            "department.updated",
+            "department",
+            department.id,
+            department.name,
+            changes,
+            company_id=department.company_id,
+        )
         db.commit()
         db.refresh(department)
         return department
@@ -138,14 +156,20 @@ class CompanyService:
             raise HTTPException(status_code=409, detail="Email này đã có lời mời đang chờ.")
         department = self._validate_department(db, company.id, data.department_id)
         if data.member_role == MembershipRole.DEPARTMENT_HEAD and department is None:
-            raise HTTPException(status_code=422, detail="Trưởng bộ phận phải được gán một phòng ban.")
+            raise HTTPException(
+                status_code=422, detail="Trưởng bộ phận phải được gán một phòng ban."
+            )
         existing_user = crud_user.get_by_email(db, email=email)
         if existing_user:
             existing_membership = crud_company.get_active_membership(db, user_id=existing_user.id)
             if existing_membership:
-                raise HTTPException(status_code=409, detail="Người dùng đã là thành viên của một doanh nghiệp.")
+                raise HTTPException(
+                    status_code=409, detail="Người dùng đã là thành viên của một doanh nghiệp."
+                )
             if existing_user.role != UserRole.EMPLOYER:
-                raise HTTPException(status_code=409, detail="Email đang thuộc tài khoản không phải Employer.")
+                raise HTTPException(
+                    status_code=409, detail="Email đang thuộc tài khoản không phải Employer."
+                )
         token = secrets.token_urlsafe(32)
         invitation = CompanyInvitation(
             company_id=company.id,
@@ -159,7 +183,16 @@ class CompanyService:
         )
         db.add(invitation)
         db.flush()
-        self._audit(db, actor, "membership.invited", "invitation", invitation.id, email, {"role": data.member_role.value, "department_id": data.department_id}, company_id=company.id)
+        self._audit(
+            db,
+            actor,
+            "membership.invited",
+            "invitation",
+            invitation.id,
+            email,
+            {"role": data.member_role.value, "department_id": data.department_id},
+            company_id=company.id,
+        )
         db.commit()
         db.refresh(invitation)
         invitation = crud_company.get_invitation(db, invitation_id=invitation.id)
@@ -184,7 +217,9 @@ class CompanyService:
         user = crud_user.get_by_email(db, email=invitation.email)
         if user is None:
             if not data.full_name or not data.password:
-                raise HTTPException(status_code=422, detail="Cần họ tên và mật khẩu để tạo tài khoản.")
+                raise HTTPException(
+                    status_code=422, detail="Cần họ tên và mật khẩu để tạo tài khoản."
+                )
             user_in = UserCreate(
                 email=invitation.email,
                 password=data.password,
@@ -201,8 +236,12 @@ class CompanyService:
         if user.role != UserRole.EMPLOYER:
             raise HTTPException(status_code=409, detail="Tài khoản không thuộc nhóm Employer.")
         if crud_company.get_active_membership(db, user_id=user.id):
-            raise HTTPException(status_code=409, detail="Tài khoản đã tham gia một doanh nghiệp khác.")
-        existing = crud_company.get_membership_for_user(db, company_id=invitation.company_id, user_id=user.id)
+            raise HTTPException(
+                status_code=409, detail="Tài khoản đã tham gia một doanh nghiệp khác."
+            )
+        existing = crud_company.get_membership_for_user(
+            db, company_id=invitation.company_id, user_id=user.id
+        )
         if existing:
             existing.status = MembershipStatus.ACTIVE
             existing.member_role = invitation.member_role
@@ -225,7 +264,16 @@ class CompanyService:
         user.company_name = invitation.company.name
         invitation.status = InvitationStatus.ACCEPTED
         invitation.accepted_at = _now()
-        self._audit(db, user, "membership.accepted", "membership", membership.id, user.email, {"role": invitation.member_role.value}, company_id=invitation.company_id)
+        self._audit(
+            db,
+            user,
+            "membership.accepted",
+            "membership",
+            membership.id,
+            user.email,
+            {"role": invitation.member_role.value},
+            company_id=invitation.company_id,
+        )
         db.commit()
         return crud_company.get_active_membership(db, user_id=user.id)  # type: ignore[return-value]
 
@@ -247,7 +295,16 @@ class CompanyService:
         invitation.token_hash = _token_hash(token)
         invitation.status = InvitationStatus.PENDING
         invitation.expires_at = _now() + timedelta(days=7)
-        self._audit(db, actor, "membership.invitation_resent", "invitation", invitation.id, invitation.email, {}, company_id=invitation.company_id)
+        self._audit(
+            db,
+            actor,
+            "membership.invitation_resent",
+            "invitation",
+            invitation.id,
+            invitation.email,
+            {},
+            company_id=invitation.company_id,
+        )
         db.commit()
         invitation = crud_company.get_invitation(db, invitation_id=invitation.id)
         self.deliver_invitation(db, invitation=invitation, token=token, actor=actor)  # type: ignore[arg-type]
@@ -325,11 +382,22 @@ class CompanyService:
         db.refresh(invitation)
         return invitation
 
-    def revoke_invitation(self, db: Session, *, invitation: CompanyInvitation, actor: User) -> CompanyInvitation:
+    def revoke_invitation(
+        self, db: Session, *, invitation: CompanyInvitation, actor: User
+    ) -> CompanyInvitation:
         if invitation.status != InvitationStatus.PENDING:
             raise HTTPException(status_code=409, detail="Chỉ có thể hủy lời mời đang chờ.")
         invitation.status = InvitationStatus.REVOKED
-        self._audit(db, actor, "membership.invitation_revoked", "invitation", invitation.id, invitation.email, {}, company_id=invitation.company_id)
+        self._audit(
+            db,
+            actor,
+            "membership.invitation_revoked",
+            "invitation",
+            invitation.id,
+            invitation.email,
+            {},
+            company_id=invitation.company_id,
+        )
         db.commit()
         db.refresh(invitation)
         return invitation
@@ -343,7 +411,9 @@ class CompanyService:
         actor: User,
     ) -> CompanyMembership:
         if membership.is_owner:
-            raise HTTPException(status_code=409, detail="Hãy chuyển ownership trước khi sửa hoặc khóa owner.")
+            raise HTTPException(
+                status_code=409, detail="Hãy chuyển ownership trước khi sửa hoặc khóa owner."
+            )
         changes = data.model_dump(exclude_unset=True)
         next_role = changes.get("member_role", membership.member_role)
         next_department_id = changes.get("department_id", membership.department_id)
@@ -355,7 +425,16 @@ class CompanyService:
         for field, value in changes.items():
             setattr(membership, field, value)
         membership.membership_version += 1
-        self._audit(db, actor, "membership.updated", "membership", membership.id, membership.user.email, {key: getattr(value, "value", value) for key, value in changes.items()}, company_id=membership.company_id)
+        self._audit(
+            db,
+            actor,
+            "membership.updated",
+            "membership",
+            membership.id,
+            membership.user.email,
+            {key: getattr(value, "value", value) for key, value in changes.items()},
+            company_id=membership.company_id,
+        )
         db.commit()
         return crud_company.get_membership(db, membership_id=membership.id)  # type: ignore[return-value]
 
@@ -368,15 +447,31 @@ class CompanyService:
         actor: User,
     ) -> CompanyMembership:
         if not current_owner.is_owner or current_owner.user_id != actor.id:
-            raise HTTPException(status_code=403, detail="Chỉ owner hiện tại được chuyển quyền sở hữu.")
-        if new_owner.company_id != current_owner.company_id or new_owner.status != MembershipStatus.ACTIVE:
-            raise HTTPException(status_code=422, detail="Owner mới phải là thành viên đang hoạt động cùng công ty.")
+            raise HTTPException(
+                status_code=403, detail="Chỉ owner hiện tại được chuyển quyền sở hữu."
+            )
+        if (
+            new_owner.company_id != current_owner.company_id
+            or new_owner.status != MembershipStatus.ACTIVE
+        ):
+            raise HTTPException(
+                status_code=422, detail="Owner mới phải là thành viên đang hoạt động cùng công ty."
+            )
         current_owner.is_owner = False
         new_owner.is_owner = True
         new_owner.member_role = MembershipRole.HR
         current_owner.membership_version += 1
         new_owner.membership_version += 1
-        self._audit(db, actor, "membership.ownership_transferred", "membership", new_owner.id, new_owner.user.email, {"previous_owner_id": current_owner.id}, company_id=current_owner.company_id)
+        self._audit(
+            db,
+            actor,
+            "membership.ownership_transferred",
+            "membership",
+            new_owner.id,
+            new_owner.user.email,
+            {"previous_owner_id": current_owner.id},
+            company_id=current_owner.company_id,
+        )
         db.commit()
         return crud_company.get_membership(db, membership_id=new_owner.id)  # type: ignore[return-value]
 
@@ -391,8 +486,14 @@ class CompanyService:
         valid_ids: list[int] = []
         for membership_id in dict.fromkeys(membership_ids):
             member = crud_company.get_membership(db, membership_id=membership_id)
-            if member is None or member.company_id != job.company_id or member.status != MembershipStatus.ACTIVE:
-                raise HTTPException(status_code=422, detail=f"Thành viên {membership_id} không hợp lệ.")
+            if (
+                member is None
+                or member.company_id != job.company_id
+                or member.status != MembershipStatus.ACTIVE
+            ):
+                raise HTTPException(
+                    status_code=422, detail=f"Thành viên {membership_id} không hợp lệ."
+                )
             valid_ids.append(membership_id)
         previous_ids = crud_company.get_job_assignment_membership_ids(db, job_id=job.id)
         crud_company.replace_job_assignments_batch(
@@ -421,10 +522,7 @@ class CompanyService:
         assignments: list[JobAssignmentBatchItem],
         actor: User,
     ) -> list[JobAssignmentRead]:
-        normalized = {
-            item.job_id: list(dict.fromkeys(item.membership_ids))
-            for item in assignments
-        }
+        normalized = {item.job_id: list(dict.fromkeys(item.membership_ids)) for item in assignments}
         job_ids = list(normalized)
         jobs = crud_job.get_by_ids_for_company(
             db,
@@ -495,7 +593,9 @@ class CompanyService:
         ]
 
     @staticmethod
-    def _validate_department(db: Session, company_id: int, department_id: int | None) -> Department | None:
+    def _validate_department(
+        db: Session, company_id: int, department_id: int | None
+    ) -> Department | None:
         if department_id is None:
             return None
         department = crud_company.get_department(db, department_id=department_id)

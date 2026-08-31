@@ -21,4 +21,5 @@ class CriteriaScoreRead(BaseModel):
 
 class CriteriaBulkUpdate(BaseModel):
     """Batch update all criteria for a round."""
+
     criteria: list[CriteriaScoreCreate]
