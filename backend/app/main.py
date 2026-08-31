@@ -4,33 +4,49 @@ AI Job Portal — FastAPI Application Entry Point.
 Creates the FastAPI app, configures CORS, and includes all routers.
 """
 
-from contextlib import asynccontextmanager
-from collections.abc import AsyncGenerator
-
 import json
-from fastapi import FastAPI, Request, Depends, HTTPException, status
-from fastapi.responses import JSONResponse
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
+from pathlib import Path
+
+from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
-from sqlalchemy import text
-from pathlib import Path
 
 try:
     import sentry_sdk
 except ImportError:
     sentry_sdk = None
 
-from app.database import get_db
-
-from app.config import settings
-from app.routers import admin, admin_ai, ai, applications, assessments, auth, company_team, criteria_scores, cv_documents, email_webhooks, employer, interview_rounds, jobs, notifications, recruitment_requests, resumes, users
-
-
 import logging
 import logging.handlers
+
+from app.config import settings
+from app.database import get_db
+from app.routers import (
+    admin,
+    admin_ai,
+    ai,
+    applications,
+    assessments,
+    auth,
+    company_team,
+    criteria_scores,
+    cv_documents,
+    email_webhooks,
+    employer,
+    interview_rounds,
+    jobs,
+    notifications,
+    recruitment_requests,
+    resumes,
+    users,
+)
 
 
 class JSONLogFormatter(logging.Formatter):
@@ -53,11 +69,11 @@ def _configure_logging() -> None:
       main application log; optionally routes to a file for production ingestion.
     """
     log_level = getattr(logging, settings.LOG_LEVEL.upper(), logging.INFO)
-    
+
     # Root logger JSON formatter
     root_handler = logging.StreamHandler()
     root_handler.setFormatter(JSONLogFormatter(datefmt="%Y-%m-%dT%H:%M:%S"))
-    
+
     logging.basicConfig(level=log_level, handlers=[root_handler])
 
     # ai_audit logger emits structured JSON — give it its own handler
@@ -88,14 +104,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Application lifespan: startup & shutdown events."""
     # --- Startup ---
     _configure_logging()
-    
+
     if settings.SENTRY_DSN and sentry_sdk:
         sentry_sdk.init(
             dsn=settings.SENTRY_DSN,
             traces_sample_rate=1.0,
         )
         logging.getLogger(__name__).info("Sentry initialized")
-        
+
     print(f"{settings.APP_NAME} starting up...")
     yield
     # --- Shutdown ---
@@ -126,7 +142,7 @@ async def custom_http_exception_handler(request: Request, exc: HTTPException):
     if isinstance(exc.detail, dict):
         # If detail is already a dict (e.g. custom structured error), use it directly as error
         return JSONResponse(status_code=exc.status_code, content={"error": exc.detail})
-    
+
     return JSONResponse(
         status_code=exc.status_code,
         content={"error": {"code": "HTTP_ERROR", "message": str(exc.detail)}},

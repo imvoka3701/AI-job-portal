@@ -11,7 +11,6 @@ from app.crud.user import crud_user
 from app.models.admin_audit_log import AdminAuditLog
 from app.models.company import CompanyInvitation
 
-
 PASSWORD = "StrongPass123!"
 
 

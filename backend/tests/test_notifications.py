@@ -3,8 +3,8 @@
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from app.crud.user import crud_user
 from app.crud.notification import crud_notification
+from app.crud.user import crud_user
 from app.models.notification import NotificationType
 
 PASSWORD = "StrongPass123!"

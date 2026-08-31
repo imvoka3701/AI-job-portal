@@ -13,8 +13,8 @@ from app.core.company_permissions import (
     require_company_permission,
     require_job_scope,
 )
-from app.crud.job import crud_job
 from app.crud.company import crud_company
+from app.crud.job import crud_job
 from app.database import get_db
 from app.models.job import ExperienceLevel, JobType
 from app.schemas.job import JobCreate, JobListResponse, JobRead, JobUpdate
@@ -138,7 +138,7 @@ def create_job(
     try:
         embedding = generate_embedding(jd_text)
         job = crud_job.update_embedding(db, job=job, embedding=embedding)
-    except Exception as exc:
+    except Exception:
         logger.exception("Failed to generate embedding for job %s", job.id)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

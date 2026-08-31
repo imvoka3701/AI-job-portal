@@ -1,7 +1,6 @@
 """Versioned, deterministic scoring for public MBTI and MI self-assessments."""
 
 from dataclasses import dataclass
-from typing import Literal
 
 from fastapi import HTTPException, status
 

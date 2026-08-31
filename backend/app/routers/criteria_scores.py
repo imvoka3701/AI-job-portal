@@ -1,6 +1,6 @@
 """Criteria Scores router — per-criteria scoring for interview rounds."""
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.core.company_permissions import (

@@ -8,7 +8,6 @@ from sqlalchemy.orm import Session
 from app.models.application import Application, ApplicationStatus
 from app.models.interview_round import InterviewRound, RoundStatus, RoundType
 from app.models.user import User
-from app.models.user import User
 
 # ─── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -433,7 +432,6 @@ class TestAnalytics458:
         db_session.commit()
 
         # Create a fresh admin for this test to avoid password conflicts
-        from app.models.user import UserRole
         admin_user = User(email="analytics_admin@t.com", hashed_password="x", full_name="AA", role="admin", is_active=True)
         db_session.add(admin_user); db_session.flush()
         from app.core.security import hash_password

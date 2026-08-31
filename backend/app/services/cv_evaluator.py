@@ -10,8 +10,8 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.models.ai_call_log import AIFeature
 from app.schemas.ai import CVEvaluationResponse
-from app.services.deepseek_client import deepseek_client
 from app.services.ai_errors import normalize_ai_error
+from app.services.deepseek_client import deepseek_client
 from app.services.prompt_loader import get_system_prompt
 
 logger = logging.getLogger(__name__)
@@ -78,10 +78,10 @@ class CVEvaluatorService:
             "Chỉ trả lời chính xác 'YES' hoặc 'NO' (không có dấu câu hoặc văn bản nào khác)."
         )
 
-        
+
         # Chỉ lấy 1500 ký tự đầu tiên để kiểm tra cho nhanh
         user_prompt = f"Văn bản:\n{resume_text[:1500]}"
-        
+
         try:
             response = await self.client.create_chat_completion(
                 messages=[
@@ -92,11 +92,11 @@ class CVEvaluatorService:
                 response_format=None,
             )
             response_content = response.get("choices", [])[0].get("message", {}).get("content", "").strip().upper()
-            
+
             # Nếu LLM trả lời rõ ràng là NO thì coi là không hợp lệ
             if "NO" in response_content and "YES" not in response_content:
                 return False
-                
+
             return True
         except Exception as exc:
             logger.warning("Failed to validate CV with LLM: %s", exc)

@@ -8,7 +8,14 @@ from app.core.dependencies import require_role
 from app.database import get_db
 from app.models.assessment import AssessmentAttempt
 from app.models.user import User, UserRole
-from app.schemas.assessment import AssessmentAttemptCreate, AssessmentAttemptRead, AssessmentQuestionnaire, AssessmentQuestion, AssessmentResult, AssessmentType
+from app.schemas.assessment import (
+    AssessmentAttemptCreate,
+    AssessmentAttemptRead,
+    AssessmentQuestion,
+    AssessmentQuestionnaire,
+    AssessmentResult,
+    AssessmentType,
+)
 from app.services.assessment_engine import get_questions, get_version, score_assessment
 
 router = APIRouter(prefix="/tools", tags=["Assessments"])

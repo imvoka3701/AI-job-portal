@@ -42,7 +42,7 @@ async def get_user_attempts(
     if assessment_type:
         query = query.where(AssessmentAttempt.assessment_type == assessment_type)
     query = query.order_by(AssessmentAttempt.completed_at.desc())
-    
+
     result = await db.execute(query)
     return list(result.scalars().all())
 

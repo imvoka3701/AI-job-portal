@@ -6,7 +6,6 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from app.crud.resume import crud_resume
-from app.models.user import User
 
 # ─── Helpers ────────────────────────────────────────────────────────────────────
 

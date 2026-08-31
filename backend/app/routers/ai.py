@@ -6,55 +6,55 @@ import time
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.core.dependencies import get_current_user, get_optional_user
+from app.config import settings
 from app.core.company_permissions import (
     CompanyPermission,
     build_company_context,
     require_application_scope,
     require_job_scope,
 )
+from app.core.dependencies import get_current_user, get_optional_user
+from app.crud.application import crud_application
+from app.crud.cv_document import crud_cv_document
 from app.crud.job import crud_job
 from app.crud.resume import crud_resume
 from app.database import get_db
 from app.models.user import User, UserRole
-from app.crud.application import crud_application
-from app.schemas.assistant import (
-    AssistantChatRequest,
-    AssistantChatResponse,
-    AssistantQuickSuggestion,
-)
-from app.services.assistant_service import assistant_service
 from app.schemas.ai import (
     AIMatchRequest,
     AIMatchResponse,
     CVEvaluationRequest,
     CVEvaluationResponse,
+    CvExperienceSuggestionRequest,
+    CvExperienceSuggestionResponse,
+    CvSkillsSuggestionRequest,
+    CvSkillsSuggestionResponse,
     CVSummarizeRequest,
     CVSummarizeResponse,
+    CvSummarySuggestionRequest,
+    CvSummarySuggestionResponse,
     GenerateEmailRequest,
     GenerateEmailResponse,
     InterviewQuestionsRequest,
     InterviewQuestionsResponse,
     RoadmapRequest,
     RoadmapResponse,
-    CvExperienceSuggestionRequest,
-    CvExperienceSuggestionResponse,
-    CvSkillsSuggestionRequest,
-    CvSkillsSuggestionResponse,
-    CvSummarySuggestionRequest,
-    CvSummarySuggestionResponse,
 )
+from app.schemas.assistant import (
+    AssistantChatRequest,
+    AssistantChatResponse,
+    AssistantQuickSuggestion,
+)
+from app.services.ai_audit import ai_audit
+from app.services.ai_errors import ai_http_exception
 from app.services.ai_matching import ai_matching_service
+from app.services.assistant_service import assistant_service
 from app.services.cv_evaluator import cv_evaluator_service
+from app.services.cv_suggestions import cv_suggestion_service
 from app.services.cv_summarizer import cv_summarizer_service
 from app.services.email_generator import email_generator_service
 from app.services.interview_questions import interview_questions_service
 from app.services.roadmap_suggest import roadmap_suggest_service
-from app.crud.cv_document import crud_cv_document
-from app.services.cv_suggestions import cv_suggestion_service
-from app.services.ai_errors import ai_http_exception
-from app.services.ai_audit import ai_audit
-from app.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -79,7 +79,7 @@ def _authorize_resume_access(
     if current_user.role == UserRole.CANDIDATE:
         if resume.user_id != current_user.id:
             raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN, 
+                status_code=status.HTTP_403_FORBIDDEN,
                 detail="Bạn không có quyền truy cập CV này."
             )
         return
@@ -87,14 +87,14 @@ def _authorize_resume_access(
     # 2. Employer Validation: Role & AI Permission
     if current_user.role != UserRole.EMPLOYER:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, 
+            status_code=status.HTTP_403_FORBIDDEN,
             detail="Bạn không có quyền truy cập CV này."
         )
-        
+
     context = build_company_context(db, current_user)
     if not context.has(CompanyPermission.AI_RECRUITMENT):
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, 
+            status_code=status.HTTP_403_FORBIDDEN,
             detail="Bạn không có quyền sử dụng tính năng AI tuyển dụng. Vui lòng liên hệ Admin."
         )
 
@@ -104,7 +104,7 @@ def _authorize_resume_access(
         target_job = crud_job.get_by_id(db, job_id=job_id)
         if not target_job:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, 
+                status_code=status.HTTP_404_NOT_FOUND,
                 detail="Công việc yêu cầu không tồn tại."
             )
         require_job_scope(db, context=context, job=target_job)
@@ -114,7 +114,7 @@ def _authorize_resume_access(
     applications = crud_application.get_by_resume(db, resume_id=resume.id)
     if not applications:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, 
+            status_code=status.HTTP_403_FORBIDDEN,
             detail="CV này chưa được nộp cho công việc nào thuộc công ty của bạn."
         )
 
@@ -130,7 +130,7 @@ def _authorize_resume_access(
 
     if not has_valid_scope:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, 
+            status_code=status.HTTP_403_FORBIDDEN,
             detail="CV nằm ngoài phạm vi phòng ban hoặc dữ liệu tuyển dụng được phân công của bạn."
         )
 

@@ -21,7 +21,6 @@ from app.schemas.recruitment_request import (
 )
 from app.services.recruitment_request_service import recruitment_request_service
 
-
 router = APIRouter(prefix="/employer/recruitment-requests", tags=["Recruitment Requests"])
 
 

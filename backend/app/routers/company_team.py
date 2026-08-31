@@ -14,11 +14,11 @@ from app.crud.admin_audit_log import crud_admin_audit_log
 from app.crud.company import crud_company
 from app.crud.job import crud_job
 from app.database import get_db
-from app.models.company import CompanyInvitation, CompanyMembership
+from app.models.company import CompanyInvitation, CompanyMembership, MembershipRole
 from app.schemas.company import (
-    CompanyContextRead,
     CompanyActivityPage,
     CompanyActivityRead,
+    CompanyContextRead,
     CompanyRead,
     DepartmentCreate,
     DepartmentRead,
@@ -35,7 +35,6 @@ from app.schemas.company import (
     MembershipUpdate,
 )
 from app.schemas.job import JobRead
-from app.models.company import MembershipRole
 from app.services.company_service import company_service
 
 router = APIRouter(prefix="/employer", tags=["Employer Team"])

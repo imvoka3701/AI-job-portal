@@ -4,10 +4,11 @@ AI Job Portal — Database Configuration.
 Sets up SQLAlchemy engine, session factory, and declarative Base.
 """
 
-from collections.abc import Generator
 import enum
+from collections.abc import Generator
 
-from sqlalchemy import create_engine, Enum as SAEnum
+from sqlalchemy import Enum as SAEnum
+from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 from app.config import settings

@@ -188,8 +188,8 @@ async def save_avatar_upload(file, user_id: int) -> str:
     unique_name = f"avatar_{uuid.uuid4().hex}{ext}"
     upload_path = UPLOAD_DIR / str(user_id) / unique_name
     upload_path.parent.mkdir(parents=True, exist_ok=True)
-    
+
     upload_path.write_bytes(file_content)
     file.file.seek(0)
-    
+
     return f"/api/uploads/{user_id}/{unique_name}"

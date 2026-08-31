@@ -1,6 +1,6 @@
 """CRUD operations for Notification model."""
 
-from sqlalchemy import select, func, update
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
 from app.models.notification import Notification, NotificationType

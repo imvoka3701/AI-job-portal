@@ -1,7 +1,7 @@
 """AI Matching Service — computes cosine similarity between resume and job embeddings."""
 
-import math
 import logging
+import math
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session

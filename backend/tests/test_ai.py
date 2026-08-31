@@ -1,8 +1,8 @@
 """Tests for AI endpoints — auth checks + full matching flow."""
 
 import json
-import os
 import math
+import os
 import sys
 from typing import Any
 
@@ -494,7 +494,6 @@ class TestAIRealDeepseekCalls:
         quality (score in range, suggestions are specific, skill_analysis
         is non-empty).
         """
-        import json
 
         from app.services.embedding_service import generate_embedding
 
@@ -602,7 +601,6 @@ class TestAIRealDeepseekCalls:
         (not generic), skills_to_learn are actionable, and resources are
         provided.
         """
-        import json
 
         from app.services.embedding_service import generate_embedding
 
@@ -718,7 +716,6 @@ class TestAIRealDeepseekCalls:
         Prints the full JSON response. Validates fit_points are specific
         to the job, questions are actionable, and summary is concise.
         """
-        import json
 
         from app.services.embedding_service import generate_embedding
 
@@ -826,7 +823,6 @@ class TestAIRealDeepseekCalls:
         Prints the full JSON response. Validates questions are actually
         about the requested skills (not generic), each has purpose + skill_related.
         """
-        import json
 
         from app.services.embedding_service import generate_embedding
 
@@ -940,7 +936,6 @@ class TestAIRealDeepseekCalls:
         Prints the full JSON for each type. For 'reject', additionally
         verifies no sensitive/biased language is included.
         """
-        import json
 
         from app.services.embedding_service import generate_embedding
 

@@ -9,12 +9,12 @@ from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
+from sqlalchemy import desc, func
 from sqlalchemy.orm import Session
-from sqlalchemy import func, desc
 
 from app.core.dependencies import require_role
 from app.database import get_db
-from app.models.ai_call_log import AICallLog, AIFeature, AICallStatus
+from app.models.ai_call_log import AICallLog, AICallStatus, AIFeature
 from app.models.ai_prompt_config import AIPromptConfig
 from app.models.user import User, UserRole
 from app.services.prompt_loader import HARDCODED_FALLBACK_PROMPTS
@@ -181,6 +181,7 @@ async def test_prompt(
     so the test faithfully reflects the actual runtime behaviour, including reject safety rules.
     """
     import time
+
     from app.config import settings
     from app.services.deepseek_client import deepseek_client
     from app.services.email_generator import EMAIL_TYPE_SYSTEM_RULES
@@ -303,7 +304,7 @@ def get_stats(
     current_user: User = Depends(require_role(UserRole.ADMIN)),
 ) -> AIStatsOut:
     """Aggregate stats: total cost, error rate, by feature breakdown."""
-    from datetime import timezone, timedelta
+    from datetime import timedelta, timezone
 
     now = datetime.now(timezone.utc)
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)

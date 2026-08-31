@@ -5,10 +5,10 @@ from datetime import datetime
 from pydantic import BaseModel
 
 from app.models.application import ApplicationStatus, HiringRecommendation
-from app.schemas.job import JobRead
-from app.schemas.user import UserRead
-from app.schemas.resume import ResumeRead
 from app.schemas.cv_document import CvDocumentRead
+from app.schemas.job import JobRead
+from app.schemas.resume import ResumeRead
+from app.schemas.user import UserRead
 
 
 class ApplicationBase(BaseModel):

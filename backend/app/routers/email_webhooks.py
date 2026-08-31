@@ -11,7 +11,6 @@ from app.database import get_db
 from app.schemas.company import InvitationBounceEvent
 from app.services.company_service import company_service
 
-
 router = APIRouter(prefix="/webhooks/email", tags=["Email Webhooks"])
 
 

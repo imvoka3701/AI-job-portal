@@ -9,9 +9,9 @@ from sqlalchemy.orm import Session
 from app.core.dependencies import require_role
 from app.crud.company import crud_company
 from app.database import get_db
+from app.models.application import Application
 from app.models.company import Company, CompanyMembership, MembershipRole
 from app.models.job import Job
-from app.models.application import Application
 from app.models.user import User, UserRole
 from app.services.company_service import company_service
 

@@ -4,18 +4,19 @@ import json
 import logging
 import re
 from typing import List, Optional
-from sqlalchemy.orm import Session
+
 from sqlalchemy import or_, select
+from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.models.job import Job
 from app.models.user import User
 from app.schemas.assistant import (
-    ChatMessage,
-    ChatContext,
     AssistantChatResponse,
-    EmbeddedCard,
     AssistantQuickSuggestion,
+    ChatContext,
+    ChatMessage,
+    EmbeddedCard,
 )
 from app.services.deepseek_client import deepseek_client
 
@@ -131,7 +132,7 @@ class AssistantService:
     ) -> AssistantChatResponse:
         """Process chat message with diplomatic persona & contextual knowledge."""
         last_user_message = next((m.content for m in reversed(messages) if m.role == "user"), "")
-        
+
         role = context.role if context and context.role else (current_user.role if current_user else "guest")
         role_map = {
             "candidate": "Ứng viên tìm việc (Candidate)",
@@ -256,16 +257,16 @@ class AssistantService:
                             url=f"/jobs/{j.id}",
                         )
                     )
-            
+
             fallback_reply = (
-                f"Kính chào bạn! Tôi là **JobPortal AI Advisor** — Cố vấn Tuyển dụng & Phát triển Sự nghiệp 24/7. "
-                f"Rất hân hạnh được đồng hành cùng bạn.\n\n"
-                f"Bạn đang quan tâm đến:\n"
-                f"- 🔍 **Tìm kiếm cơ hội việc làm** phù hợp với năng lực và mức lương kỳ vọng.\n"
-                f"- 📄 **Thiết kế CV chuẩn ATS** hoàn toàn miễn phí với [CV Builder](/cv-builder).\n"
-                f"- 🧭 **Khám phá bản thân** qua trắc nghiệm tính cách [MBTI](/tools/mbti) và [Đa trí tuệ MI](/tools/mi).\n"
-                f"- 🏢 **Giải pháp tuyển dụng tối ưu cho Doanh nghiệp** qua [Cổng Nhà tuyển dụng](/employer).\n\n"
-                f"Hãy chia sẻ mong muốn của bạn, tôi sẽ đưa ra giải pháp phù hợp nhất!"
+                "Kính chào bạn! Tôi là **JobPortal AI Advisor** — Cố vấn Tuyển dụng & Phát triển Sự nghiệp 24/7. "
+                "Rất hân hạnh được đồng hành cùng bạn.\n\n"
+                "Bạn đang quan tâm đến:\n"
+                "- 🔍 **Tìm kiếm cơ hội việc làm** phù hợp với năng lực và mức lương kỳ vọng.\n"
+                "- 📄 **Thiết kế CV chuẩn ATS** hoàn toàn miễn phí với [CV Builder](/cv-builder).\n"
+                "- 🧭 **Khám phá bản thân** qua trắc nghiệm tính cách [MBTI](/tools/mbti) và [Đa trí tuệ MI](/tools/mi).\n"
+                "- 🏢 **Giải pháp tuyển dụng tối ưu cho Doanh nghiệp** qua [Cổng Nhà tuyển dụng](/employer).\n\n"
+                "Hãy chia sẻ mong muốn của bạn, tôi sẽ đưa ra giải pháp phù hợp nhất!"
             )
 
             return AssistantChatResponse(

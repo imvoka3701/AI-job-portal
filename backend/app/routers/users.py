@@ -1,6 +1,6 @@
 """Users router — profile management endpoints."""
 
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.core.dependencies import get_current_user
@@ -41,7 +41,7 @@ async def upload_avatar(
         avatar_url = await save_avatar_upload(file, current_user.id)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
-    
+
     updated = crud_user.update(db, db_obj=current_user, obj_in=UserUpdate(avatar_url=avatar_url))
     return UserRead.model_validate(updated)
 

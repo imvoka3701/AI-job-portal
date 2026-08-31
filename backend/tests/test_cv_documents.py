@@ -1,8 +1,8 @@
 """Tests for structured CV Builder documents and ownership rules."""
 
+import httpx
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
-import httpx
 
 from app.schemas.ai import CvSummarySuggestionResponse
 from app.services.cv_suggestions import cv_suggestion_service
