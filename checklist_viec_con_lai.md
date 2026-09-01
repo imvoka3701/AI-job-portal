@@ -14,9 +14,9 @@
 
 - [ ] **Tự tay bấm thử Google OAuth** trên trình duyệt thật — đã nhắc 3+ lần trong suốt dự án, **chưa từng được xác nhận đã làm**. Đây là việc duy nhất không có AI nào test thay được.
 - [ ] **Đổi mật khẩu admin mặc định** (hiện có thể vẫn là `Admin@123` hoặc tương tự) — bắt buộc trước khi demo/deploy thật.
-- [ ] **Thống nhất 1 tài khoản admin duy nhất** — trước đó phát hiện có tới 4 tài khoản khác nhau nằm rải rác trong các script/tài liệu (`seed_admin.py`, `add_admin.py`, `project_summary.md`...). Xác nhận đã dọn xong chưa, xóa script thừa.
+- [x] **Thống nhất 1 tài khoản admin duy nhất** — trước đó phát hiện có tới 4 tài khoản khác nhau nằm rải rác trong các script/tài liệu (`seed_admin.py`, `add_admin.py`, `project_summary.md`...). Xác nhận đã dọn xong chưa, xóa script thừa.
 - [ ] **Spot-check 1-2 tên sách/tác giả trong kết quả AI Roadmap** — xem có thật không (rủi ro AI "bịa" tài liệu tham khảo).
-- [ ] **Chạy `git status`** ngay bây giờ — xác nhận không còn gì uncommitted (thói quen mới thêm sau sự cố "cả sprint Admin AI Control Panel suýt mất trắng vì chưa commit").
+- [x] **Chạy `git status`** ngay bây giờ — xác nhận không còn gì uncommitted (thói quen mới thêm sau sự cố "cả sprint Admin AI Control Panel suýt mất trắng vì chưa commit").
 
 ## 🟠 NHÓM 2 — Cần xác nhận lại trạng thái thật (đã "báo cáo xong" nhưng chưa chắc chắn)
 
