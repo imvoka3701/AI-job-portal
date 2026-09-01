@@ -24,13 +24,6 @@ DEMO_ACCOUNTS = [
         "is_active": True,
     },
     {
-        "email": "admin@jobportal.com",
-        "password": "Admin@123",
-        "full_name": "System Administrator",
-        "role": UserRole.ADMIN,
-        "is_active": True,
-    },
-    {
         "email": "employer@techcorp.vn",
         "password": "Employer@123456",
         "full_name": "Trần Thị Mai HR",
