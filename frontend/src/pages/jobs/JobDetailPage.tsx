@@ -51,6 +51,7 @@ export const JobDetailPage = () => {
   const jobId = Number(id);
   const navigate = useNavigate();
   const user = useUser();
+  const isCompanyInternal = user ? ["employer", "admin", "employee", "techlead"].includes(user.role) : false;
   const [job, setJob] = useState<Job | null>(null);
   const [similarJobs, setSimilarJobs] = useState<Job[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -168,7 +169,7 @@ export const JobDetailPage = () => {
 
   // Load Candidate Documents
   useEffect(() => {
-    if (!tokenStorage.get() || user?.role === "employer" || user?.role === "admin") return;
+    if (!tokenStorage.get() || isCompanyInternal) return;
     let cancelled = false;
     let attempts = 0;
     const loadDocuments = async () => {
@@ -198,7 +199,7 @@ export const JobDetailPage = () => {
 
   // Trigger AI Matching Evaluation when job & selected document change
   useEffect(() => {
-    if (!job) return;
+    if (!job || isCompanyInternal) return;
 
     const computeMatching = async () => {
       setIsMatchingLoading(true);
@@ -553,18 +554,21 @@ ${candidateName}`;
 
                 <Button
                   onClick={() => setIsApplyModalOpen(true)}
+                  disabled={!job.is_active || isCompanyInternal}
                   className="bg-gradient-to-r from-[#00B86B] to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white px-7 py-3 rounded-2xl font-black text-sm shadow-lg shadow-emerald-600/20 cursor-pointer flex items-center gap-2 transition-all"
                 >
                   <Send className="w-4 h-4" />
-                  <span>Ứng tuyển ngay</span>
+                  <span>{isCompanyInternal ? "Chỉ ứng viên mới có thể nộp" : "Ứng tuyển ngay"}</span>
                 </Button>
               </div>
 
               {/* Fast Matching Highlight Badge */}
+              {!isCompanyInternal && (
               <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 text-xs font-bold text-emerald-900">
                 <Sparkles className="w-4 h-4 text-[#00B86B] animate-pulse" />
                 <span>AI Matching: <strong>{aiMatchResult?.score || 92}% Phù hợp</strong></span>
               </div>
+              )}
             </div>
           </div>
         </motion.section>
@@ -575,6 +579,7 @@ ${candidateName}`;
           <div className="space-y-6">
 
             {/* 🌟 AI MATCH LIVE BREAKDOWN WIDGET */}
+            {!isCompanyInternal && (
             <motion.section
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
@@ -690,6 +695,7 @@ ${candidateName}`;
                 </div>
               </div>
             </motion.section>
+            )}
 
             {/* ── 3. SALARY BENCHMARK & MARKET INSIGHTS 2026 ────────────── */}
             <section className="p-6 sm:p-8 rounded-[32px] bg-white border border-slate-200/90 shadow-xs space-y-5">
@@ -971,11 +977,11 @@ ${candidateName}`;
               <Button
                 onClick={() => setIsApplyModalOpen(true)}
                 isLoading={isApplying}
-                disabled={!job.is_active || (!!user && user.role !== "candidate")}
+                disabled={!job.is_active || isCompanyInternal}
                 fullWidth
                 className="bg-gradient-to-r from-[#00B86B] to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white py-3.5 rounded-2xl font-black text-sm shadow-md shadow-emerald-600/20 cursor-pointer transition-all"
               >
-                {user ? (user.role === "candidate" ? "Nộp hồ sơ ngay" : "Chỉ ứng viên mới có thể nộp") : "Đăng nhập để ứng tuyển"}
+                {user ? (!isCompanyInternal ? "Nộp hồ sơ ngay" : "Chỉ ứng viên mới có thể nộp") : "Đăng nhập để ứng tuyển"}
               </Button>
             </Card>
 
