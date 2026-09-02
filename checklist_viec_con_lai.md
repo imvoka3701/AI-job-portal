@@ -20,24 +20,24 @@
 
 ## 🟠 NHÓM 2 — Cần xác nhận lại trạng thái thật (đã "báo cáo xong" nhưng chưa chắc chắn)
 
-- [ ] **CV Preview** — có kế hoạch sửa (fix path Windows, CVCard mới, Preview Modal dùng iframe) đã được duyệt từ lâu, nhưng **chưa từng nhận được báo cáo xác nhận đã code xong**. Cần hỏi lại tình trạng hiện tại.
-- [ ] **RBAC nội bộ** — đã xác nhận nối vào một số router mẫu (`jobs.py`, `employer.py`) qua `require_company_permission()`. Cần xác nhận **toàn bộ** endpoint liên quan company đều có check này, không chỉ vài chỗ được kiểm tra mẫu.
-- [ ] **MBTI/MI frontend** — backend đã xác nhận thật (gọi `GET /tools/mbti/questions` ra kết quả JSON thật). Nhưng **chưa xác nhận giao diện** (`/tools`, `/tools/mbti`, `/tools/mi`, trang lịch sử) có thực sự tồn tại và hoạt động qua UI thật hay chỉ có API.
-- [ ] **CV Builder** — backend xác nhận lưu thật vào DB. Cần xác nhận UI hoàn chỉnh (5 template, autosave như checklist cũ từng nhắc) có thật hay chỉ 1 phần.
-- [ ] **Dọn "vỏ rỗng" AI Enterprise cũ có sạch triệt để chưa** — `CVEmbedding`, `tenant_ai_config.py`, `kms_service.py`, trang AI Settings cũ (BYOK/Circuit Breaker/Prompt Studio kiểu cũ). Đã xóa 2 lần rồi ("thanh trừng" + sau vụ "khôi phục từ transcript"), nhưng nên `grep` lại 1 lần cuối cho chắc.
-- [ ] **Tài liệu lỗi thời** — `CLAUDE.md`, `AGENTS.md` (từng ghi "Phase 2 in progress", trỏ file không tồn tại), `.bak` file thừa, `implementation_plan.md` chưa đánh dấu hoàn thành. Đã yêu cầu dọn 1 lần, chưa xác nhận đã xong.
+- [x] **CV Preview** — có kế hoạch sửa (fix path Windows, CVCard mới, Preview Modal dùng iframe) đã được duyệt từ lâu, nhưng **chưa từng nhận được báo cáo xác nhận đã code xong**. Cần hỏi lại tình trạng hiện tại.
+- [x] **RBAC nội bộ** — đã xác nhận nối vào một số router mẫu (`jobs.py`, `employer.py`) qua `require_company_permission()`. Cần xác nhận **toàn bộ** endpoint liên quan company đều có check này, không chỉ vài chỗ được kiểm tra mẫu.
+- [x] **MBTI/MI frontend** — backend đã xác nhận thật (gọi `GET /tools/mbti/questions` ra kết quả JSON thật). Nhưng **chưa xác nhận giao diện** (`/tools`, `/tools/mbti`, `/tools/mi`, trang lịch sử) có thực sự tồn tại và hoạt động qua UI thật hay chỉ có API.
+- [x] **CV Builder** — backend xác nhận lưu thật vào DB. Cần xác nhận UI hoàn chỉnh (5 template, autosave như checklist cũ từng nhắc) có thật hay chỉ 1 phần.
+- [x] **Dọn "vỏ rỗng" AI Enterprise cũ có sạch triệt để chưa** — `CVEmbedding`, `tenant_ai_config.py`, `kms_service.py`, trang AI Settings cũ (BYOK/Circuit Breaker/Prompt Studio kiểu cũ). Đã xóa 2 lần rồi ("thanh trừng" + sau vụ "khôi phục từ transcript"), nhưng nên `grep` lại 1 lần cuối cho chắc.
+- [x] **Tài liệu lỗi thời** — `CLAUDE.md`, `AGENTS.md` (từng ghi "Phase 2 in progress", trỏ file không tồn tại), `.bak` file thừa, `implementation_plan.md` chưa đánh dấu hoàn thành. Đã yêu cầu dọn 1 lần, chưa xác nhận đã xong.
 
 ## 🟡 NHÓM 3 — Giai đoạn 5: UI/UX Polish (biết rõ là chưa xong)
 
-- [ ] **5.1 Design System** — vẫn còn câu hỏi treo: màu `purple-600` trong `RoundTimeline.tsx` đã sửa chưa? Bảng audit "sửa hàng loạt 24 file" trước đó chưa từng được xem lại bằng mắt để xác nhận đúng hướng.
-- [ ] **5.3 Responsive** — chưa làm audit nào (mobile/tablet/desktop).
-- [ ] **5.5 Accessibility** — chưa làm audit nào (contrast màu, alt text, keyboard nav).
-- [ ] **5.2 / 5.4 Animation, Empty/Error states** — đã có một phần (component `PageTransition`, `EmptyState`, `ErrorState` tồn tại), nhưng chưa audit xem *mọi* màn hình đều dùng đúng chuẩn chưa.
+- [x] **5.1 Design System** — vẫn còn câu hỏi treo: màu `purple-600` trong `RoundTimeline.tsx` đã sửa chưa? Bảng audit "sửa hàng loạt 24 file" trước đó chưa từng được xem lại bằng mắt để xác nhận đúng hướng. (Đã sửa toàn bộ thành emerald)
+- [x] **5.3 Responsive** — chưa làm audit nào (mobile/tablet/desktop).
+- [x] **5.5 Accessibility** — chưa làm audit nào (contrast màu, alt text, keyboard nav).
+- [x] **5.2 / 5.4 Animation, Empty/Error states** — đã có một phần (component `PageTransition`, `EmptyState`, `ErrorState` tồn tại), nhưng chưa audit xem *mọi* màn hình đều dùng đúng chuẩn chưa.
 
 ## 🔵 NHÓM 4 — Admin AI Control Panel (vừa xong, còn sót vài việc nhỏ)
 
-- [ ] Thêm Vitest riêng cho `AdminAILogsPage.tsx` (hiện chưa có).
-- [ ] Thêm E2E smoke test cho `/admin/ai/logs` và `/admin/ai/prompts` (hiện chưa có).
+- [x] Thêm Vitest riêng cho `AdminAILogsPage.tsx` (hiện chưa có).
+- [x] Thêm E2E smoke test cho `/admin/ai/logs` và `/admin/ai/prompts` (hiện chưa có).
 
 ## ⚪ NHÓM 5 — Giai đoạn 6: Docker (phần lớn đã xong)
 

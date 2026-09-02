@@ -60,7 +60,7 @@ export function EmployerCandidatesPage() {
 
   const [stats, setStats] = useState<EmployerStats | null>(null);
 
-  const [evalTarget, setEvalTarget] = useState<{ candidateName: string; resumeId: number } | null>(null);
+  const [evalTarget, setEvalTarget] = useState<{ candidateName: string; resumeId: number; matchScore?: number | null }>((null as any));
   const [evalResult, setEvalResult] = useState<CVEvaluationResult | null>(null);
   const [evalLoading, setEvalLoading] = useState(false);
   const [evalError, setEvalError] = useState<string | null>(null);
@@ -261,7 +261,7 @@ export function EmployerCandidatesPage() {
 
   const handleEvaluate = useCallback(async (app: EmployerApplication) => {
     if (!app.resume_id || !app.candidate) return;
-    setEvalTarget({ candidateName: app.candidate.full_name, resumeId: app.resume_id });
+    setEvalTarget({ candidateName: app.candidate.full_name, resumeId: app.resume_id, matchScore: app.ai_matching_score });
     setEvalResult(null);
     setEvalError(null);
     setEvalLoading(true);
@@ -554,46 +554,69 @@ export function EmployerCandidatesPage() {
           <div className="space-y-6">
             <AIDisclaimerBanner context="evaluation" />
 
-            {/* Score & Summary Hero Banner */}
-            <div className="rounded-2xl border border-blue-100 bg-gradient-to-r from-blue-50/70 via-indigo-50/40 to-emerald-50/40 p-5 shadow-2xs">
+            {/* 1. JD Matching (Độ phù hợp với vị trí) */}
+            {evalTarget?.matchScore != null && (
+              <div className="rounded-2xl border border-emerald-100 bg-gradient-to-r from-emerald-50/70 via-teal-50/40 to-green-50/40 p-5 shadow-2xs">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-5">
+                  <div className="flex items-center gap-4 shrink-0">
+                    <div className={`w-20 h-20 rounded-2xl flex flex-col items-center justify-center shadow-sm border ${
+                      evalTarget.matchScore >= 80
+                        ? "bg-emerald-500 text-white border-emerald-600 shadow-emerald-500/20"
+                        : evalTarget.matchScore >= 65
+                        ? "bg-amber-500 text-white border-amber-600 shadow-amber-500/20"
+                        : "bg-red-500 text-white border-red-600 shadow-red-500/20"
+                    }`}>
+                      <span className="text-2xl font-extrabold tracking-tight">{Math.round(evalTarget.matchScore)}</span>
+                      <span className="text-[11px] font-medium opacity-90">% MATCH</span>
+                    </div>
+                  </div>
+
+                  <div className="min-w-0 flex-1 space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-bold uppercase tracking-wider text-emerald-900">
+                        Độ phù hợp với vị trí (JD Matching)
+                      </span>
+                      <span className={`inline-flex items-center text-xs font-bold px-3 py-0.5 rounded-full ${
+                        evalTarget.matchScore >= 80
+                          ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                          : evalTarget.matchScore >= 65
+                          ? "bg-amber-100 text-amber-800 border border-amber-200"
+                          : "bg-red-100 text-red-800 border border-red-200"
+                      }`}>
+                        {evalTarget.matchScore >= 80 ? "✓ Rất phù hợp" : evalTarget.matchScore >= 65 ? "⚠ Phù hợp một phần" : "✕ Ít phù hợp"}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-700 leading-relaxed">
+                      Điểm đối sánh (Matching score) được tính toán dựa trên kỹ năng, kinh nghiệm của ứng viên với yêu cầu của vị trí công việc.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 2. CV Quality (Chất lượng CV tổng thể) */}
+            <div className="rounded-2xl border border-blue-100 bg-gradient-to-r from-blue-50/70 via-indigo-50/40 to-slate-50/40 p-5 shadow-2xs">
               <div className="flex flex-col sm:flex-row sm:items-center gap-5">
                 <div className="flex items-center gap-4 shrink-0">
                   <div className={`w-20 h-20 rounded-2xl flex flex-col items-center justify-center shadow-sm border ${
                     evalResult.overall_score >= 8
-                      ? "bg-emerald-500 text-white border-emerald-600 shadow-emerald-500/20"
-                      : evalResult.overall_score >= 6.5
                       ? "bg-blue-600 text-white border-blue-700 shadow-blue-600/20"
-                      : "bg-amber-500 text-white border-amber-600 shadow-amber-500/20"
+                      : evalResult.overall_score >= 6.5
+                      ? "bg-indigo-500 text-white border-indigo-600 shadow-indigo-500/20"
+                      : "bg-slate-500 text-white border-slate-600 shadow-slate-500/20"
                   }`}>
                     <span className="text-2xl font-extrabold tracking-tight">{evalResult.overall_score}</span>
                     <span className="text-[11px] font-medium opacity-90">/ 10 ĐIỂM</span>
-                  </div>
-                  <div className="sm:hidden">
-                    <span className={`inline-flex items-center text-xs font-bold px-2.5 py-0.5 rounded-full ${
-                      evalResult.overall_score >= 8
-                        ? "bg-emerald-100 text-emerald-800"
-                        : evalResult.overall_score >= 6.5
-                        ? "bg-blue-100 text-blue-800"
-                        : "bg-amber-100 text-amber-800"
-                    }`}>
-                      {evalResult.overall_score >= 8 ? "Rất phù hợp" : evalResult.overall_score >= 6.5 ? "Phù hợp tốt" : "Cần cân nhắc"}
-                    </span>
                   </div>
                 </div>
 
                 <div className="min-w-0 flex-1 space-y-1.5">
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-xs font-bold uppercase tracking-wider text-blue-900">
-                      Tóm tắt nhận xét của AI Matching
+                      Chất lượng CV tổng thể
                     </span>
-                    <span className={`hidden sm:inline-flex items-center text-xs font-bold px-3 py-0.5 rounded-full ${
-                      evalResult.overall_score >= 8
-                        ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
-                        : evalResult.overall_score >= 6.5
-                        ? "bg-blue-100 text-blue-800 border border-blue-200"
-                        : "bg-amber-100 text-amber-800 border border-amber-200"
-                    }`}>
-                      {evalResult.overall_score >= 8 ? "✓ Rất phù hợp với JD" : evalResult.overall_score >= 6.5 ? "✓ Phù hợp tốt" : "⚠ Cần phỏng vấn thêm"}
+                    <span className="inline-flex items-center text-[10px] font-medium px-2 py-0.5 rounded-full bg-white text-gray-500 border border-gray-200">
+                      * Đánh giá độc lập với vị trí đang tuyển
                     </span>
                   </div>
                   <p className="text-sm text-gray-700 leading-relaxed">
@@ -603,7 +626,7 @@ export function EmployerCandidatesPage() {
               </div>
             </div>
 
-            {/* 2-Column High-Definition Analytics Layout */}
+            {/* 3. Skill Gap (Độ lệch kỹ năng so với JD) */}
             <div className="grid gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
               {/* Left Column: Spacious Radar Chart */}
               <div className="space-y-4">

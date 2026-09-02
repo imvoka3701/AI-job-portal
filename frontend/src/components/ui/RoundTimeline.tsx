@@ -207,7 +207,7 @@ export function RoundTimeline({ applicationId }: Props) {
                 {scoreRoundId === r.id && (
                   <div className="mt-3 pt-3 border-t border-gray-100 space-y-3 animate-[fadeIn_0.2s_ease-out]">
                     {scoreLoading ? (
-                      <div className="flex justify-center py-4"><span className="inline-block w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"/></div>
+                      <div className="flex justify-center py-4"><span className="inline-block w-5 h-5 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin"/></div>
                     ) : (
                       <>
                         {criteriaScores.map((c, ci) => (
@@ -219,7 +219,7 @@ export function RoundTimeline({ applicationId }: Props) {
                                 newScores[ci] = { ...c, score: Number(e.target.value) };
                                 setCriteriaScores(newScores);
                               }}
-                              className="flex-1 h-1.5 rounded-full appearance-none bg-gray-200 accent-blue-600 cursor-pointer" />
+                              className="flex-1 h-1.5 rounded-full appearance-none bg-gray-200 accent-emerald-600 cursor-pointer" />
                             <span className="text-xs font-bold text-gray-900 w-6 text-right">{c.score}</span>
                           </div>
                         ))}
@@ -232,7 +232,7 @@ export function RoundTimeline({ applicationId }: Props) {
                           }}
                           className="w-full h-16 rounded-lg border border-gray-200 bg-white text-xs p-2 resize-y" />
                         <button onClick={handleSaveCriteria} disabled={scoreLoading}
-                          className={`w-full h-9 rounded-lg text-sm font-medium transition-all ${scoreSaved ? "bg-green-500 text-white" : "bg-blue-600 text-white hover:bg-blue-700"} disabled:opacity-50`}>
+                          className={`w-full h-9 rounded-lg text-sm font-medium transition-all ${scoreSaved ? "bg-green-500 text-white" : "bg-emerald-600 text-white hover:bg-emerald-700"} disabled:opacity-50`}>
                           {scoreSaved ? "✓ Đã lưu điểm" : "Lưu điểm"}
                         </button>
                       </>
@@ -247,7 +247,7 @@ export function RoundTimeline({ applicationId }: Props) {
                     <div className="flex gap-1.5 flex-wrap">
                       {QUICK_PICKS.map((qp) => (
                         <button key={qp.label} onClick={() => applyQuickPick(qp.days, qp.hour)} type="button"
-                          className="px-2.5 py-1 rounded-full border border-gray-200 text-[11px] text-gray-600 hover:border-blue-300 hover:text-blue-600 bg-white transition-colors"
+                          className="px-2.5 py-1 rounded-full border border-gray-200 text-[11px] text-gray-600 hover:border-emerald-300 hover:text-emerald-600 bg-white transition-colors"
                         >{qp.label}</button>
                       ))}
                       <button onClick={() => { setSchedDate(""); setSchedTime(""); }} type="button"
@@ -257,29 +257,29 @@ export function RoundTimeline({ applicationId }: Props) {
 
                     <div className="flex gap-2">
                       <input type="date" value={schedDate} onChange={(e) => setSchedDate(e.target.value)}
-                        className="flex-1 h-9 rounded-lg border border-gray-200 bg-white text-sm px-2 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+                        className="flex-1 h-9 rounded-lg border border-gray-200 bg-white text-sm px-2 focus:outline-none focus:ring-2 focus:ring-emerald-500/20" />
                       <input type="time" value={schedTime} onChange={(e) => setSchedTime(e.target.value)}
-                        className="w-28 h-9 rounded-lg border border-gray-200 bg-white text-sm px-2 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+                        className="w-28 h-9 rounded-lg border border-gray-200 bg-white text-sm px-2 focus:outline-none focus:ring-2 focus:ring-emerald-500/20" />
                     </div>
 
                     {/* Online/Offline toggle */}
                     <div className="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-0.5">
                       <button onClick={() => setSchedMode("online")} type="button"
-                        className={`px-3 py-1 rounded-md text-[11px] font-medium transition-colors ${schedMode==="online"?"bg-white text-blue-600 shadow-sm":"text-gray-500 hover:text-gray-700"}`}
+                        className={`px-3 py-1 rounded-md text-[11px] font-medium transition-colors ${schedMode==="online"?"bg-white text-emerald-600 shadow-sm":"text-gray-500 hover:text-gray-700"}`}
                       >📹 Online</button>
                       <button onClick={() => setSchedMode("offline")} type="button"
-                        className={`px-3 py-1 rounded-md text-[11px] font-medium transition-colors ${schedMode==="offline"?"bg-white text-blue-600 shadow-sm":"text-gray-500 hover:text-gray-700"}`}
+                        className={`px-3 py-1 rounded-md text-[11px] font-medium transition-colors ${schedMode==="offline"?"bg-white text-emerald-600 shadow-sm":"text-gray-500 hover:text-gray-700"}`}
                       >📍 Offline</button>
                     </div>
 
                     <input type="text" value={schedLocation}
                       onChange={(e) => setSchedLocation(e.target.value)}
                       placeholder={schedMode === "online" ? "Link Google Meet / Zoom..." : "Địa chỉ văn phòng..."}
-                      className="w-full h-9 rounded-lg border border-gray-200 bg-white text-sm px-2 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+                      className="w-full h-9 rounded-lg border border-gray-200 bg-white text-sm px-2 focus:outline-none focus:ring-2 focus:ring-emerald-500/20" />
 
                     {/* Live preview */}
                     {schedDate && schedTime && (
-                      <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm space-y-1">
+                      <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm space-y-1">
                         <p className="text-[10px] text-gray-400 uppercase font-medium">Thông tin sẽ gửi</p>
                         <p className="font-semibold text-gray-900">📅 {previewDate} lúc {previewTime}</p>
                         <p className="text-xs text-gray-600">{schedMode === "online" ? "📹" : "📍"} {schedLocation || (schedMode === "online" ? "Online (link sẽ được gửi sau)" : "Chưa có địa điểm")}</p>
@@ -288,7 +288,7 @@ export function RoundTimeline({ applicationId }: Props) {
 
                     <button onClick={handleSaveSchedule} disabled={saving || !schedDate || !schedTime} type="button"
                       className={`w-full h-9 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 ${
-                        saved ? "bg-green-500 text-white" : "bg-blue-600 text-white hover:bg-blue-700"
+                        saved ? "bg-green-500 text-white" : "bg-emerald-600 text-white hover:bg-emerald-700"
                       } disabled:opacity-50`}
                     >
                       {saving ? <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"/> :
@@ -304,8 +304,8 @@ export function RoundTimeline({ applicationId }: Props) {
         {/* Add new round button */}
         {adding ? (
           <div className="relative animate-[fadeIn_0.2s_ease-out]">
-            <div className="absolute -left-[1.7rem] w-5 h-5 rounded-full border-2 border-dashed border-blue-400 bg-blue-50 flex items-center justify-center text-blue-500 text-xs">+</div>
-            <div className="rounded-lg border border-dashed border-blue-300 bg-blue-50/30 p-4 space-y-3">
+            <div className="absolute -left-[1.7rem] w-5 h-5 rounded-full border-2 border-dashed border-emerald-400 bg-emerald-50 flex items-center justify-center text-emerald-500 text-xs">+</div>
+            <div className="rounded-lg border border-dashed border-emerald-300 bg-emerald-50/30 p-4 space-y-3">
               <select value={newType} onChange={(e) => setNewType(e.target.value)}
                 className="w-full h-9 rounded-lg border border-gray-200 bg-white text-sm px-2">
                 {ROUND_TYPE_OPTIONS.map((t) => (<option key={t.value} value={t.value}>{t.label}</option>))}
@@ -313,15 +313,15 @@ export function RoundTimeline({ applicationId }: Props) {
               <input type="text" placeholder="Tên vòng (tùy chọn)" value={newName} onChange={(e) => setNewName(e.target.value)}
                 className="w-full h-9 rounded-lg border border-gray-200 bg-white text-sm px-2" onKeyDown={(e) => { if (e.key==="Enter") handleAdd(); }} />
               <div className="flex gap-2">
-                <button onClick={handleAdd} className="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-medium hover:bg-blue-700">Thêm</button>
+                <button onClick={handleAdd} className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-700">Thêm</button>
                 <button onClick={() => setAdding(false)} className="px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-medium text-gray-600 hover:bg-gray-50">Hủy</button>
               </div>
             </div>
           </div>
         ) : (
           <button onClick={() => setAdding(true)}
-            className="relative flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700 font-medium transition-colors">
-            <div className="absolute -left-[1.7rem] w-5 h-5 rounded-full border-2 border-dashed border-blue-300 bg-white flex items-center justify-center text-blue-500 text-xs">+</div>
+            className="relative flex items-center gap-2 text-sm text-emerald-600 hover:text-emerald-700 font-medium transition-colors">
+            <div className="absolute -left-[1.7rem] w-5 h-5 rounded-full border-2 border-dashed border-emerald-300 bg-white flex items-center justify-center text-emerald-500 text-xs">+</div>
             <span className="ml-1">Thêm vòng mới</span>
           </button>
         )}
