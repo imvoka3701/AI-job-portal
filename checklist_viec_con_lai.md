@@ -41,7 +41,7 @@
 
 ## ⚪ NHÓM 5 — Giai đoạn 6: Docker (phần lớn đã xong)
 
-- [ ] **6.4** — Docker đang chạy "healthy" nhưng chưa từng test trên máy sạch chỉ bằng `docker compose up` (chưa cài Python/Node sẵn) để chắc chắn không phụ thuộc môi trường máy cá nhân.
+- [x] **6.4** — Docker đang chạy "healthy" nhưng chưa từng test trên máy sạch chỉ bằng `docker compose up` (chưa cài Python/Node sẵn) để chắc chắn không phụ thuộc môi trường máy cá nhân.
 - [ ] **6.5** (tùy chọn, không bắt buộc) — Deploy thật lên Render/Railway để có link demo online.
 
 ## 📄 NHÓM 6 — Tài liệu bảo vệ đồ án (chưa bắt đầu)
