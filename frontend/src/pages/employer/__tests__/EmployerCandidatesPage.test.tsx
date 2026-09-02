@@ -108,4 +108,57 @@ describe("EmployerCandidatesPage - AI Modal Logic", () => {
     // is NOT used to label the matching verdict
     expect(screen.queryByText("✕ Ít phù hợp")).not.toBeInTheDocument();
   });
+
+  it("verifies badge verdict shows '✕ Ít phù hợp' when matching score is low, even if evaluate score is high", async () => {
+    // Override the mocks for this specific test to simulate the original bug scenario
+    const { getEmployerApplications, evaluateCV } = await import("@/lib/api/ai");
+    
+    (getEmployerApplications as any).mockResolvedValue([
+      {
+        id: 2,
+        job_id: 1,
+        resume_id: 102,
+        candidate: { full_name: "Mismatch Candidate", email: "mismatch@example.com" },
+        ai_matching_score: 15, // 15% matching (Ít phù hợp)
+        status: "applied",
+        cv_document: {},
+        created_at: new Date().toISOString(),
+      }
+    ]);
+    
+    (evaluateCV as any).mockResolvedValue({
+      overall_score: 8.2, // 8.2/10 evaluate (rất cao)
+      skill_analysis: { "Python": 1.0 },
+      summary: "Good CV structure but wrong field",
+      suggestions: []
+    });
+
+    const user = userEvent.setup();
+    
+    render(
+      <MemoryRouter>
+        <EmployerCandidatesPage />
+      </MemoryRouter>
+    );
+
+    const candidateRow = await screen.findByText("Mismatch Candidate");
+    await user.click(candidateRow);
+
+    const evaluateButton = await screen.findByRole("button", { name: /đánh giá cv/i });
+    await user.click(evaluateButton);
+
+    await waitFor(() => {
+      expect(screen.getByText("Độ phù hợp với vị trí (JD Matching)")).toBeInTheDocument();
+    });
+
+    // 1. Verify it shows 15% matching and 8.2 evaluate score
+    expect(screen.getByText("15")).toBeInTheDocument();
+    expect(screen.getByText("8.2")).toBeInTheDocument();
+    
+    // 2. Verify the badge correctly displays "✕ Ít phù hợp" based on the 15% score
+    expect(screen.getByText("✕ Ít phù hợp")).toBeInTheDocument();
+
+    // 3. Ensure it absolutely does NOT show "✓ Rất phù hợp" despite the 8.2 overall_score
+    expect(screen.queryByText("✓ Rất phù hợp")).not.toBeInTheDocument();
+  });
 });
