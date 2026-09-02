@@ -60,7 +60,7 @@ export function EmployerCandidatesPage() {
 
   const [stats, setStats] = useState<EmployerStats | null>(null);
 
-  const [evalTarget, setEvalTarget] = useState<{ candidateName: string; resumeId: number; matchScore?: number | null }>((null as any));
+  const [evalTarget, setEvalTarget] = useState<{ candidateName: string; resumeId: number; matchScore?: number | null } | null>(null);
   const [evalResult, setEvalResult] = useState<CVEvaluationResult | null>(null);
   const [evalLoading, setEvalLoading] = useState(false);
   const [evalError, setEvalError] = useState<string | null>(null);
