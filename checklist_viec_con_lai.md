@@ -44,7 +44,7 @@
 - [x] **6.4** — Docker đang chạy "healthy" nhưng chưa từng test trên máy sạch chỉ bằng `docker compose up` (chưa cài Python/Node sẵn) để chắc chắn không phụ thuộc môi trường máy cá nhân.
 - [ ] **6.5** (tùy chọn, không bắt buộc) — Deploy thật lên Render/Railway để có link demo online.
 
-## 📄 NHÓM 6 — Tài liệu bảo vệ đồ án (chưa bắt đầu)
+## 📄 NHÓM 9 — Tài liệu bảo vệ đồ án (chưa bắt đầu)
 
 - [ ] Viết hồ sơ SDLC (actor, ERD, prompt mẫu, test case, cách dùng AI từng giai đoạn) — đề bài giảng viên yêu cầu.
 - [ ] Bảng kiểm soát thiên lệch AI — **tin vui: `ai_audit.py` vừa hoàn thành chính là bằng chứng cụ thể cho phần này**, chỉ cần viết mô tả lại thành tài liệu.
