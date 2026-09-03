@@ -60,6 +60,14 @@ def _register_and_login(
         },
     )
     assert resp.status_code in (200, 201), resp.text
+    if role == "employer":
+        from app.models.user import User
+
+        user = db_session.query(User).filter(User.email == email).first()
+        if user and not user.is_active:
+            user.is_active = True
+            db_session.commit()
+
     login_resp = client.post("/auth/login", json={"email": email, "password": password})
     assert login_resp.status_code == 200, login_resp.text
     return {"Authorization": f"Bearer {login_resp.json()['access_token']}"}
@@ -232,3 +240,35 @@ class TestResumeEmbedding:
         assert resume.embedding is not None, "Embedding must be generated"
         assert len(resume.embedding) == 384, f"Expected 384-dim, got {len(resume.embedding)}"
         assert any(v != 0.0 for v in resume.embedding), "Embedding should not be all zeros"
+
+
+class TestResumeRoleAuthorization:
+    def test_employer_blocked_from_upload_resume(self, client: TestClient, db_session: Session):
+        """Employer role must be rejected with 403 when attempting to upload a resume."""
+        emp_headers = _register_and_login(
+            client, db_session, "emp_resume@t.com", "p", role="employer"
+        )
+        pdf = _make_minimal_pdf("Test resume text content here.")
+        resp = client.post(
+            "/resumes/upload",
+            files={"file": ("cv.pdf", io.BytesIO(pdf), "application/pdf")},
+            headers=emp_headers,
+        )
+        assert resp.status_code == 403, (
+            f"Expected 403 Forbidden, got {resp.status_code}: {resp.text}"
+        )
+
+    def test_employer_blocked_from_create_resume(self, client: TestClient, db_session: Session):
+        """Employer role must be rejected with 403 when attempting to create a resume."""
+        emp_headers = _register_and_login(
+            client, db_session, "emp_res2@t.com", "p", role="employer"
+        )
+        resp = client.post(
+            "/resumes",
+            json={"title": "My Resume", "file_url": "/test.pdf", "raw_text": "Skills"},
+            headers=emp_headers,
+        )
+        assert resp.status_code == 403, (
+            f"Expected 403 Forbidden, got {resp.status_code}: {resp.text}"
+        )
+

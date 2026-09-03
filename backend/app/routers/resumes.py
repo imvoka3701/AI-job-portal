@@ -6,10 +6,10 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.core.dependencies import get_current_user
+from app.core.dependencies import get_current_user, require_role
 from app.crud.resume import crud_resume
 from app.database import get_db
-from app.models.user import User
+from app.models.user import User, UserRole
 from app.schemas.resume import ResumeCreate, ResumeRead
 from app.services.ai_errors import ai_http_exception
 from app.services.cv_evaluator import cv_evaluator_service
@@ -40,7 +40,7 @@ ALLOWED_CONTENT_TYPES = {"application/pdf"}
 )
 async def upload_resume(
     file: UploadFile = File(..., description="Resume file (PDF only, max 5 MB)"),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_role(UserRole.CANDIDATE)),
     db: Session = Depends(get_db),
 ) -> ResumeRead:
     """Upload a PDF resume, extract text, generate embedding, and create a resume entry."""
@@ -130,7 +130,7 @@ async def upload_resume(
 )
 def create_resume(
     data: ResumeCreate,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_role(UserRole.CANDIDATE)),
     db: Session = Depends(get_db),
 ) -> ResumeRead:
     """Create a new resume entry. File upload handled separately."""
