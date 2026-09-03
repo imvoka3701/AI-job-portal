@@ -38,3 +38,17 @@ class UserRead(UserBase):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class PublicUserRead(BaseModel):
+    id: int
+    full_name: str
+    role: UserRole
+    avatar_url: str | None = None
+    is_active: bool
+    company_name: str | None = None
+    company_logo_url: str | None = None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+

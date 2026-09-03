@@ -6,8 +6,8 @@ from sqlalchemy.orm import Session
 from app.core.dependencies import get_current_user
 from app.crud.user import crud_user
 from app.database import get_db
-from app.models.user import User
-from app.schemas.user import UserRead, UserUpdate
+from app.models.user import User, UserRole
+from app.schemas.user import PublicUserRead, UserRead, UserUpdate
 from app.utils.file_upload import save_avatar_upload
 
 router = APIRouter(prefix="/users", tags=["Users"])
@@ -46,10 +46,25 @@ async def upload_avatar(
     return UserRead.model_validate(updated)
 
 
-@router.get("/{user_id}", response_model=UserRead, summary="Get user by ID")
-def get_user(user_id: int, db: Session = Depends(get_db)) -> UserRead:
-    """Return a user's public profile by ID."""
+@router.get(
+    "/{user_id}",
+    response_model=UserRead | PublicUserRead,
+    summary="Get user by ID",
+)
+def get_user(
+    user_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> UserRead | PublicUserRead:
+    """Return a user's profile by ID.
+
+    Full contact details (email, phone) are only visible to the user themselves or an admin.
+    Other authenticated users receive a redacted public profile without PII.
+    """
     user = crud_user.get_by_id(db, user_id=user_id)
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-    return UserRead.model_validate(user)
+    if current_user.id == user.id or current_user.role == UserRole.ADMIN:
+        return UserRead.model_validate(user)
+    return PublicUserRead.model_validate(user)
+
