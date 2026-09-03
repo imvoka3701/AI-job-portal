@@ -19,3 +19,4 @@ export * from "./EmptyState";
 export * from "./ErrorState";
 export * from "./PageTransition";
 export * from "./Card3DTilt";
+export * from "./AIProgressiveLoader";

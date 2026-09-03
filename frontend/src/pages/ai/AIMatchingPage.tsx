@@ -27,7 +27,7 @@ import { getJobs } from "@/lib/api/jobs";
 import { getAiMatch } from "@/lib/api/ai";
 import { useUser, useAuthStore } from "@/stores/authStore";
 import { tokenStorage, getApiErrorMessage } from "@/lib/axios";
-import { Button, Spinner, AIDisclaimerBanner } from "@/components/ui";
+import { Button, Spinner, AIDisclaimerBanner, AIProgressiveLoader } from "@/components/ui";
 import { Header } from "@/pages/jobs/components/Header";
 import { Footer } from "@/pages/jobs/components/Footer";
 import { SEOMeta } from "@/components/seo/SEOMeta";
@@ -681,10 +681,16 @@ export function AIMatchingPage() {
 
                 {/* Real Deep Match Breakdown */}
                 {matchingJobId === selectedJobForDetail.id ? (
-                  <div className="p-8 text-center space-y-3">
-                    <Loader2 className="w-8 h-8 text-[#00B86B] animate-spin mx-auto" />
-                    <p className="text-xs font-bold text-slate-600">Đang so khớp vector embedding với JD...</p>
-                  </div>
+                  <AIProgressiveLoader
+                    title="Đang phân tích độ phù hợp AI..."
+                    subtitle={`Đối soát hồ sơ với vị trí "${selectedJobForDetail.title}"`}
+                    stages={[
+                      "Trích xuất dữ liệu CV và yêu cầu vị trí",
+                      "So khớp Vector Cosine Similarity (pgvector)",
+                      "Phân tích thế mạnh và các kỹ năng còn thiếu",
+                      "Tổng hợp báo cáo tương thích chuyên sâu",
+                    ]}
+                  />
                 ) : activeMatchResult ? (
                   <div className="space-y-3">
                     {/* Overall AI Matching Score */}
