@@ -150,6 +150,35 @@ class TestJobDelete:
         get_response = client.get(f"/jobs/{job_id}")
         assert get_response.status_code == 404
 
+    def test_delete_job_with_applications_soft_deletes(self, client: TestClient, db_session: Session):
+        """Test that deleting a job with applications soft-deletes (archives) it without FK crash."""
+        emp_headers = _register_employer(client, db_session, email="delete_emp2@example.com")
+        create = client.post("/jobs", json=JOB_PAYLOAD, headers=emp_headers)
+        assert create.status_code == 201
+        job_id = create.json()["id"]
+
+        # Candidate applies to this job
+        cand_headers = _register_candidate(client, email="delete_cand2@example.com")
+        app_resp = client.post("/applications", json={"job_id": job_id}, headers=cand_headers)
+        assert app_resp.status_code == 201
+
+        # Employer deletes the job
+        del_resp = client.delete(f"/jobs/{job_id}", headers=emp_headers)
+        assert del_resp.status_code == 204
+
+        # Check job in database: still exists, but is_active is False
+        from app.crud.job import crud_job
+
+        job = crud_job.get_by_id(db_session, job_id=job_id)
+        assert job is not None
+        assert job.is_active is False
+
+        # Job is hidden from active public listings
+        list_resp = client.get("/jobs")
+        assert list_resp.status_code == 200
+        active_ids = [j["id"] for j in list_resp.json()["items"]]
+        assert job_id not in active_ids
+
 
 class TestJobFilters:
     def test_filter_by_keyword(self, client: TestClient, db_session: Session):
@@ -210,3 +239,4 @@ class TestJobGet:
         data = response.json()
         assert data["id"] == job_id
         assert data["title"] == JOB_PAYLOAD["title"]
+

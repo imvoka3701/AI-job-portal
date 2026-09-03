@@ -3,6 +3,7 @@
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, joinedload
 
+from app.models.application import Application
 from app.models.job import ExperienceLevel, Job, JobType
 from app.models.user import User
 from app.schemas.job import JobCreate, JobUpdate
@@ -164,11 +165,33 @@ class CRUDJob:
         db.refresh(job)
         return job
 
-    def delete(self, db: Session, *, job_id: int) -> None:
+    def delete(self, db: Session, *, job_id: int) -> Job | None:
+        """Delete or archive job.
+
+        If the job has existing candidate applications, soft-deletes (archives) it by setting
+        `is_active = False` to preserve candidate audit history and prevent PostgreSQL FK violations.
+        If the job has no applications, hard-deletes it.
+        """
         job = db.get(Job, job_id)
-        if job:
-            db.delete(job)
+        if not job:
+            return None
+
+        has_applications = (
+            db.execute(
+                select(func.count()).select_from(Application).where(Application.job_id == job_id)
+            ).scalar()
+            or 0
+        ) > 0
+
+        if has_applications:
+            job.is_active = False
             db.commit()
+            db.refresh(job)
+            return job
+
+        db.delete(job)
+        db.commit()
+        return None
 
 
 crud_job = CRUDJob()
