@@ -260,3 +260,66 @@ class TestApplicationPermissions:
         assert len(apps) >= 1
         assert apps[0]["job_id"] == job_id
         assert "candidate" in apps[0]
+
+
+class TestApplicationAIMatchingScoreSync:
+    def test_application_without_resume_keeps_null_score(
+        self, client: TestClient, db_session: Session
+    ):
+        ca = _register_and_login(client, db_session, "nores_cand@t.com", "p", "NoRes")
+        emp = _register_and_login(
+            client, db_session, "nores_emp@t.com", "p", "NoResEmp", role="employer", company_name="NRC"
+        )
+        job_id = _create_job(client, emp)
+        resp = client.post("/applications", json={"job_id": job_id}, headers=ca)
+        assert resp.status_code == 201
+        data = resp.json()
+        assert data["ai_matching_score"] is None
+
+    def test_application_with_embeddings_computes_and_saves_matching_score(
+        self, client: TestClient, db_session: Session
+    ):
+        from app.models.application import Application
+        from app.models.job import Job
+        from app.models.resume import Resume
+
+        cand = _register_and_login(client, db_session, "match_cand@t.com", "p", "MatchCand")
+        emp = _register_and_login(
+            client, db_session, "match_emp@t.com", "p", "MatchEmp", role="employer", company_name="MEC"
+        )
+        job_id = _create_job(client, emp)
+
+        user_cand = db_session.query(User).filter(User.email == "match_cand@t.com").first()
+        assert user_cand is not None
+
+        dim = 384
+        dummy_vec = [1.0] + [0.0] * (dim - 1)
+        resume = Resume(
+            user_id=user_cand.id,
+            title="cv.pdf",
+            file_url="/resumes/cv.pdf",
+            raw_text="Experienced Python FastAPI backend engineer.",
+            embedding=dummy_vec,
+        )
+        db_session.add(resume)
+        db_session.commit()
+        db_session.refresh(resume)
+
+        job = db_session.get(Job, job_id)
+        assert job is not None
+        job.embedding = dummy_vec
+        db_session.commit()
+
+        resp = client.post(
+            "/applications",
+            json={"job_id": job_id, "resume_id": resume.id},
+            headers=cand,
+        )
+        assert resp.status_code == 201, resp.text
+        data = resp.json()
+        assert data["ai_matching_score"] is not None
+        assert data["ai_matching_score"] == 100.0
+
+        app_db = db_session.get(Application, data["id"])
+        assert app_db is not None
+        assert app_db.ai_matching_score == 100.0
