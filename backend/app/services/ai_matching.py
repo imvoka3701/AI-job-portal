@@ -47,17 +47,21 @@ class AIMatchingService:
         resume_embedding: list[float] = resume.embedding  # type: ignore[assignment]
 
         # Try pgvector first; fall back to Python for SQLite test environments
+        clean_emb_str = "[" + ",".join(str(float(x)) for x in job_embedding) + "]"
         try:
             result = db.execute(
                 text(
                     "SELECT 1 - ((:job_emb)::vector <=> (SELECT embedding FROM resumes WHERE id = :resume_id))"
                 ),
-                {"job_emb": str(job_embedding), "resume_id": resume.id},
+                {"job_emb": clean_emb_str, "resume_id": resume.id},
             )
             similarity = result.scalar() or 0.0
         except Exception:
             logger.debug("pgvector unavailable — using Python cosine similarity fallback")
-            similarity = _cosine_similarity_python(job_embedding, resume_embedding)
+            similarity = _cosine_similarity_python(
+                [float(x) for x in job_embedding],
+                [float(x) for x in resume_embedding],
+            )
 
         return AIMatchResponse(
             score=round(float(similarity) * 100, 2),
@@ -74,6 +78,7 @@ class AIMatchingService:
         limit: int = 10,
     ) -> list[dict]:
         """Find top N resumes most similar to a job embedding using HNSW index."""
+        clean_emb_str = "[" + ",".join(str(float(x)) for x in job_embedding) + "]"
         try:
             result = db.execute(
                 text(
@@ -86,7 +91,7 @@ class AIMatchingService:
                     LIMIT :limit
                     """
                 ),
-                {"embedding": str(job_embedding), "limit": limit},
+                {"embedding": clean_emb_str, "limit": limit},
             )
             return [
                 {

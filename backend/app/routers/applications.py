@@ -24,6 +24,7 @@ from app.database import get_db
 from app.models.interview_round import RoundType
 from app.models.notification import NotificationType
 from app.models.user import User, UserRole
+from app.services.ai_matching import ai_matching_service
 from app.schemas.application import (
     ApplicationCreate,
     ApplicationRead,
@@ -45,12 +46,13 @@ router = APIRouter(prefix="/applications", tags=["Applications"])
     status_code=status.HTTP_201_CREATED,
     summary="Apply for a job",
 )
-def create_application(
+async def create_application(
     data: ApplicationCreate,
     current_user: User = Depends(require_role(UserRole.CANDIDATE)),
     db: Session = Depends(get_db),
 ) -> ApplicationRead:
     """Submit a job application. Notifies the employer."""
+    resume = None
     if data.resume_id:
         resume = crud_resume.get_by_id(db, resume_id=data.resume_id)
         if not resume or resume.user_id != current_user.id:
@@ -66,6 +68,23 @@ def create_application(
             )
 
     application = crud_application.create(db, obj_in=data, candidate_id=current_user.id)
+
+    # ── Auto-compute AI matching score if embeddings available ───────────
+    if resume and resume.embedding is not None:
+        job = crud_job.get_by_id(db, job_id=application.job_id)
+        if job and job.embedding is not None:
+            try:
+                match_res = await ai_matching_service.compute_match(
+                    db, resume=resume, job_embedding=list(job.embedding)
+                )
+                application.ai_matching_score = match_res.score
+                db.commit()
+                db.refresh(application)
+            except Exception:
+                logger.exception(
+                    "Failed to auto-compute ai_matching_score for application %s",
+                    application.id,
+                )
 
     # ── Auto-create Round 1 (CV Screen, pending) ────────────────────────────
     try:
