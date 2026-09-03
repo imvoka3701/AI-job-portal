@@ -1,6 +1,6 @@
 """Auth Pydantic schemas — Token, Login, Register."""
 
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, field_validator
 
 from app.models.user import UserRole
 
@@ -26,3 +26,11 @@ class RegisterRequest(BaseModel):
     full_name: str
     role: UserRole = UserRole.CANDIDATE
     company_name: str | None = None
+
+    @field_validator("role")
+    @classmethod
+    def prevent_admin_registration(cls, v: UserRole) -> UserRole:
+        if v == UserRole.ADMIN:
+            raise ValueError("Không thể tự đăng ký tài khoản Quản trị viên (Admin).")
+        return v
+

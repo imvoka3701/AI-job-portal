@@ -13,6 +13,8 @@ from sqlalchemy import desc, func
 from sqlalchemy.orm import Session
 
 from app.core.dependencies import require_role
+from app.core.rate_limiter import rate_limit
+from app.crud.admin_audit_log import crud_admin_audit_log
 from app.database import get_db
 from app.models.ai_call_log import AICallLog, AICallStatus, AIFeature
 from app.models.ai_prompt_config import AIPromptConfig
@@ -21,7 +23,11 @@ from app.services.prompt_loader import HARDCODED_FALLBACK_PROMPTS
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/admin/ai", tags=["Admin — AI Control"])
+router = APIRouter(
+    prefix="/admin/ai",
+    tags=["Admin — AI Control"],
+    dependencies=[Depends(require_role(UserRole.ADMIN))],
+)
 
 
 # ── Pydantic Schemas ──────────────────────────────────────────────────────────
@@ -163,6 +169,25 @@ def update_prompt(
     config.updated_at = func.now()
     db.commit()
     db.refresh(config)
+
+    # Record immutable audit log for AI system prompt mutation
+    crud_admin_audit_log.create(
+        db,
+        actor_user_id=current_user.id,
+        actor_email=current_user.email,
+        action="ai_prompt.updated",
+        target_type="ai_prompt",
+        target_id=str(config.id),
+        target_label=feature.value,
+        details={
+            "feature": feature.value,
+            "has_system_prompt_changed": body.system_prompt is not None,
+            "has_user_template_changed": body.user_prompt_template is not None,
+            "is_active": config.is_active,
+        },
+    )
+    db.commit()
+
     return _enrich_prompt(config, db)
 
 
@@ -170,6 +195,7 @@ def update_prompt(
     "/prompts/{feature}/test",
     response_model=AIPromptTestResult,
     summary="Test thu prompt moi (goi AI that 1 lan, khong luu)",
+    dependencies=[Depends(rate_limit("ai_expensive"))],
 )
 async def test_prompt(
     feature: AIFeature,
