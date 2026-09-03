@@ -5,10 +5,11 @@ import { useUser, useAuthStore } from "@/stores/authStore";
 import { tokenStorage } from "@/lib/axios";
 import { Button, Input, Skeleton } from "@/components/ui";
 import {
-  Shield, Briefcase, Search, ChevronLeft, ChevronRight,
+  Shield, Briefcase, Search,
   Building2, MapPin, Clock, ExternalLink,
 } from "lucide-react";
 import { AdminTabNavigation } from "./components/AdminTabNavigation";
+import { AdminPagination } from "./components/AdminPagination";
 import { SEOMeta } from "@/components/seo/SEOMeta";
 import { motion } from "framer-motion";
 
@@ -232,20 +233,13 @@ export function AdminJobs() {
               </div>
 
               {/* Pagination */}
-              <div className="flex items-center justify-between bg-white border border-slate-200/80 rounded-2xl px-5 py-3.5">
-                <span className="text-xs text-slate-500 font-medium">
-                  <span className="font-bold text-slate-900">{data.total}</span> tin — Trang{" "}
-                  <span className="font-bold text-slate-900">{page}</span> / {Math.ceil(data.total / 20) || 1}
-                </span>
-                <div className="flex gap-2">
-                  <button disabled={page <= 1} onClick={() => setPage(p => p - 1)}
-                    className="w-9 h-9 rounded-xl border border-slate-200 bg-white flex items-center justify-center text-slate-600 hover:bg-slate-50 disabled:opacity-40 transition-all">
-                    <ChevronLeft className="w-4 h-4" /></button>
-                  <button disabled={page * 20 >= data.total} onClick={() => setPage(p => p + 1)}
-                    className="w-9 h-9 rounded-xl border border-slate-200 bg-white flex items-center justify-center text-slate-600 hover:bg-slate-50 disabled:opacity-40 transition-all">
-                    <ChevronRight className="w-4 h-4" /></button>
-                </div>
-              </div>
+              <AdminPagination
+                page={page}
+                pageSize={20}
+                total={data.total}
+                unitName="tin tuyển dụng"
+                onPageChange={setPage}
+              />
             </>
           )}
         </div>
