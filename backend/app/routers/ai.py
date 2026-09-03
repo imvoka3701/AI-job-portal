@@ -1,5 +1,6 @@
 """AI router — matching, CV evaluation, roadmap suggestion endpoints."""
 
+import json
 import logging
 import time
 
@@ -344,11 +345,22 @@ async def suggest_roadmap(
             detail="CV has no text content to generate roadmap.",
         )
 
+    parsed_skills: list[str] = []
+    if resume.parsed_skills:
+        try:
+            skills_data = json.loads(resume.parsed_skills)
+            if isinstance(skills_data, list):
+                parsed_skills = [str(s).strip() for s in skills_data if s and str(s).strip()]
+            elif isinstance(skills_data, str):
+                parsed_skills = [s.strip() for s in skills_data.split(",") if s.strip()]
+        except Exception:
+            parsed_skills = [s.strip() for s in resume.parsed_skills.split(",") if s.strip()]
+
     started = time.monotonic()
     try:
         result = await roadmap_suggest_service.suggest(
             resume_text=resume.raw_text,
-            parsed_skills=[],
+            parsed_skills=parsed_skills,
             target_role=data.target_role,
             db=db,
         )
