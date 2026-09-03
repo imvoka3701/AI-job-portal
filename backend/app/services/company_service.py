@@ -1,13 +1,17 @@
 """Business logic for employer tenancy, team lifecycle, and ownership."""
 
 import hashlib
+import logging
 import secrets
 from datetime import datetime, timedelta, timezone
+from typing import Any
 
 from fastapi import HTTPException, status
 from sqlalchemy import delete
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
+
+logger = logging.getLogger(__name__)
 
 from app.core.security import hash_password
 from app.crud.admin_audit_log import crud_admin_audit_log
@@ -150,6 +154,7 @@ class CompanyService:
         company: Company,
         data: InvitationCreate,
         actor: User,
+        background_tasks: Any = None,
     ) -> tuple[CompanyInvitation, str]:
         email = str(data.email).lower()
         if crud_company.get_pending_invitation(db, company_id=company.id, email=email):
@@ -196,7 +201,15 @@ class CompanyService:
         db.commit()
         db.refresh(invitation)
         invitation = crud_company.get_invitation(db, invitation_id=invitation.id)
-        self.deliver_invitation(db, invitation=invitation, token=token, actor=actor)  # type: ignore[arg-type]
+        if background_tasks is not None:
+            background_tasks.add_task(
+                deliver_invitation_background_task,
+                invitation_id=invitation.id,
+                token=token,
+                actor_id=actor.id,
+            )
+        else:
+            self.deliver_invitation(db, invitation=invitation, token=token, actor=actor)  # type: ignore[arg-type]
         return crud_company.get_invitation(db, invitation_id=invitation.id), token  # type: ignore[union-attr,return-value]
 
     def get_invitation_by_token(self, db: Session, *, token: str) -> CompanyInvitation:
@@ -287,7 +300,12 @@ class CompanyService:
         return invitation
 
     def resend_invitation(
-        self, db: Session, *, invitation: CompanyInvitation, actor: User
+        self,
+        db: Session,
+        *,
+        invitation: CompanyInvitation,
+        actor: User,
+        background_tasks: Any = None,
     ) -> tuple[CompanyInvitation, str]:
         if invitation.status not in {InvitationStatus.PENDING, InvitationStatus.EXPIRED}:
             raise HTTPException(status_code=409, detail="Không thể gửi lại lời mời này.")
@@ -307,7 +325,15 @@ class CompanyService:
         )
         db.commit()
         invitation = crud_company.get_invitation(db, invitation_id=invitation.id)
-        self.deliver_invitation(db, invitation=invitation, token=token, actor=actor)  # type: ignore[arg-type]
+        if background_tasks is not None:
+            background_tasks.add_task(
+                deliver_invitation_background_task,
+                invitation_id=invitation.id,
+                token=token,
+                actor_id=actor.id,
+            )
+        else:
+            self.deliver_invitation(db, invitation=invitation, token=token, actor=actor)  # type: ignore[arg-type]
         return crud_company.get_invitation(db, invitation_id=invitation.id), token  # type: ignore[union-attr,return-value]
 
     def deliver_invitation(
@@ -630,3 +656,19 @@ class CompanyService:
 
 
 company_service = CompanyService()
+
+
+def deliver_invitation_background_task(invitation_id: int, token: str, actor_id: int) -> None:
+    """Deliver invitation email in a background task using its own fresh DB session."""
+    from app.database import SessionLocal
+
+    db = SessionLocal()
+    try:
+        invitation = crud_company.get_invitation(db, invitation_id=invitation_id)
+        actor = crud_user.get_by_id(db, user_id=actor_id)
+        if invitation and actor:
+            company_service.deliver_invitation(db, invitation=invitation, token=token, actor=actor)
+    except Exception:
+        logger.exception("Failed to deliver background invitation %s", invitation_id)
+    finally:
+        db.close()
