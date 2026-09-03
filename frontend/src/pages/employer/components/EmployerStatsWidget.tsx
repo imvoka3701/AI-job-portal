@@ -99,26 +99,26 @@ export function EmployerStatsWidget({ stats, loading, error, scoped = false }: P
     },
     {
       title: "Điểm AI trung bình",
-      value: stats.avg_ai_match != null ? `${stats.avg_ai_match}%` : "82.9%",
-      trend: "Top 15% ngành",
-      trendPositive: true,
+      value: stats.avg_ai_match != null ? `${stats.avg_ai_match}%` : "Chưa có dữ liệu",
+      trend: stats.avg_ai_match != null ? "Top 15% ngành" : "Chưa có dữ liệu",
+      trendPositive: stats.avg_ai_match != null,
       subtext: "Độ phù hợp của ứng viên",
       icon: Activity,
       accent: "from-purple-500/10 to-pink-500/5",
       iconColor: "text-purple-600 bg-purple-50",
-      sparkline: [70, 72, 75, 74, 79, 81, 83],
+      sparkline: stats.avg_ai_match != null ? [70, 72, 75, 74, 79, 81, 83] : [0, 0, 0, 0, 0, 0, 0],
       sparklineColor: "#8b5cf6"
     },
     {
       title: "Thời gian tuyển",
-      value: stats.time_to_hire_avg_days != null ? `${stats.time_to_hire_avg_days} ngày` : "14 ngày",
-      trend: "-3 ngày so với TB",
+      value: stats.time_to_hire_avg_days != null ? `${stats.time_to_hire_avg_days} ngày` : "Chưa có dữ liệu",
+      trend: stats.time_to_hire_avg_days != null ? "-3 ngày so với TB" : "Chưa có dữ liệu",
       trendPositive: true,
       subtext: "Từ lúc nộp đến Nhận việc",
       icon: Clock,
       accent: "from-amber-500/10 to-orange-500/5",
       iconColor: "text-amber-600 bg-amber-50",
-      sparkline: [20, 19, 18, 17, 15, 14, 14],
+      sparkline: stats.time_to_hire_avg_days != null ? [20, 19, 18, 17, 15, 14, 14] : [0, 0, 0, 0, 0, 0, 0],
       sparklineColor: "#f59e0b"
     }
   ];
@@ -149,11 +149,11 @@ export function EmployerStatsWidget({ stats, loading, error, scoped = false }: P
               <div className="relative z-10 flex flex-col justify-end">
                 <div className="flex items-end justify-between gap-4">
                   <div>
-                    <h3 className="text-3xl font-extrabold text-gray-900 tracking-tight">
+                    <h3 className={`${String(card.value).length > 6 ? "text-xl sm:text-2xl" : "text-3xl"} font-extrabold text-gray-900 tracking-tight`}>
                       {card.value}
                     </h3>
                     <div className="flex items-center gap-2 mt-2">
-                      <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full border ${card.trendPositive ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : 'text-red-700 bg-red-50 border-red-200'}`}>
+                      <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full border ${card.trend === 'Chưa có dữ liệu' ? 'text-gray-500 bg-gray-50 border-gray-200' : card.trendPositive ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : 'text-red-700 bg-red-50 border-red-200'}`}>
                         {card.trend}
                       </span>
                     </div>
