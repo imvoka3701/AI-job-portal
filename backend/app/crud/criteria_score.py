@@ -38,9 +38,12 @@ class CRUDCriteriaScore:
 
         # Sync average to InterviewRound.score
         round_obj = db.get(InterviewRound, round_id)
-        if round_obj and results:
-            avg = sum(c.score for c in results) / len(results)
-            round_obj.score = round(avg)
+        if round_obj:
+            if results:
+                avg = sum(c.score for c in results) / len(results)
+                round_obj.score = round(avg)
+            else:
+                round_obj.score = None
             db.commit()
 
         return results

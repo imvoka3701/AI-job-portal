@@ -135,3 +135,39 @@ class TestCriteriaScores:
         # Round score should be 9 (only X)
         db_session.refresh(r1)
         assert r1.score == 9
+
+    def test_bulk_replace_empty_resets_round_score_to_none(
+        self, client: TestClient, db_session: Session
+    ):
+        """PUT /rounds/{id}/criteria with empty criteria list must reset round.score to None."""
+        cand = _register_and_login(client, db_session, "cs4_c@t.com", "p")
+        emp = _register_and_login(client, db_session, "cs4_e@t.com", "p", "E4", "employer", "C4")
+        job_id = _create_job(client, emp)
+
+        app_id = client.post("/applications", json={"job_id": job_id}, headers=cand).json()["id"]
+        r1 = (
+            db_session.query(InterviewRound).filter(InterviewRound.application_id == app_id).first()
+        )
+
+        # 1. First add criteria so round has a score
+        client.put(
+            f"/rounds/{r1.id}/criteria",
+            json={"criteria": [{"criteria_name": "Tech", "score": 8}]},
+            headers=emp,
+        )
+        db_session.refresh(r1)
+        assert r1.score == 8
+
+        # 2. Now replace with empty criteria list
+        resp = client.put(
+            f"/rounds/{r1.id}/criteria",
+            json={"criteria": []},
+            headers=emp,
+        )
+        assert resp.status_code == 200
+        assert resp.json() == []
+
+        # 3. Verify round.score is reset to None
+        db_session.refresh(r1)
+        assert r1.score is None, f"Expected round.score to be None, got {r1.score}"
+
