@@ -549,3 +549,74 @@ class TestAnalytics458:
         assert "google_oauth" in src
         assert src["direct"] > 0, f"Direct source should be > 0, got {src['direct']}%"
         assert src["google_oauth"] > 0, f"Google OAuth should be > 0, got {src['google_oauth']}%"
+
+
+class TestTerminalStatusPreservation:
+    def test_sync_does_not_overwrite_accepted_status(self, client: TestClient, db_session: Session):
+        """Updating an interview round must NOT overwrite an application's ACCEPTED status."""
+        cand = _register_and_login(client, db_session, "term_acc_c@t.com", "p", "TAC")
+        emp = _register_and_login(
+            client, db_session, "term_acc_e@t.com", "p", "TAE", "employer", "TermCorp"
+        )
+        job_id = _create_job(client, emp)
+        app_id = client.post("/applications", json={"job_id": job_id}, headers=cand).json()["id"]
+
+        # 1. Employer accepts candidate (terminal decision)
+        client.patch(f"/applications/{app_id}", json={"status": "accepted"}, headers=emp)
+        app = db_session.get(Application, app_id)
+        assert app.status == ApplicationStatus.ACCEPTED
+
+        # 2. Employer modifies an interview round
+        round_obj = (
+            db_session.query(InterviewRound)
+            .filter(InterviewRound.application_id == app_id)
+            .first()
+        )
+        assert round_obj is not None
+
+        from app.crud.interview_round import crud_interview_round
+
+        crud_interview_round.update(
+            db_session, db_obj=round_obj, data={"status": RoundStatus.FAILED.value}
+        )
+
+        # 3. Verify application status REMAINS ACCEPTED
+        db_session.refresh(app)
+        assert app.status == ApplicationStatus.ACCEPTED, (
+            f"Expected application status to remain ACCEPTED, got {app.status}"
+        )
+
+    def test_sync_does_not_overwrite_rejected_status(self, client: TestClient, db_session: Session):
+        """Updating an interview round must NOT overwrite an application's REJECTED status."""
+        cand = _register_and_login(client, db_session, "term_rej_c@t.com", "p", "TRC")
+        emp = _register_and_login(
+            client, db_session, "term_rej_e@t.com", "p", "TRE", "employer", "TermCorp2"
+        )
+        job_id = _create_job(client, emp)
+        app_id = client.post("/applications", json={"job_id": job_id}, headers=cand).json()["id"]
+
+        # 1. Employer rejects candidate (terminal decision)
+        client.patch(f"/applications/{app_id}", json={"status": "rejected"}, headers=emp)
+        app = db_session.get(Application, app_id)
+        assert app.status == ApplicationStatus.REJECTED
+
+        # 2. Modify an interview round
+        round_obj = (
+            db_session.query(InterviewRound)
+            .filter(InterviewRound.application_id == app_id)
+            .first()
+        )
+        assert round_obj is not None
+
+        from app.crud.interview_round import crud_interview_round
+
+        crud_interview_round.update(
+            db_session, db_obj=round_obj, data={"status": RoundStatus.PASSED.value}
+        )
+
+        # 3. Verify application status REMAINS REJECTED
+        db_session.refresh(app)
+        assert app.status == ApplicationStatus.REJECTED, (
+            f"Expected application status to remain REJECTED, got {app.status}"
+        )
+
