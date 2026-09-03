@@ -90,7 +90,7 @@ export function JobCard({ job, viewMode = "list" }: { job: Job; viewMode?: "list
       onMouseMove={handleMouseMove}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      className="job-card-glass h-full p-5 cursor-pointer select-none group transition-all hover:shadow-lg hover:border-emerald-300"
+      className="job-card-glass h-full p-5 cursor-pointer select-none group transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:border-emerald-300"
       whileTap={{ scale: 0.99 }}
       data-view={viewMode}
     >
