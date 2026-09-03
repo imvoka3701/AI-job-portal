@@ -6,7 +6,7 @@ import { getJobs } from "@/lib/api/jobs";
 import { uploadAvatar } from "@/lib/api/users";
 import { useUser, useAuthStore } from "@/stores/authStore";
 import { tokenStorage, apiClient } from "@/lib/axios";
-import { Button, Card, CardHeader, CardContent, Spinner, ApplicationStatusBadge } from "@/components/ui";
+import { Button, Card, CardHeader, CardContent, Spinner, ApplicationStatusBadge, EmptyState, ErrorState } from "@/components/ui";
 import { getApiErrorMessage } from "@/lib/axios";
 import type { Application } from "@/types/application";
 import type { Resume } from "@/types/resume";
@@ -86,7 +86,7 @@ export const CandidateDashboard = () => {
   }, [user]);
 
   // ── Fetch applications ────────────────────────────────────────────────────
-  useEffect(() => {
+  const fetchApplications = useCallback(() => {
     if (!user && tokenStorage.get()) {
       useAuthStore.getState().fetchMe().catch(() => setIsLoading(false));
       return;
@@ -96,27 +96,24 @@ export const CandidateDashboard = () => {
       return;
     }
 
-    let isCancelled = false;
     setIsLoading(true);
     setError(null);
 
     getMyApplications()
       .then((data) => {
-        if (!isCancelled) {
-          setApplications(data);
-        }
+        setApplications(data);
       })
       .catch(() => {
-        if (!isCancelled) setError("Không thể tải danh sách ứng tuyển. Vui lòng thử lại.");
+        setError("Không thể tải danh sách ứng tuyển. Vui lòng thử lại.");
       })
       .finally(() => {
-        if (!isCancelled) setIsLoading(false);
+        setIsLoading(false);
       });
-
-    return () => {
-      isCancelled = true;
-    };
   }, [user]);
+
+  useEffect(() => {
+    fetchApplications();
+  }, [fetchApplications]);
 
   // ── Fetch resumes ────────────────────────────────────────────────────────
   const fetchResumes = useCallback(() => {
@@ -516,23 +513,27 @@ export const CandidateDashboard = () => {
                     <p className="text-xs text-slate-500">Đang tải danh sách hồ sơ ứng tuyển...</p>
                   </div>
                 ) : error ? (
-                  <div className="p-8 text-center text-xs font-bold text-rose-600 bg-rose-50">
-                    {error}
+                  <div className="p-6">
+                    <ErrorState
+                      title="Không thể tải danh sách ứng tuyển"
+                      message={error}
+                      onRetry={fetchApplications}
+                    />
                   </div>
                 ) : filteredApplications.length === 0 ? (
-                  <div className="p-12 text-center space-y-3">
-                    <FileCheck className="w-12 h-12 text-slate-300 mx-auto mb-2" />
-                    <p className="text-sm font-bold text-slate-900">Không có đơn ứng tuyển nào ở mục này</p>
-                    <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                      Khám phá các vị trí tuyển dụng phù hợp với hồ sơ kỹ thuật của bạn và gửi đơn ngay.
-                    </p>
-                    <div className="pt-3">
-                      <Link to="/jobs">
-                        <Button size="sm" className="bg-[#00B86B] hover:bg-[#00995C] text-white font-bold rounded-full px-6 shadow-sm">
-                          Tìm việc làm IT ngay
-                        </Button>
-                      </Link>
-                    </div>
+                  <div className="p-6">
+                    <EmptyState
+                      icon={<FileCheck className="w-7 h-7 text-emerald-600" />}
+                      title="Không có đơn ứng tuyển nào ở mục này"
+                      description="Khám phá các vị trí tuyển dụng phù hợp với hồ sơ kỹ thuật của bạn và gửi đơn ngay."
+                      action={
+                        <Link to="/jobs">
+                          <Button size="sm" className="bg-[#00B86B] hover:bg-[#00995C] text-white font-bold rounded-full px-6 shadow-sm">
+                            Tìm việc làm IT ngay
+                          </Button>
+                        </Link>
+                      }
+                    />
                   </div>
                 ) : (
                   <div className="divide-y divide-slate-100">
