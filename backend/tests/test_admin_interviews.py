@@ -3,6 +3,7 @@
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
+from app.core.security import hash_password
 from app.models.admin_audit_log import AdminAuditLog
 from app.models.application import Application
 from app.models.interview_round import InterviewRound, RoundStatus, RoundType
@@ -13,7 +14,7 @@ from app.models.user import User, UserRole
 def _create_admin_and_login(client: TestClient, db_session: Session) -> dict[str, str]:
     admin = User(
         email="admin_interview@test.com",
-        hashed_password="hashed_pwd",
+        hashed_password=hash_password("Password123!"),
         full_name="Super Admin",
         role=UserRole.ADMIN,
         is_active=True,
@@ -22,19 +23,10 @@ def _create_admin_and_login(client: TestClient, db_session: Session) -> dict[str
     db_session.commit()
     db_session.refresh(admin)
 
-    # In our tests, login checks email + password, but we can register/login or mock
-    client.post(
-        "/auth/register",
-        json={
-            "email": "admin_real@test.com",
-            "password": "Password123!",
-            "full_name": "Admin Real",
-            "role": "admin",
-        },
-    )
     resp = client.post(
-        "/auth/login", json={"email": "admin_real@test.com", "password": "Password123!"}
+        "/auth/login", json={"email": "admin_interview@test.com", "password": "Password123!"}
     )
+    assert resp.status_code == 200, resp.text
     token = resp.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
 
