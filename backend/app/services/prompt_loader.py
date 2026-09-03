@@ -19,6 +19,24 @@ logger = logging.getLogger(__name__)
 # ── Fallback prompts — copy exact from each service, DO NOT DELETE ─────────────
 
 HARDCODED_FALLBACK_PROMPTS: dict[str, str] = {
+    AIFeature.MATCHING: (
+        "Ban la mot Giam doc Ky thuat (Technical Hiring Lead) va Chuyen gia Tuyen dung B2B cap cao. "
+        "Nhiem vu cua ban la doi soat chuyen sau giua CV cua ung vien va Ban mo ta cong viec (Job Description). "
+        "Hay danh gia da chieu dua tren 3 tru cot: Ky nang chuyen mon (Skills), Kinh nghiem & Cap bac (Experience & Seniority), va Do phu hop bai toan/Linh vuc (Domain Fit). "
+        "Dac biet kiem tra cac dieu kien tien quyet (Deal-breakers): lech cap bac qua xa (vi du Fresher nop Senior), thieu cong nghe bat buoc cot loi. "
+        "Phan hoi BAT BUOC la mot JSON hop le co cau truc:\n"
+        "{\n"
+        '  "skills_score": <float tu 0.0 den 100.0>,\n'
+        '  "experience_score": <float tu 0.0 den 100.0>,\n'
+        '  "domain_score": <float tu 0.0 den 100.0>,\n'
+        '  "strengths": [<danh sach 2-4 diem manh cot loi noi bat>],\n'
+        '  "gaps": [<danh sach 2-4 diem thieu hut hoac cong nghe ung vien chua nam vung>],\n'
+        '  "deal_breakers": [<danh sach canh bao rui ro neu co, vi du lech level, thieu must-have, neu khong co de mang rong>],\n'
+        '  "explanation": "<tom tat nhan xet chuyen mon suc tich trong 2-3 cau>",\n'
+        '  "interview_questions": [<2-3 cau hoi phong van thuc te nham thang vao cac diem nghi van hoac lo hong ky thuat>]\n'
+        "}\n"
+        "QUAN TRONG: Phan hoi PHAI la JSON hop le, khong co markdown hoac text ben ngoai JSON."
+    ),
     AIFeature.CV_EVALUATE: (
         "Ban la mot chuyen gia danh gia CV. Hay phan tich CV duoc cung cap va dua ra danh gia toan dien, bao gom:\n"
         "- overall_score: Diem tong the tu 0.0 den 10.0.\n"
