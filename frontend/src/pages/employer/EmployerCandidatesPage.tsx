@@ -22,7 +22,7 @@ import {
   RoundTimeline,
   Spinner,
 } from "@/components/ui";
-import { Sparkles } from "lucide-react";
+import { Sparkles, CheckCircle2, HelpCircle } from "lucide-react";
 import { CVPreviewModal } from "@/pages/candidate/components/CVPreviewModal";
 import { CVPreview } from "@/pages/candidate/cv/CVPreview";
 import { EmployerCandidateRadarChart } from "./components/EmployerCandidateRadarChart";
@@ -767,8 +767,10 @@ export function EmployerCandidatesPage() {
           </div>
         )}
         {!summarizeLoading && !summarizeError && summarizeResult && (
-          <div className="space-y-5">
+          <div className="space-y-4">
             <AIDisclaimerBanner context="summary" />
+
+            {/* 1. Core Summary */}
             <div className="rounded-xl bg-blue-50/70 border border-blue-200 p-5 space-y-2">
               <h3 className="text-sm font-bold text-blue-900 flex items-center gap-2">
                 <Sparkles className="w-4 h-4 text-blue-600" />
@@ -778,6 +780,42 @@ export function EmployerCandidatesPage() {
                 {summarizeResult.summary}
               </p>
             </div>
+
+            {/* 2. Fit Points */}
+            {summarizeResult.fit_points && summarizeResult.fit_points.length > 0 && (
+              <div className="rounded-xl bg-emerald-50/70 border border-emerald-200 p-5 space-y-2.5">
+                <h3 className="text-sm font-bold text-emerald-900 flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                  Điểm phù hợp nổi bật với vị trí ({summarizeResult.fit_points.length})
+                </h3>
+                <ul className="space-y-1.5">
+                  {summarizeResult.fit_points.map((point, idx) => (
+                    <li key={idx} className="text-sm text-emerald-950 flex items-start gap-2">
+                      <span className="text-emerald-600 font-bold">•</span>
+                      <span>{point}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* 3. Suggested Questions */}
+            {summarizeResult.questions && summarizeResult.questions.length > 0 && (
+              <div className="rounded-xl bg-purple-50/70 border border-purple-200 p-5 space-y-2.5">
+                <h3 className="text-sm font-bold text-purple-900 flex items-center gap-2">
+                  <HelpCircle className="w-4 h-4 text-purple-600" />
+                  Câu hỏi phỏng vấn đề xuất ({summarizeResult.questions.length})
+                </h3>
+                <ul className="space-y-2">
+                  {summarizeResult.questions.map((q, idx) => (
+                    <li key={idx} className="text-sm text-purple-950 flex items-start gap-2">
+                      <span className="text-purple-600 font-bold shrink-0">{idx + 1}.</span>
+                      <span className="font-medium">{q}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
         )}
         <div className="mt-6 pt-4 border-t border-gray-100 flex justify-end">
