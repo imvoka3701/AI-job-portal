@@ -11,6 +11,7 @@ from app.models.resume import Resume, EMBEDDING_DIM
 from app.models.notification import Notification  # noqa: F401
 from app.models.company import Company, CompanyMembership, MembershipRole, MembershipStatus
 from app.models.interview_round import InterviewRound, RoundType, RoundStatus
+from app.models.criteria_score import CriteriaScore
 
 DEMO_PASSWORD = "Employer@123456"
 FAKE_EMBEDDING = [0.02] * EMBEDDING_DIM
@@ -27,6 +28,15 @@ DEMO_ACCOUNTS = [
         "email": "employer@techcorp.vn",
         "password": "Employer@123456",
         "full_name": "Trần Thị Mai HR",
+        "role": UserRole.EMPLOYER,
+        "is_active": True,
+        "company_name": "TechCorp VN",
+        "company_description": "Tập đoàn công nghệ và giải pháp phần mềm hàng đầu tại Việt Nam, tiên phong ứng dụng AI trong quản trị doanh nghiệp.",
+    },
+    {
+        "email": "techlead@techcorp.vn",
+        "password": "TechLead@123456",
+        "full_name": "Phạm Quốc Dũng TechLead",
         "role": UserRole.EMPLOYER,
         "is_active": True,
         "company_name": "TechCorp VN",
@@ -150,6 +160,27 @@ def seed_standard_accounts():
             membership.status = MembershipStatus.ACTIVE
         db.commit()
 
+        # Ensure TechLead membership exists
+        techlead_user = db.query(User).filter(User.email == "techlead@techcorp.vn").first()
+        if techlead_user:
+            tl_membership = db.query(CompanyMembership).filter(
+                CompanyMembership.company_id == primary_company.id,
+                CompanyMembership.user_id == techlead_user.id,
+            ).first()
+            if not tl_membership:
+                tl_membership = CompanyMembership(
+                    company_id=primary_company.id,
+                    user_id=techlead_user.id,
+                    member_role=MembershipRole.DEPARTMENT_HEAD,
+                    is_owner=False,
+                    status=MembershipStatus.ACTIVE,
+                )
+                db.add(tl_membership)
+            else:
+                tl_membership.member_role = MembershipRole.DEPARTMENT_HEAD
+                tl_membership.status = MembershipStatus.ACTIVE
+            db.commit()
+
         # 4. Ensure all TechCorp jobs point to primary_company.id
         db.query(Job).filter(Job.employer_id == employer_user.id).update({"company_id": primary_company.id})
         db.commit()
@@ -221,11 +252,48 @@ def seed_standard_accounts():
                 category_id=cat_map.get("devops-cloud"),
                 embedding=FAKE_EMBEDDING,
             )
-            db.add_all([job1, job2, job3, job4])
+            job5 = Job(
+                title="Junior Backend Developer (Python / FastAPI)",
+                description="Tham gia phát triển RESTful APIs, tối ưu hóa truy vấn PostgreSQL và xây dựng các dịch vụ microservices cùng TechLead.",
+                requirements="Tối thiểu 1 năm kinh nghiệm Python, FastAPI/Flask, SQL cơ bản. Tư duy logic tốt, ham học hỏi.",
+                benefits="Lương 15 - 25 Triệu, được TechLead trực tiếp mentor, xét tăng lương 2 lần/năm.",
+                job_type=JobType.FULL_TIME,
+                experience_level=ExperienceLevel.JUNIOR,
+                salary_min=15_000_000,
+                salary_max=25_000_000,
+                location="Hà Nội",
+                is_active=True,
+                employer_id=employer_user.id,
+                company_id=primary_company.id,
+                category_id=cat_map.get("it-phan-mem"),
+                embedding=FAKE_EMBEDDING,
+            )
+            db.add_all([job1, job2, job3, job4, job5])
             db.commit()
-            jobs_list = [job1, job2, job3, job4]
+            jobs_list = [job1, job2, job3, job4, job5]
         else:
-            jobs_list = existing_jobs
+            # Check if job5 exists, if not add it
+            j5 = db.query(Job).filter(Job.company_id == primary_company.id, Job.title.like("%Junior Backend%")).first()
+            if not j5:
+                j5 = Job(
+                    title="Junior Backend Developer (Python / FastAPI)",
+                    description="Tham gia phát triển RESTful APIs, tối ưu hóa truy vấn PostgreSQL và xây dựng các dịch vụ microservices cùng TechLead.",
+                    requirements="Tối thiểu 1 năm kinh nghiệm Python, FastAPI/Flask, SQL cơ bản. Tư duy logic tốt, ham học hỏi.",
+                    benefits="Lương 15 - 25 Triệu, được TechLead trực tiếp mentor, xét tăng lương 2 lần/năm.",
+                    job_type=JobType.FULL_TIME,
+                    experience_level=ExperienceLevel.JUNIOR,
+                    salary_min=15_000_000,
+                    salary_max=25_000_000,
+                    location="Hà Nội",
+                    is_active=True,
+                    employer_id=employer_user.id,
+                    company_id=primary_company.id,
+                    category_id=cat_map.get("it-phan-mem"),
+                    embedding=FAKE_EMBEDDING,
+                )
+                db.add(j5)
+                db.commit()
+            jobs_list = db.query(Job).filter(Job.company_id == primary_company.id).all()
 
         # 5. Candidate users, resumes & applications
         print("[SEED] Creating sample candidates and applications for TechCorp VN...")
@@ -299,19 +367,96 @@ def seed_standard_accounts():
                 )
                 db.add(app)
                 db.flush()
+            else:
+                app = existing_app
 
-                # Add interview round for interview / shortlisted candidates
-                if app.status in (ApplicationStatus.INTERVIEW, ApplicationStatus.ACCEPTED):
-                    intv = db.query(InterviewRound).filter(InterviewRound.application_id == app.id).first()
-                    if not intv:
-                        intv = InterviewRound(
-                            application_id=app.id,
-                            round_number=1,
-                            round_type=RoundType.TECH_INTERVIEW.value,
-                            round_name="Phỏng vấn Kỹ thuật Chuyên sâu",
-                            status=RoundStatus.IN_PROGRESS.value if app.status == ApplicationStatus.INTERVIEW else RoundStatus.PASSED.value,
-                        )
-                        db.add(intv)
+            # Add or update interview round for interview / shortlisted candidates
+            intv = db.query(InterviewRound).filter(InterviewRound.application_id == app.id).first()
+            if not intv and app.status in (ApplicationStatus.INTERVIEW, ApplicationStatus.ACCEPTED):
+                intv = InterviewRound(
+                    application_id=app.id,
+                    round_number=1,
+                    round_type=RoundType.TECH_INTERVIEW.value,
+                    round_name="Phỏng vấn Kỹ thuật Chuyên sâu",
+                    status=RoundStatus.IN_PROGRESS.value if app.status == ApplicationStatus.INTERVIEW else RoundStatus.PASSED.value,
+                )
+                db.add(intv)
+                db.flush()
+
+            if intv:
+                # If candidate 1 (le.thi.mai), make it overdue to trigger Admin Alerts
+                if i == 1:
+                    intv.scheduled_at = datetime.now() - timedelta(days=4)
+                    intv.location = "Phòng Họp 302, Tòa nhà TechCorp, Cầu Giấy, Hà Nội"
+                    intv.needs_review = True
+                    intv.review_reason = "Vòng phỏng vấn kỹ thuật quá hạn 4 ngày chưa cập nhật biên bản đánh giá."
+                # If candidate 3 (pham.minh.khoa), add passed score with CriteriaScores
+                elif i == 3:
+                    intv.score = 9
+                    intv.feedback = "Ứng viên nắm rất vững kiến thức Docker, Kubernetes, CI/CD, văn hóa phù hợp."
+                    existing_crit = db.query(CriteriaScore).filter(CriteriaScore.round_id == intv.id).count()
+                    if existing_crit == 0:
+                        db.add_all([
+                            CriteriaScore(round_id=intv.id, criteria_name="Kỹ năng Chuyên môn & DevOps", score=9, notes="Thành thạo Kubernetes, CI/CD, Linux"),
+                            CriteriaScore(round_id=intv.id, criteria_name="Tư duy Kiến trúc Hệ thống", score=9, notes="Khả năng thiết kế High Availability rất tốt"),
+                            CriteriaScore(round_id=intv.id, criteria_name="Văn hóa & Giao tiếp", score=8, notes="Tự tin, tinh thần trách nhiệm cao"),
+                        ])
+
+        # 6. Ensure default candidate@jobportal.vn has application + upcoming interview
+        main_candidate = db.query(User).filter(User.email == "candidate@jobportal.vn").first()
+        if main_candidate and jobs_list:
+            c_resume = db.query(Resume).filter(Resume.user_id == main_candidate.id).first()
+            if not c_resume:
+                c_resume = Resume(
+                    user_id=main_candidate.id,
+                    title="CV Nguyễn Văn An — Senior Fullstack",
+                    file_url="/uploads/resumes/demo_cv.pdf",
+                    raw_text="Senior Fullstack Engineer với 5 năm kinh nghiệm React, Node.js, Python, PostgreSQL, Docker.",
+                    parsed_skills=json.dumps(["React", "TypeScript", "Python", "FastAPI", "PostgreSQL", "Docker"]),
+                    parsed_experience=json.dumps([{"role": "Senior Engineer", "company": "VinaTech", "duration": "4 years"}]),
+                    embedding=FAKE_EMBEDDING,
+                )
+                db.add(c_resume)
+                db.flush()
+
+            c_app = db.query(Application).filter(
+                Application.candidate_id == main_candidate.id,
+                Application.job_id == jobs_list[0].id
+            ).first()
+            if not c_app:
+                c_app = Application(
+                    candidate_id=main_candidate.id,
+                    job_id=jobs_list[0].id,
+                    resume_id=c_resume.id,
+                    status=ApplicationStatus.INTERVIEW,
+                    ai_matching_score=94.5,
+                    ai_feedback=f"Ứng viên có độ tương thích xuất sắc (94.5%) với vị trí {jobs_list[0].title}. Thành thạo toàn bộ tech stack chính.",
+                    hiring_recommendation=HiringRecommendation.RECOMMENDED,
+                    cover_letter=f"Kính gửi ban tuyển dụng TechCorp, tôi rất hào hứng ứng tuyển vị trí {jobs_list[0].title}.",
+                    applied_at=datetime.now() - timedelta(days=2),
+                )
+                db.add(c_app)
+                db.flush()
+
+            c_intv = db.query(InterviewRound).filter(InterviewRound.application_id == c_app.id).first()
+            if not c_intv:
+                c_intv = InterviewRound(
+                    application_id=c_app.id,
+                    round_number=1,
+                    round_type=RoundType.TECH_INTERVIEW.value,
+                    round_name="Phỏng vấn Kỹ thuật Trực tiếp",
+                    status=RoundStatus.IN_PROGRESS.value,
+                    scheduled_at=datetime.now() + timedelta(days=1, hours=2),
+                    location="Google Meet: https://meet.google.com/abc-xyz-demo",
+                    notes="Phỏng vấn trực tuyến với TechLead Phạm Quốc Dũng và HR Manager.",
+                    reviewer_id=techlead_user.id if techlead_user else employer_user.id,
+                )
+                db.add(c_intv)
+            else:
+                c_intv.scheduled_at = datetime.now() + timedelta(days=1, hours=2)
+                c_intv.location = "Google Meet: https://meet.google.com/abc-xyz-demo"
+                c_intv.notes = "Phỏng vấn trực tuyến với TechLead Phạm Quốc Dũng và HR Manager."
+                c_intv.reviewer_id = techlead_user.id if techlead_user else employer_user.id
 
         db.commit()
         print("[SUCCESS] All TechCorp demo jobs and candidate applications are active and populated!")
