@@ -1,59 +1,147 @@
-# 📌 Checklist Tổng Hợp — Việc Còn Lại
+# 📌 Checklist Tổng Hợp — Kế Hoạch Demo-Ready & Việc Còn Lại
 
-> File này gom TOÀN BỘ việc còn dang dở từ nhiều nguồn rải rác (CHAN_DOAN_DU_AN.md, 
-> DESIGN_AI_ADMIN_CONTROL.md, các báo cáo audit, checklist_Tong_quat.md...) thành 
-> 1 danh sách duy nhất. **Từ giờ dùng file này làm nguồn chân lý chính**, không cần 
-> lục lại các cuộc trò chuyện cũ.
->
-> ⏰ Còn khoảng 3 tuần đến hạn bảo vệ. Danh sách chia theo mức ưu tiên — xem phần 
-> "Gợi ý cách dùng file này" ở cuối trước khi bắt đầu.
+> **File này là nguồn chân lý chính (Single Source of Truth) để theo dõi toàn bộ tiến độ dự án.**
+> Cập nhật mới nhất: **Ngày 04/09/2026** — Định hình chi tiết Master Plan cho ngày mai: Rà soát UI/UX toàn diện, kiểm định CSDL CRUD ổn định và thiết lập bộ dữ liệu Demo-Ready chuẩn thuyết trình.
 
 ---
 
-## 🔴 NHÓM 1 — Rủi ro demo-day (làm trước tiên, mỗi việc chỉ mất vài phút)
+## 🚀 KẾ HOẠCH HÀNH ĐỘNG CHI TIẾT NGÀY MAI (DEMO-READY & PRODUCTION HARDENING)
 
-- [ ] **Tự tay bấm thử Google OAuth** trên trình duyệt thật — đã nhắc 3+ lần trong suốt dự án, **chưa từng được xác nhận đã làm**. Đây là việc duy nhất không có AI nào test thay được.
-- [ ] **Đổi mật khẩu admin mặc định** (hiện có thể vẫn là `Admin@123` hoặc tương tự) — bắt buộc trước khi demo/deploy thật.
-- [x] **Thống nhất 1 tài khoản admin duy nhất** — trước đó phát hiện có tới 4 tài khoản khác nhau nằm rải rác trong các script/tài liệu (`seed_admin.py`, `add_admin.py`, `project_summary.md`...). Xác nhận đã dọn xong chưa, xóa script thừa.
-- [ ] **Spot-check 1-2 tên sách/tác giả trong kết quả AI Roadmap** — xem có thật không (rủi ro AI "bịa" tài liệu tham khảo).
-- [x] **Chạy `git status`** ngay bây giờ — xác nhận không còn gì uncommitted (thói quen mới thêm sau sự cố "cả sprint Admin AI Control Panel suýt mất trắng vì chưa commit").
-
-## 🟠 NHÓM 2 — Cần xác nhận lại trạng thái thật (đã "báo cáo xong" nhưng chưa chắc chắn)
-
-- [x] **CV Preview** — có kế hoạch sửa (fix path Windows, CVCard mới, Preview Modal dùng iframe) đã được duyệt từ lâu, nhưng **chưa từng nhận được báo cáo xác nhận đã code xong**. Cần hỏi lại tình trạng hiện tại.
-- [x] **RBAC nội bộ** — đã xác nhận nối vào một số router mẫu (`jobs.py`, `employer.py`) qua `require_company_permission()`. Cần xác nhận **toàn bộ** endpoint liên quan company đều có check này, không chỉ vài chỗ được kiểm tra mẫu.
-- [x] **MBTI/MI frontend** — backend đã xác nhận thật (gọi `GET /tools/mbti/questions` ra kết quả JSON thật). Nhưng **chưa xác nhận giao diện** (`/tools`, `/tools/mbti`, `/tools/mi`, trang lịch sử) có thực sự tồn tại và hoạt động qua UI thật hay chỉ có API.
-- [x] **CV Builder** — backend xác nhận lưu thật vào DB. Cần xác nhận UI hoàn chỉnh (5 template, autosave như checklist cũ từng nhắc) có thật hay chỉ 1 phần.
-- [x] **Dọn "vỏ rỗng" AI Enterprise cũ có sạch triệt để chưa** — `CVEmbedding`, `tenant_ai_config.py`, `kms_service.py`, trang AI Settings cũ (BYOK/Circuit Breaker/Prompt Studio kiểu cũ). Đã xóa 2 lần rồi ("thanh trừng" + sau vụ "khôi phục từ transcript"), nhưng nên `grep` lại 1 lần cuối cho chắc.
-- [x] **Tài liệu lỗi thời** — `CLAUDE.md`, `AGENTS.md` (từng ghi "Phase 2 in progress", trỏ file không tồn tại), `.bak` file thừa, `implementation_plan.md` chưa đánh dấu hoàn thành. Đã yêu cầu dọn 1 lần, chưa xác nhận đã xong.
-
-## 🟡 NHÓM 3 — Giai đoạn 5: UI/UX Polish (biết rõ là chưa xong)
-
-- [x] **5.1 Design System** — vẫn còn câu hỏi treo: màu `purple-600` trong `RoundTimeline.tsx` đã sửa chưa? Bảng audit "sửa hàng loạt 24 file" trước đó chưa từng được xem lại bằng mắt để xác nhận đúng hướng. (Đã sửa toàn bộ thành emerald)
-- [x] **5.3 Responsive** — chưa làm audit nào (mobile/tablet/desktop).
-- [x] **5.5 Accessibility** — chưa làm audit nào (contrast màu, alt text, keyboard nav).
-- [x] **5.2 / 5.4 Animation, Empty/Error states** — đã có một phần (component `PageTransition`, `EmptyState`, `ErrorState` tồn tại), nhưng chưa audit xem *mọi* màn hình đều dùng đúng chuẩn chưa.
-
-## 🔵 NHÓM 4 — Admin AI Control Panel (vừa xong, còn sót vài việc nhỏ)
-
-- [x] Thêm Vitest riêng cho `AdminAILogsPage.tsx` (hiện chưa có).
-- [x] Thêm E2E smoke test cho `/admin/ai/logs` và `/admin/ai/prompts` (hiện chưa có).
-
-## ⚪ NHÓM 5 — Giai đoạn 6: Docker (phần lớn đã xong)
-
-- [x] **6.4** — Docker đang chạy "healthy" nhưng chưa từng test trên máy sạch chỉ bằng `docker compose up` (chưa cài Python/Node sẵn) để chắc chắn không phụ thuộc môi trường máy cá nhân.
-- [ ] **6.5** (tùy chọn, không bắt buộc) — Deploy thật lên Render/Railway để có link demo online.
-
-## 📄 NHÓM 9 — Tài liệu bảo vệ đồ án (chưa bắt đầu)
-
-- [ ] Viết hồ sơ SDLC (actor, ERD, prompt mẫu, test case, cách dùng AI từng giai đoạn) — đề bài giảng viên yêu cầu.
-- [ ] Bảng kiểm soát thiên lệch AI — **tin vui: `ai_audit.py` vừa hoàn thành chính là bằng chứng cụ thể cho phần này**, chỉ cần viết mô tả lại thành tài liệu.
-- [ ] README hoàn chỉnh: hướng dẫn chạy Docker, tài khoản demo, kịch bản bảo vệ.
+### 🕒 Lịch Trình Khung Giờ Hoạt Động Trong Ngày:
+- **08:30 – 10:30:** Kiểm tra kết nối CSDL, ma trận CRUD 9 bảng thực thể & Soft Delete an toàn.
+- **10:30 – 12:00:** Xây dựng tệp script Seed Data kể chuyện (`app/scripts/seed_demo_data.py`).
+- **13:30 – 15:00:** Rà soát toàn diện UI/UX Cổng Ứng viên & Công khai (Candidate & Public Portal).
+- **15:00 – 16:30:** Rà soát toàn diện UI/UX Cổng Doanh nghiệp Tuyển dụng (Employer Portal).
+- **16:30 – 17:30:** Rà soát toàn diện UI/UX Ban Quản trị (Admin Command Center).
+- **19:30 – 20:30:** Tổng duyệt kịch bản demo trực tiếp (Dry Run Demo từ Candidate -> Employer -> Admin).
+- **20:30 – 21:00:** Xuất snapshot backup DB dự phòng (`backup_demo.sql`) & kiểm tra checklist bảo vệ.
 
 ---
 
+### 🏛️ KHỐI 1 — RÀ SOÁT 100% UI/UX WEBSITE (KHÔNG BỎ SÓT TRANG NÀO)
 
+#### 1.1 Phân hệ Ứng viên & Công khai (Candidate & Public Portal):
+- [ ] **Landing Page (`/`):**
+  - [ ] Hero banner tìm kiếm việc làm + chọn địa điểm tức thì.
+  - [ ] Khối thống kê nền tảng (`PlatformStats`), Top ngành nghề (`TopIndustries`).
+  - [ ] Banner giới thiệu công cụ tạo CV AI (`CVBuilderPromo`), Footer chứa liên kết và bản quyền.
+- [ ] **Trang Danh sách Việc làm (`/jobs`):**
+  - [ ] Bộ lọc đa chiều: Từ khóa, Địa điểm (Hà Nội, TP.HCM, Đà Nẵng, Remote), Mức lương, Kinh nghiệm, Loại hình.
+  - [ ] Chuyển đổi mượt mà chế độ List view / Grid view.
+  - [ ] Thẻ `JobCard`: Hiệu ứng hover lift, badge mức lương, địa điểm, ngày đăng.
+  - [ ] Phân trang và trạng thái `EmptyState` khi không tìm thấy kết quả.
+- [ ] **Trang Chi tiết Việc làm (`/jobs/:id`):**
+  - [ ] Thông tin công ty, mô tả công việc (JD), yêu cầu kỹ năng, phúc lợi.
+  - [ ] Hộp điểm AI Matching Score thời gian thực (tải mượt mà với Skeleton shimmer).
+  - [ ] Nút "Ứng tuyển ngay": Modal chọn CV có sẵn trong hồ sơ hoặc tải CV PDF mới.
+- [ ] **Candidate Dashboard (`/candidate/dashboard`):**
+  - [ ] Banner chào mừng cá nhân hóa + cập nhật ảnh đại diện (Avatar upload).
+  - [ ] Biểu đồ Radar kỹ năng (`RadarChartWidget`) trực quan.
+  - [ ] Danh sách CV đã tải lên + nút xem trước PDF (`CVPreviewModal`) + nút gọi AI chấm điểm CV.
+  - [ ] Banner lịch phỏng vấn sắp tới (Interviews Banner) hiển thị ngày giờ, địa điểm/link họp.
+  - [ ] Bảng lịch sử đơn ứng tuyển kèm huy hiệu trạng thái (Applied, Reviewing, Interview, Accepted, Rejected).
+- [ ] **Trình tạo CV & Đánh giá AI (`/candidate/cv`, `/candidate/cv/:id`):**
+  - [ ] Soạn thảo thông tin cá nhân, kinh nghiệm, học vấn, kỹ năng.
+  - [ ] Bảng gợi ý AI (`AISuggestionPanel`) hoạt động thời gian thực.
+  - [ ] Xuất bản in và tải file PDF CV chuẩn đẹp.
+- [ ] **Bộ Công cụ Trắc nghiệm & Lộ trình AI (`/roadmap`, `/tools/assessment`):**
+  - [ ] Trắc nghiệm MBTI / Đa trí thông minh (Multiple Intelligences) kèm thanh tiến độ mượt mà.
+  - [ ] Trang kết quả hiển thị biểu đồ phân tích nghề nghiệp và lộ trình kỹ năng AI gợi ý.
 
-**NHÓM 5.5 (cloud deploy) là tùy chọn — nếu thời gian eo hẹp, bỏ qua hoàn toàn cũng không sao**, chạy Docker local lúc demo là đủ.
+#### 1.2 Phân hệ Nhà tuyển dụng (Employer Portal):
+- [ ] **Landing Page B2B (`/employer`):**
+  - [ ] Giới thiệu giải pháp tuyển dụng thông minh AI ATS, bảng giá dịch vụ và lợi thế cạnh tranh.
+- [ ] **Employer Dashboard (`/employer/dashboard`):**
+  - [ ] 4 Thẻ KPI cốt lõi (Tổng đơn nộp, Tin đang tuyển, Tỷ lệ tuyển dụng, Ứng viên mới).
+  - [ ] Biểu đồ thống kê phễu tuyển dụng theo thời gian thực.
+- [ ] **Quản lý Tin tuyển dụng (`/employer/jobs` & `/employer/jobs/new`):**
+  - [ ] Form đăng tin chuẩn SEO: Tiêu đề, mức lương min/max, địa điểm, mô tả, phúc lợi.
+  - [ ] Thao tác sửa tin, Đóng tin / Mở lại tin.
+  - [ ] Xóa tin an toàn (kích hoạt **Soft Delete** khi đã có ứng viên nộp đơn để tránh lỗi FK CSDL).
+- [ ] **Đường ống Tuyển dụng ATS (`/employer/candidates`):**
+  - [ ] Chuyển đổi linh hoạt giữa dạng Bảng (Table) và dạng **Kanban Board** 6 cột kéo thả (`Nộp đơn`, `Duyệt CV`, `Sơ vấn HR`, `PV Kỹ thuật`, `Vòng cuối`, `Trúng tuyển`).
+  - [ ] Kéo thả cập nhật trạng thái ứng viên mượt mà với Framer Motion.
+  - [ ] Thẻ ứng viên hiển thị điểm AI Matching Score + Badge phân loại chuẩn xác.
+- [ ] **Modal Đánh giá & AI Soạn Thảo Email:**
+  - [ ] **CV Summarize Modal:** AI tóm tắt năng lực, điểm mạnh, điểm lưu ý và bộ câu hỏi phỏng vấn gợi ý.
+  - [ ] **Email Draft Modal:** AI soạn thư mời phỏng vấn hoặc thư từ chối; cho phép sửa nội dung, hoàn tác bản gốc, sao chép và gửi email.
+- [ ] **Quản lý Đội ngũ Tuyển dụng (`/employer/team`):**
+  - [ ] Danh sách thành viên công ty (Owner, Admin, Member).
+  - [ ] Mời thành viên mới qua email token, đổi vai trò, phân chia tin tuyển dụng phụ trách.
+  - [ ] Bảng nhật ký hoạt động (Activity Timeline) ghi nhận chi tiết lịch sử phân quyền.
 
-Mỗi khi hoàn thành 1 mục, quay lại đây đánh dấu `[x]` — giữ thói quen này để không bao giờ rơi vào tình trạng "không biết còn gì chưa xong" như đã từng gặp phải.
+#### 1.3 Phân hệ Quản trị Viên Cấp cao (Admin Command Center):
+- [ ] **Admin Dashboard (`/admin/dashboard`):**
+  - [ ] 4 Chỉ số KPI toàn diện sàn (Tổng ứng viên, Nhà tuyển dụng, Tin đang hoạt động, Tổng đơn ứng tuyển).
+  - [ ] Biểu đồ tăng trưởng 30 ngày (Recharts) và phễu tuyển dụng toàn hệ thống.
+  - [ ] Khối cảnh báo vận hành (Alerts): Phỏng vấn quá hạn, hồ sơ nộp chờ quá 14 ngày.
+- [ ] **Quản lý Doanh nghiệp (`/admin/companies`):**
+  - [ ] Duyệt tài khoản công ty mới đăng ký (`is_active = True`).
+  - [ ] Khóa / Mở khóa tài khoản doanh nghiệp.
+- [ ] **Quản lý Tin tuyển dụng toàn sàn (`/admin/jobs`):**
+  - [ ] Giám sát tin đăng của toàn bộ các công ty trên nền tảng.
+  - [ ] Đóng / Mở lại tin vi phạm; thanh phân trang chuẩn hóa phạm vi bản ghi.
+- [ ] **Quản lý Toàn bộ Người dùng (`/admin/users`):**
+  - [ ] Bộ lọc từ khóa, vai trò (Admin, Candidate, Employer), trạng thái hoạt động.
+  - [ ] Nút Khóa / Mở khóa người dùng; phân trang chuẩn hóa hiển thị `Hiển thị X - Y trong tổng số Z`.
+- [ ] **Trung tâm Kiểm soát AI (`/admin/ai/prompts`, `/admin/ai/logs`):**
+  - [ ] Quản lý và tùy biến 5 Prompt hệ thống (`cv_evaluate`, `roadmap`, `summarize_cv`, `interview_questions`, `generate_email`).
+  - [ ] Test Prompt trực tiếp với DeepSeek AI (có Rate Limiter bảo vệ).
+  - [ ] Bảng log cuộc gọi AI: Giám sát chi phí token (USD), độ trễ (ms), biểu đồ tỉ lệ lỗi.
+- [ ] **Nhật ký Kiểm toán Bất biến (`/admin/audit-logs`):**
+  - [ ] Bảng truy vết bất biến toàn bộ thao tác can thiệp quản trị hệ thống.
+
+---
+
+### 🗄️ KHỐI 2 — KIỂM ĐỊNH KẾT NỐI & THAO TÁC CSDL (CRUD MATRIX)
+
+- [ ] **Bảng `users`:** Lưu, đọc profile, cập nhật avatar, khóa/mở khóa, chặn tự đăng ký Admin.
+- [ ] **Bảng `companies`:** Lưu hồ sơ công ty, đọc danh sách, duyệt/từ chối công ty.
+- [ ] **Bảng `jobs`:** Tạo mới, đọc danh sách & chi tiết, cập nhật thông tin, **Soft Delete** bảo toàn liên kết đơn nộp.
+- [ ] **Bảng `resumes`:** Lưu file PDF, trích xuất text, tính AI matching embeddings, xóa file an toàn.
+- [ ] **Bảng `applications`:** Nộp đơn ứng tuyển, tra cứu theo ứng viên/doanh nghiệp, cập nhật trạng thái tuyển dụng.
+- [ ] **Bảng `interview_rounds`:** Lên lịch phỏng vấn, cập nhật trạng thái vòng thi, đánh dấu rà soát (needs review).
+- [ ] **Bảng `round_criteria_scores`:** Chấm điểm theo rubric tiêu chí đánh giá, lưu nhận xét của người phỏng vấn.
+- [ ] **Bảng `ai_prompt_configs` & `ai_call_logs`:** Lưu prompt tùy biến, ghi log chi phí token bất biến.
+- [ ] **Bảng `admin_audit_logs`:** Tự động ghi nhật ký bảo mật khi thực hiện thao tác nhạy cảm (không thể sửa/xóa).
+
+---
+
+### 🎭 KHỐI 3 — KỊCH BẢN SEED DATA DEMO-READY KỂ CHUYỆN
+
+- [ ] **Xây dựng script tự động `backend/app/scripts/seed_demo_data.py`:**
+  - Chạy `python -m app.scripts.seed_demo_data` thiết lập toàn bộ môi trường demo trong 5 giây.
+- [ ] **4 Tài khoản Demo sẵn sàng đăng nhập:**
+  1. **Admin:** `admin@jobportal.vn` | `Admin@123456`
+  2. **Employer (HR Director):** `employer@techcorp.vn` | `Employer@123456` (Công ty TechCorp Vietnam)
+  3. **TechLead (Hiring Manager):** `techlead@techcorp.vn` | `TechLead@123456`
+  4. **Ứng viên tài năng (Senior Fullstack):** `nguyen.van.an@techdemo.vn` | `Candidate@123456`
+- [ ] **5 Tin tuyển dụng thật:** Senior Fullstack, AI Engineer, DevOps Engineer, Product Owner, Junior Backend.
+- [ ] **Phễu ứng viên & Lịch phỏng vấn:** Có đủ ứng viên ở từng cột Kanban, điểm AI Matching 92%, 1 lịch phỏng vấn quá hạn kích hoạt cảnh báo Admin.
+
+---
+
+### 🔒 KHỐI 4 — CHECKLIST DỰ PHÒNG & TÀI LIỆU BẢO VỆ
+- [ ] Chạy thử kịch bản demo (Dry Run Demo) từ đầu đến cuối trước buổi báo cáo.
+- [ ] Xuất file sao lưu CSDL dự phòng: `backup_demo.sql` để phục hồi tức thì nếu cần.
+- [ ] Hoàn thiện README hướng dẫn chạy Docker, tài khoản đăng nhập demo.
+- [ ] Viết tài liệu SDLC, sơ đồ ERD và báo cáo kiểm soát thiên lệch AI (sử dụng module `ai_audit.py`).
+
+---
+
+## ✅ CÁC MỤC ĐÃ HOÀN THÀNH VỪA QUA
+- [x] **Củng cố An ninh Cốt lõi & Phân quyền Admin:**
+  - [x] Chặn đứng 100% việc tự đăng ký tài khoản Admin qua `POST /auth/register` (CWE-269).
+  - [x] Thêm Audit Log bất biến khi thay đổi AI System Prompts (CWE-778).
+  - [x] Áp dụng Sliding Window Rate Limiting bảo vệ Endpoint Test AI Prompt (CWE-770).
+  - [x] Thiết lập Fail-Secure Router Dependency `APIRouter(dependencies=[Depends(require_role(ADMIN))])`.
+- [x] **Xử lý Soft Delete & Data Retention cho Jobs (Commit `5f1b0c0`):**
+  - [x] Tự động chuyển sang Soft Delete (`is_active = False`) khi xóa tin đã có ứng viên nộp đơn, triệt tiêu lỗi `ForeignKeyViolation`.
+- [x] **Giao diện ATS Kanban Board Tuyển dụng (Commit `c8c7775`):**
+  - [x] Kéo thả trạng thái ứng viên qua 6 vòng tuyển dụng.
+- [x] **Chuẩn hóa Phân Trang Admin (Commit `fe86fec`):**
+  - [x] Tạo `AdminPagination.tsx` hiển thị chính xác phạm vi `Hiển thị X - Y trong tổng số Z`, tự động ẩn khi `total = 0`, cơ chế chống kẹt trang.
+- [x] **Sửa lỗi CI Backend Tests (Commit `cc95a49`):**
+  - [x] Cập nhật test helper băm mật khẩu trực tiếp, toàn bộ GitHub Actions CI xanh 100%.
+- [x] **Docker Toàn Diện:**
+  - [x] `docker-compose.yml`, `backend/Dockerfile`, `frontend/Dockerfile`, `.env.docker.example` đã commit và hoạt động trơn tru.
