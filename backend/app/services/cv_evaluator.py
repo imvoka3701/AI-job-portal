@@ -44,6 +44,8 @@ class CVEvaluatorService:
                     ],
                     model=settings.LLM_MODEL,
                     response_format={"type": "json_object"},
+                    feature=AIFeature.CV_EVALUATE,
+                    db=db,
                 )
 
                 response_content = response.get("choices", [])[0].get("message", {}).get("content")
