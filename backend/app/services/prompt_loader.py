@@ -24,16 +24,17 @@ HARDCODED_FALLBACK_PROMPTS: dict[str, str] = {
         "Nhiem vu cua ban la doi soat chuyen sau giua CV cua ung vien va Ban mo ta cong viec (Job Description). "
         "Hay danh gia da chieu dua tren 3 tru cot: Ky nang chuyen mon (Skills), Kinh nghiem & Cap bac (Experience & Seniority), va Do phu hop bai toan/Linh vuc (Domain Fit). "
         "Dac biet kiem tra cac dieu kien tien quyet (Deal-breakers): lech cap bac qua xa (vi du Fresher nop Senior), thieu cong nghe bat buoc cot loi. "
+        "QUY DINH NGON NGU BAT BUOC: Toan bo noi dung tra ve trong JSON (explanation, strengths, gaps, deal_breakers, interview_questions) BAT BUOC 100% PHAI DUOC VIET BANG TIENG VIET tu nhien, chuan muc thiet ke tuyen dung (chi giu nguyen cac ten rieng cong nghe nhu React, Python, FastAPI, Docker, AWS...). TUYET DOI KHONG tra ve bat ky cau van hay doan text tieng Anh nao.\n"
         "Phan hoi BAT BUOC la mot JSON hop le co cau truc:\n"
         "{\n"
         '  "skills_score": <float tu 0.0 den 100.0>,\n'
         '  "experience_score": <float tu 0.0 den 100.0>,\n'
         '  "domain_score": <float tu 0.0 den 100.0>,\n'
-        '  "strengths": [<danh sach 2-4 diem manh cot loi noi bat>],\n'
-        '  "gaps": [<danh sach 2-4 diem thieu hut hoac cong nghe ung vien chua nam vung>],\n'
-        '  "deal_breakers": [<danh sach canh bao rui ro neu co, vi du lech level, thieu must-have, neu khong co de mang rong>],\n'
-        '  "explanation": "<tom tat nhan xet chuyen mon suc tich trong 2-3 cau>",\n'
-        '  "interview_questions": [<2-3 cau hoi phong van thuc te nham thang vao cac diem nghi van hoac lo hong ky thuat>]\n'
+        '  "strengths": [<danh sach 2-4 diem manh cot loi noi bat VIET BANG TIENG VIET>],\n'
+        '  "gaps": [<danh sach 2-4 diem thieu hut hoac cong nghe ung vien can bo sung VIET BANG TIENG VIET>],\n'
+        '  "deal_breakers": [<danh sach canh bao rui ro lech level hoac thieu dieu kien tien quyet VIET BANG TIENG VIET, neu khong co de mang rong>],\n'
+        '  "explanation": "<tom tat nhan xet chuyen mon suc tich trong 2-3 cau VIET BANG TIENG VIET>",\n'
+        '  "interview_questions": [<2-3 cau hoi phong van thuc te VIET BANG TIENG VIET nham thang vao cac diem nghi van hoac lo hong ky thuat>]\n'
         "}\n"
         "QUAN TRONG: Phan hoi PHAI la JSON hop le, khong co markdown hoac text ben ngoai JSON."
     ),

@@ -30,6 +30,7 @@ import {
   ArrowUpRight,
   Layers,
   Plus,
+  AlertTriangle,
 } from "lucide-react";
 import { CVCard } from "./components/CVCard";
 import { CVPreviewModal } from "./components/CVPreviewModal";
@@ -647,8 +648,27 @@ export const CandidateDashboard = () => {
                   )}
 
                   {uploadState === "error" && (
-                    <div className="py-3 space-y-2 text-rose-600">
-                      <p className="text-xs font-bold">Lỗi: {uploadError}</p>
+                    <div className="py-4 px-5 rounded-2xl bg-rose-50 border border-rose-200 text-left space-y-2.5">
+                      <div className="flex items-center gap-2 text-rose-800 font-bold text-sm">
+                        <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0" />
+                        <span>Hồ sơ không hợp lệ hoặc sai định dạng CV chuẩn</span>
+                      </div>
+                      <p className="text-xs text-rose-700 leading-relaxed font-medium">
+                        {uploadError}
+                      </p>
+                      <div className="pt-2 border-t border-rose-200/70 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <span className="text-[11px] text-rose-600 font-medium">
+                          💡 Format chuẩn: Họ tên & Liên hệ, Kinh nghiệm/Dự án hoặc Học vấn, và Kỹ năng
+                        </span>
+                        <Link
+                          to="/cv"
+                          onClick={(e) => e.stopPropagation()}
+                          className="inline-flex items-center gap-1.5 text-xs font-bold text-[#00B86B] hover:text-emerald-700 bg-white px-3 py-1.5 rounded-lg border border-emerald-200 shadow-2xs whitespace-nowrap"
+                        >
+                          <Sparkles size={13} />
+                          <span>Dùng CV Builder tạo CV chuẩn ATS</span>
+                        </Link>
+                      </div>
                     </div>
                   )}
                 </div>

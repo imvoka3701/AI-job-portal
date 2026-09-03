@@ -80,16 +80,17 @@ async def upload_resume(
             ),
         )
 
-    # ── 4.5. Validate with AI (Fake CV check) ────────────────────────────────
+    # ── 4.5. Validate with AI (Standard CV format check) ────────────────────
     try:
         is_valid_cv = await cv_evaluator_service.validate_is_cv(raw_text)
+        reject_reason = getattr(cv_evaluator_service, "_last_reject_reason", "")
     except Exception as exc:
         logger.exception("CV validation failed for user %s", current_user.id)
         raise ai_http_exception(exc)
     if not is_valid_cv:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="File này dường như không phải là một CV hợp lệ. Vui lòng tải lên đúng hồ sơ xin việc của bạn.",
+            detail=reject_reason or "Hồ sơ tải lên không đúng định dạng CV tiêu chuẩn thị trường (thiếu thông tin cá nhân, kinh nghiệm hoặc học vấn). Vui lòng tải lên file CV hợp lệ.",
         )
 
     # ── 5. Generate embedding ────────────────────────────────────────────────
