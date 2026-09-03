@@ -50,6 +50,8 @@ class RoadmapSuggestService:
                         {"role": "user", "content": user_prompt},
                     ],
                     model=settings.LLM_MODEL,
+                    feature=AIFeature.ROADMAP,
+                    db=db,
                 )
 
                 response_content = response.get("choices", [])[0].get("message", {}).get("content")

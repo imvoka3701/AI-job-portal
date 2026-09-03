@@ -52,6 +52,8 @@ class CVSummarizerService:
                         {"role": "user", "content": user_prompt},
                     ],
                     model=settings.LLM_MODEL,
+                    feature=AIFeature.SUMMARIZE_CV,
+                    db=db,
                 )
 
                 content = response.get("choices", [])[0].get("message", {}).get("content", "")
