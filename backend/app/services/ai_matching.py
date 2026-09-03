@@ -2,14 +2,103 @@
 
 import logging
 import math
+from typing import Any
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from app.models.cv_document import CvDocument
 from app.models.resume import Resume
 from app.schemas.ai import AIMatchResponse
 
 logger = logging.getLogger(__name__)
+
+
+def extract_cv_document_text(cv_doc: CvDocument | dict[str, Any] | None) -> str:
+    """Extract concatenated plain text from structured CV Builder document for embedding and matching."""
+    if not cv_doc:
+        return ""
+
+    if isinstance(cv_doc, CvDocument):
+        content = cv_doc.content_json or {}
+    elif isinstance(cv_doc, dict):
+        content = cv_doc.get("content_json") or cv_doc
+    else:
+        return ""
+
+    parts: list[str] = []
+
+    # Personal info
+    personal = content.get("personal", {})
+    if isinstance(personal, dict):
+        for field in ["full_name", "headline", "location"]:
+            val = personal.get(field)
+            if val and isinstance(val, str) and val.strip():
+                parts.append(val.strip())
+
+    # Summary
+    summary = content.get("summary")
+    if summary and isinstance(summary, str) and summary.strip():
+        parts.append(summary.strip())
+
+    # Skills
+    skills = content.get("skills", [])
+    if isinstance(skills, list):
+        skill_strs = []
+        for s in skills:
+            if isinstance(s, str) and s.strip():
+                skill_strs.append(s.strip())
+            elif isinstance(s, dict) and s.get("name"):
+                skill_strs.append(str(s["name"]).strip())
+        if skill_strs:
+            parts.append("Kỹ năng: " + ", ".join(skill_strs))
+
+    # Experience
+    experiences = content.get("experience", [])
+    if isinstance(experiences, list):
+        for exp in experiences:
+            if isinstance(exp, dict):
+                exp_parts = []
+                if exp.get("title"):
+                    exp_parts.append(str(exp["title"]))
+                if exp.get("company"):
+                    exp_parts.append(str(exp["company"]))
+                if exp.get("description"):
+                    exp_parts.append(str(exp["description"]))
+                if exp.get("highlights") and isinstance(exp["highlights"], list):
+                    exp_parts.extend(str(h) for h in exp["highlights"] if h)
+                if exp_parts:
+                    parts.append(" - ".join(exp_parts))
+
+    # Education
+    educations = content.get("education", [])
+    if isinstance(educations, list):
+        for edu in educations:
+            if isinstance(edu, dict):
+                edu_parts = []
+                if edu.get("degree"):
+                    edu_parts.append(str(edu["degree"]))
+                if edu.get("school"):
+                    edu_parts.append(str(edu["school"]))
+                if edu.get("field_of_study"):
+                    edu_parts.append(str(edu["field_of_study"]))
+                if edu_parts:
+                    parts.append(" - ".join(edu_parts))
+
+    # Projects
+    projects = content.get("projects", [])
+    if isinstance(projects, list):
+        for proj in projects:
+            if isinstance(proj, dict):
+                proj_parts = []
+                if proj.get("name"):
+                    proj_parts.append(str(proj["name"]))
+                if proj.get("description"):
+                    proj_parts.append(str(proj["description"]))
+                if proj_parts:
+                    parts.append(" - ".join(proj_parts))
+
+    return "\n".join(parts)
 
 
 def _cosine_similarity_python(a: list[float], b: list[float]) -> float:
@@ -36,6 +125,16 @@ class AIMatchingService:
         job_embedding: list[float],
     ) -> AIMatchResponse:
         """Compute cosine similarity between a resume embedding and a job embedding."""
+        if resume.embedding is None and resume.raw_text and resume.raw_text.strip():
+            try:
+                from app.services.embedding_service import generate_embedding
+
+                resume.embedding = generate_embedding(resume.raw_text)
+                db.commit()
+                db.refresh(resume)
+            except Exception:
+                logger.exception("Failed to lazily generate embedding for resume %s", resume.id)
+
         if resume.embedding is None:
             return AIMatchResponse(
                 score=0.0,
@@ -44,27 +143,81 @@ class AIMatchingService:
                 gaps=["Resume embedding not generated"],
             )
 
-        resume_embedding: list[float] = resume.embedding  # type: ignore[assignment]
+        resume_embedding: list[float] = list(resume.embedding)  # type: ignore[assignment]
+        return await self.compute_match_for_embedding(
+            db,
+            candidate_embedding=resume_embedding,
+            job_embedding=job_embedding,
+            resume_id=resume.id,
+        )
 
-        # Try pgvector first; fall back to Python for SQLite test environments
-        clean_emb_str = "[" + ",".join(str(float(x)) for x in job_embedding) + "]"
-        try:
-            result = db.execute(
-                text(
-                    "SELECT 1 - ((:job_emb)::vector <=> (SELECT embedding FROM resumes WHERE id = :resume_id))"
-                ),
-                {"job_emb": clean_emb_str, "resume_id": resume.id},
+    async def compute_match_for_cv_document(
+        self,
+        db: Session,
+        *,
+        cv_document: CvDocument,
+        job_embedding: list[float],
+    ) -> AIMatchResponse:
+        """Compute cosine similarity between a CV Builder document and a job embedding."""
+        text_content = extract_cv_document_text(cv_document)
+        if not text_content.strip():
+            return AIMatchResponse(
+                score=0.0,
+                explanation="Hồ sơ CV Builder chưa có nội dung văn bản để phân tích.",
+                strengths=[],
+                gaps=["Hồ sơ chưa có thông tin"],
             )
+
+        try:
+            from app.services.embedding_service import generate_embedding
+
+            cv_embedding = generate_embedding(text_content)
+        except Exception:
+            logger.exception("Failed to generate embedding for CV document %s", cv_document.id)
+            return AIMatchResponse(
+                score=0.0,
+                explanation="Không thể trích xuất vector từ hồ sơ CV Builder.",
+                strengths=[],
+                gaps=["Lỗi sinh vector"],
+            )
+
+        return await self.compute_match_for_embedding(
+            db, candidate_embedding=cv_embedding, job_embedding=job_embedding
+        )
+
+    async def compute_match_for_embedding(
+        self,
+        db: Session,
+        *,
+        candidate_embedding: list[float],
+        job_embedding: list[float],
+        resume_id: int | None = None,
+    ) -> AIMatchResponse:
+        """Compute cosine similarity between candidate embedding and job embedding."""
+        clean_job_str = "[" + ",".join(str(float(x)) for x in job_embedding) + "]"
+
+        similarity = 0.0
+        try:
+            if resume_id is not None:
+                query = text(
+                    "SELECT 1 - ((:job_emb)::vector <=> (SELECT embedding FROM resumes WHERE id = :resume_id))"
+                )
+                result = db.execute(query, {"job_emb": clean_job_str, "resume_id": resume_id})
+            else:
+                clean_cand_str = "[" + ",".join(str(float(x)) for x in candidate_embedding) + "]"
+                query = text("SELECT 1 - ((:job_emb)::vector <=> (:cand_emb)::vector)")
+                result = db.execute(query, {"job_emb": clean_job_str, "cand_emb": clean_cand_str})
             similarity = result.scalar() or 0.0
         except Exception:
             logger.debug("pgvector unavailable — using Python cosine similarity fallback")
             similarity = _cosine_similarity_python(
                 [float(x) for x in job_embedding],
-                [float(x) for x in resume_embedding],
+                [float(x) for x in candidate_embedding],
             )
 
+        score = round(max(0.0, min(100.0, float(similarity) * 100)), 2)
         return AIMatchResponse(
-            score=round(float(similarity) * 100, 2),
+            score=score,
             explanation=f"AI matching score based on cosine similarity: {similarity:.4f}",
             strengths=[],
             gaps=[],
