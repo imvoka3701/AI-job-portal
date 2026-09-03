@@ -178,16 +178,13 @@ export function JobCard({ job, viewMode = "list" }: { job: Job; viewMode?: "list
         {/* Footer Row: AI Match Score, Date Posted, View JD CTA Button */}
         <div className="flex items-center justify-between pt-3.5 border-t border-[#E2E8F0]/80 mt-auto">
           <div className="flex items-center gap-3">
-            {/* AI Match score badge */}
-            {typeof (job as Job & { ai_matching_score?: number }).ai_matching_score === "number" ? (
+            {/* AI Match score badge — only display when real match score is available */}
+            {typeof (job as Job & { ai_matching_score?: number | null }).ai_matching_score === "number" &&
+            (job as Job & { ai_matching_score: number }).ai_matching_score > 0 ? (
               <AIMatchBadge
                 score={(job as Job & { ai_matching_score: number }).ai_matching_score}
               />
-            ) : (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full font-bold text-xs bg-emerald-50/80 border border-emerald-200/60 text-[#00995C]">
-                ✦ AI Match 95%
-              </span>
-            )}
+            ) : null}
             <div className="flex items-center gap-1 text-[#94A3B8] text-xs">
               <Clock className="w-3.5 h-3.5" />
               {formatPostedAt(job.created_at)}
