@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { ClipboardList, RefreshCw, Shield } from "lucide-react";
 import { AdminTabNavigation } from "./components/AdminTabNavigation";
+import { AdminPagination } from "./components/AdminPagination";
 import {
   getAdminAuditLogs,
   type AdminAuditLogItem,
@@ -155,18 +156,15 @@ export function AdminAuditLogs() {
                 </div>
               ))}
             </div>
-            <div className="flex items-center justify-between border-t border-gray-100 p-4">
-              <span className="text-xs text-gray-500">
-                {data.total} bản ghi · Trang {page}/{Math.ceil(data.total / PAGE_SIZE) || 1}
-              </span>
-              <div className="flex gap-2">
-                <Button variant="secondary" size="sm" disabled={page <= 1} onClick={() => setPage((value) => value - 1)}>
-                  Trước
-                </Button>
-                <Button variant="secondary" size="sm" disabled={page * PAGE_SIZE >= data.total} onClick={() => setPage((value) => value + 1)}>
-                  Sau
-                </Button>
-              </div>
+            <div className="border-t border-gray-100 p-4">
+              <AdminPagination
+                page={page}
+                pageSize={PAGE_SIZE}
+                total={data.total}
+                unitName="bản ghi"
+                onPageChange={setPage}
+                className="border-0 bg-transparent px-0 py-0 shadow-none rounded-none"
+              />
             </div>
           </Card>
         )}
