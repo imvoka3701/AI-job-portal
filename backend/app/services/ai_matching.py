@@ -151,7 +151,11 @@ class AIMatchingService:
             f"Yêu cầu công việc:\n{job_req}\n"
             f"Mô tả công việc:\n{job_desc[:1500]}\n\n"
             f"=== HỒ SƠ ỨNG VIÊN (CANDIDATE CV) ===\n"
-            f"{resume_text[:2500]}"
+            f"{resume_text[:2500]}\n\n"
+            f"=== YÊU CẦU NGÔN NGỮ ĐẦU RA ===\n"
+            f"BẮT BUỘC trả lời 100% bằng TIẾNG VIỆT (bao gồm explanation, strengths, gaps, deal_breakers, interview_questions). "
+            f"Chỉ giữ nguyên tên riêng của công nghệ (Python, FastAPI, Docker, React...). "
+            f"TUYỆT ĐỐI KHÔNG xuất hiện câu chữ tiếng Anh trong phần giải thích và nhận xét."
         )
 
         try:

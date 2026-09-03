@@ -522,28 +522,28 @@ export function AIMatchingPage() {
         </section>
 
         {/* ── 2-COLUMN MATCHING FEED & DETAIL BREAKDOWN ─────────────────── */}
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_420px] gap-8 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_460px] gap-8 items-start">
           
           {/* ── LEFT: RANKED JOBS FEED ──────────────────────────────────── */}
           <div className="space-y-4">
             <div className="flex items-center justify-between px-1">
-              <h2 className="text-sm font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
-                <Flame size={16} className="text-amber-500" />
+              <h2 className="text-base font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                <Flame size={18} className="text-amber-500" />
                 <span>Việc Làm Khớp Nhất Với Hồ Sơ Của Bạn ({rankedJobs.length})</span>
               </h2>
-              <span className="text-xs text-slate-500 font-medium">Sắp xếp theo % Match giảm dần</span>
+              <span className="text-xs sm:text-sm text-slate-500 font-medium">Sắp xếp theo % Match giảm dần</span>
             </div>
 
             {jobsLoading ? (
               <div className="p-12 text-center bg-white rounded-3xl border border-slate-200 shadow-xs space-y-3">
                 <Spinner size="lg" label="AI đang quét vector embedding và so khớp..." />
-                <p className="text-xs text-slate-400">Đang tính toán Cosine Similarity cho {jobs.length} công việc...</p>
+                <p className="text-xs sm:text-sm text-slate-400">Đang tính toán Cosine Similarity cho {jobs.length} công việc...</p>
               </div>
             ) : rankedJobs.length === 0 ? (
               <div className="p-12 text-center bg-white rounded-3xl border border-slate-200 shadow-xs space-y-3">
                 <AlertCircle size={32} className="mx-auto text-amber-500" />
                 <h3 className="text-base font-bold text-slate-800">Không tìm thấy việc làm phù hợp với bộ lọc</h3>
-                <p className="text-xs text-slate-500">Hãy thử giảm mức độ khớp tối thiểu hoặc xóa từ khóa tìm kiếm.</p>
+                <p className="text-xs sm:text-sm text-slate-500">Hãy thử giảm mức độ khớp tối thiểu hoặc xóa từ khóa tìm kiếm.</p>
                 <Button
                   size="sm"
                   onClick={() => {
@@ -578,28 +578,28 @@ export function AIMatchingPage() {
                         {/* Job Info */}
                         <div className="space-y-2 flex-1 min-w-0">
                           <div className="flex items-center gap-2">
-                            <span className="text-[11px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
+                            <span className="text-xs font-bold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-md">
                               {(job as any).company_name || job.employer?.company_name || job.employer?.full_name || "Enterprise Tech"}
                             </span>
                             {job.job_type && (
-                              <span className="text-[11px] font-bold text-teal-800 bg-teal-50 px-2 py-0.5 rounded-md">
+                              <span className="text-xs font-bold text-teal-800 bg-teal-50 px-2.5 py-1 rounded-md">
                                 {job.job_type}
                               </span>
                             )}
                           </div>
 
-                          <h3 className="text-base font-black text-slate-900 group-hover:text-emerald-700 transition-colors line-clamp-1">
+                          <h3 className="text-base sm:text-lg font-black text-slate-900 group-hover:text-emerald-700 transition-colors line-clamp-1">
                             {job.title}
                           </h3>
 
-                          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600 font-semibold">
+                          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs sm:text-sm text-slate-600 font-semibold">
                             {job.location && (
                               <span className="flex items-center gap-1">
-                                <MapPin size={12} className="text-slate-400" /> {job.location}
+                                <MapPin size={14} className="text-slate-400" /> {job.location}
                               </span>
                             )}
                             <span className="flex items-center gap-1 text-emerald-700 font-bold">
-                              <DollarSign size={12} /> {job.salary_min && job.salary_max ? `${(job.salary_min/1000000).toFixed(0)} - ${(job.salary_max/1000000).toFixed(0)} Triệu` : "Thỏa thuận"}
+                              <DollarSign size={14} /> {job.salary_min && job.salary_max ? `${(job.salary_min/1000000).toFixed(0)} - ${(job.salary_max/1000000).toFixed(0)} Triệu` : "Thỏa thuận"}
                             </span>
                           </div>
 
@@ -608,15 +608,15 @@ export function AIMatchingPage() {
                             {metrics.matchedSkills.slice(0, 4).map((skill) => (
                               <span
                                 key={skill}
-                                className="inline-flex items-center gap-1 text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded-md"
+                                className="inline-flex items-center gap-1 text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 px-2.5 py-0.5 rounded-md"
                               >
-                                <CheckCircle2 size={10} className="text-[#00B86B]" />
+                                <CheckCircle2 size={12} className="text-[#00B86B]" />
                                 {skill}
                               </span>
                             ))}
 
                             {metrics.missingSkills.length > 0 && (
-                              <span className="text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200 px-2 py-0.5 rounded-md">
+                              <span className="text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200 px-2.5 py-0.5 rounded-md">
                                 Thiếu: {metrics.missingSkills.join(", ")}
                               </span>
                             )}
@@ -627,14 +627,14 @@ export function AIMatchingPage() {
                         <div className="flex sm:flex-col items-center sm:items-end justify-between gap-3 shrink-0">
                           {metrics.score != null ? (
                             <div
-                              className={`px-3.5 py-2 rounded-2xl text-center shadow-xs ${
+                              className={`px-4 py-2.5 rounded-2xl text-center shadow-xs ${
                                 isHighMatch
                                   ? "bg-gradient-to-br from-[#00B86B] to-teal-600 text-white"
                                   : "bg-slate-100 text-slate-800 border border-slate-200"
                               }`}
                             >
-                              <span className="text-[10px] uppercase font-bold block opacity-90">AI Match</span>
-                              <span className="text-lg font-black">{metrics.score.toFixed(0)}%</span>
+                              <span className="text-xs uppercase font-bold block opacity-90">AI Match</span>
+                              <span className="text-xl font-black">{metrics.score.toFixed(0)}%</span>
                             </div>
                           ) : (
                             <div className="px-3 py-1.5 rounded-xl bg-slate-100 text-slate-500 text-xs font-semibold text-center border border-slate-200">
@@ -692,31 +692,31 @@ export function AIMatchingPage() {
                     ]}
                   />
                 ) : activeMatchResult ? (
-                  <div className="space-y-3">
+                  <div className="space-y-3.5">
                     {/* Overall AI Matching Score */}
-                    <div className="p-4 rounded-2xl bg-emerald-50/80 border border-emerald-200 space-y-2">
-                      <div className="flex justify-between items-center text-xs font-bold">
-                        <span className="text-emerald-900 flex items-center gap-1.5">
-                          <Sparkles size={14} className="text-[#00B86B]" /> Điểm Phù Hợp Đa Chiều AI
+                    <div className="p-5 rounded-2xl bg-emerald-50/80 border border-emerald-200 space-y-2.5">
+                      <div className="flex justify-between items-center">
+                        <span className="text-emerald-950 text-xs sm:text-sm font-bold flex items-center gap-1.5">
+                          <Sparkles size={16} className="text-[#00B86B]" /> Điểm Phù Hợp Đa Chiều AI
                         </span>
-                        <span className="text-emerald-700 font-black text-lg">{activeMatchResult.score.toFixed(0)}%</span>
+                        <span className="text-emerald-700 font-black text-xl sm:text-2xl">{activeMatchResult.score.toFixed(0)}%</span>
                       </div>
-                      <p className="text-[11px] text-emerald-800 leading-relaxed font-medium">{activeMatchResult.explanation}</p>
+                      <p className="text-xs sm:text-sm text-emerald-950 leading-relaxed font-medium">{activeMatchResult.explanation}</p>
 
                       {/* 3-Axis Multi-Criteria Breakdown */}
                       {activeMatchResult.breakdown && (
-                        <div className="pt-2 border-t border-emerald-200/60 space-y-2">
-                          <span className="text-[10px] uppercase tracking-wider font-bold text-emerald-900 block">
+                        <div className="pt-2.5 border-t border-emerald-200/60 space-y-2">
+                          <span className="text-xs uppercase tracking-wider font-bold text-emerald-900 block">
                             Ma Trận Trọng Số Năng Lực
                           </span>
-                          <div className="space-y-1.5 text-[11px]">
+                          <div className="space-y-2 text-xs sm:text-sm">
                             {/* Skills */}
                             <div>
-                              <div className="flex justify-between text-slate-700 font-semibold mb-0.5">
+                              <div className="flex justify-between text-slate-700 font-semibold mb-1">
                                 <span>Kỹ năng & Công nghệ (40%)</span>
                                 <span className="font-bold text-slate-900">{activeMatchResult.breakdown.skills_score.toFixed(0)}%</span>
                               </div>
-                              <div className="h-1.5 w-full bg-emerald-200/70 rounded-full overflow-hidden">
+                              <div className="h-2 w-full bg-emerald-200/70 rounded-full overflow-hidden">
                                 <div
                                   className="h-full bg-[#00B86B] rounded-full transition-all duration-500"
                                   style={{ width: `${activeMatchResult.breakdown.skills_score}%` }}
@@ -726,11 +726,11 @@ export function AIMatchingPage() {
 
                             {/* Experience */}
                             <div>
-                              <div className="flex justify-between text-slate-700 font-semibold mb-0.5">
+                              <div className="flex justify-between text-slate-700 font-semibold mb-1">
                                 <span>Thâm niên & Cấp bậc (25%)</span>
                                 <span className="font-bold text-slate-900">{activeMatchResult.breakdown.experience_score.toFixed(0)}%</span>
                               </div>
-                              <div className="h-1.5 w-full bg-emerald-200/70 rounded-full overflow-hidden">
+                              <div className="h-2 w-full bg-emerald-200/70 rounded-full overflow-hidden">
                                 <div
                                   className="h-full bg-teal-600 rounded-full transition-all duration-500"
                                   style={{ width: `${activeMatchResult.breakdown.experience_score}%` }}
@@ -740,11 +740,11 @@ export function AIMatchingPage() {
 
                             {/* Domain */}
                             <div>
-                              <div className="flex justify-between text-slate-700 font-semibold mb-0.5">
+                              <div className="flex justify-between text-slate-700 font-semibold mb-1">
                                 <span>Quy mô & Lĩnh vực dự án (20%)</span>
                                 <span className="font-bold text-slate-900">{activeMatchResult.breakdown.domain_score.toFixed(0)}%</span>
                               </div>
-                              <div className="h-1.5 w-full bg-emerald-200/70 rounded-full overflow-hidden">
+                              <div className="h-2 w-full bg-emerald-200/70 rounded-full overflow-hidden">
                                 <div
                                   className="h-full bg-cyan-600 rounded-full transition-all duration-500"
                                   style={{ width: `${activeMatchResult.breakdown.domain_score}%` }}
@@ -758,15 +758,15 @@ export function AIMatchingPage() {
 
                     {/* Deal Breakers Warning Card (if any) */}
                     {activeMatchResult.deal_breakers && activeMatchResult.deal_breakers.length > 0 && (
-                      <div className="p-3.5 rounded-2xl bg-rose-50/90 border border-rose-200 space-y-1.5">
-                        <div className="text-xs font-bold text-rose-800 flex items-center gap-1.5">
-                          <AlertTriangle size={13} className="text-rose-600 shrink-0" />
+                      <div className="p-4 rounded-2xl bg-rose-50/90 border border-rose-200 space-y-2">
+                        <div className="text-xs sm:text-sm font-bold text-rose-900 flex items-center gap-1.5">
+                          <AlertTriangle size={15} className="text-rose-600 shrink-0" />
                           <span>Điểm Nghẽn Tiên Quyết (Deal-breakers)</span>
                         </div>
-                        <p className="text-[10px] text-rose-600">
+                        <p className="text-xs text-rose-700 font-medium leading-relaxed">
                           Hồ sơ có dấu hiệu lệch điều kiện cơ bản so với yêu cầu bắt buộc của JD:
                         </p>
-                        <ul className="text-[11px] text-rose-700 space-y-1 list-disc list-inside font-medium">
+                        <ul className="text-xs sm:text-sm text-rose-800 space-y-1.5 list-disc list-inside font-medium leading-relaxed">
                           {activeMatchResult.deal_breakers.map((db, idx) => (
                             <li key={idx}>{db}</li>
                           ))}
@@ -776,11 +776,11 @@ export function AIMatchingPage() {
 
                     {/* Strengths */}
                     {activeMatchResult.strengths && activeMatchResult.strengths.length > 0 && (
-                      <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1.5">
-                        <div className="text-xs font-bold text-slate-800 flex items-center gap-1">
-                          <CheckCircle2 size={12} className="text-[#00B86B]" /> Điểm Phù Hợp Nổi Bật
+                      <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2">
+                        <div className="text-xs sm:text-sm font-bold text-slate-900 flex items-center gap-1.5">
+                          <CheckCircle2 size={15} className="text-[#00B86B]" /> Điểm Phù Hợp Nổi Bật
                         </div>
-                        <ul className="text-[11px] text-slate-600 space-y-1 list-disc list-inside">
+                        <ul className="text-xs sm:text-sm text-slate-700 space-y-1.5 list-disc list-inside leading-relaxed font-medium">
                           {activeMatchResult.strengths.map((s, idx) => (
                             <li key={idx}>{s}</li>
                           ))}
@@ -790,20 +790,20 @@ export function AIMatchingPage() {
 
                     {/* Skill Gaps */}
                     {activeMatchResult.gaps && activeMatchResult.gaps.length > 0 && (
-                      <div className="p-3.5 rounded-2xl bg-amber-50/70 border border-amber-200 space-y-2">
-                        <div className="flex justify-between items-center text-xs font-bold text-amber-900">
-                          <span className="flex items-center gap-1">
-                            <AlertCircle size={12} className="text-amber-600" /> Kỹ Năng Cần Bổ Sung
+                      <div className="p-4 rounded-2xl bg-amber-50/70 border border-amber-200 space-y-2">
+                        <div className="flex justify-between items-center text-xs sm:text-sm font-bold text-amber-950">
+                          <span className="flex items-center gap-1.5">
+                            <AlertCircle size={15} className="text-amber-600" /> Kỹ Năng Cần Bổ Sung
                           </span>
                         </div>
-                        <ul className="text-[11px] text-amber-800 space-y-1 list-disc list-inside">
+                        <ul className="text-xs sm:text-sm text-amber-900 space-y-1.5 list-disc list-inside leading-relaxed font-medium">
                           {activeMatchResult.gaps.map((g, idx) => (
                             <li key={idx}>{g}</li>
                           ))}
                         </ul>
                         <Link
                           to="/ai/roadmap"
-                          className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-900 underline hover:text-amber-950 pt-1"
+                          className="inline-flex items-center gap-1 text-xs font-bold text-amber-900 underline hover:text-amber-950 pt-1"
                         >
                           <span>Xem Lộ Trình Bổ Sung Kỹ Năng ↗</span>
                         </Link>
@@ -812,12 +812,12 @@ export function AIMatchingPage() {
 
                     {/* Suggested Interview Questions */}
                     {activeMatchResult.interview_questions && activeMatchResult.interview_questions.length > 0 && (
-                      <div className="p-3.5 rounded-2xl bg-indigo-50/70 border border-indigo-200 space-y-1.5">
-                        <div className="text-xs font-bold text-indigo-900 flex items-center gap-1.5">
-                          <HelpCircle size={13} className="text-indigo-600 shrink-0" />
+                      <div className="p-4 rounded-2xl bg-indigo-50/70 border border-indigo-200 space-y-2">
+                        <div className="text-xs sm:text-sm font-bold text-indigo-950 flex items-center gap-1.5">
+                          <HelpCircle size={15} className="text-indigo-600 shrink-0" />
                           <span>Gợi Ý Câu Hỏi Phỏng Vấn Trọng Tâm</span>
                         </div>
-                        <ul className="text-[11px] text-indigo-800 space-y-1 list-disc list-inside">
+                        <ul className="text-xs sm:text-sm text-indigo-900 space-y-1.5 list-disc list-inside leading-relaxed font-medium">
                           {activeMatchResult.interview_questions.map((q, idx) => (
                             <li key={idx}>{q}</li>
                           ))}

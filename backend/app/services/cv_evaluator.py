@@ -3,6 +3,7 @@
 Retries up to 2 times if JSON parsing fails. Raises RuntimeError if all attempts fail.
 """
 
+import json
 import logging
 
 from sqlalchemy.orm import Session
@@ -68,25 +69,57 @@ class CVEvaluatorService:
 
         raise normalize_ai_error(last_error)
 
-    async def validate_is_cv(self, resume_text: str) -> bool:
-        """Thực hiện kiểm tra nhanh xem văn bản có phải là CV hợp lệ không."""
+    async def validate_cv_structure(self, resume_text: str) -> tuple[bool, str]:
+        """Xác thực xem văn bản có tuân theo định dạng CV chuẩn trên thị trường hay không.
+
+        Returns:
+            (is_valid, message):
+                is_valid = True nếu đúng format CV.
+                is_valid = False kèm thông điệp giải thích lý do cụ thể và hướng dẫn người dùng.
+        """
         text_clean = resume_text.strip()
-        # Heuristic: nếu văn bản quá ngắn (dưới 100 ký tự) thì không thể là CV hoàn chỉnh
         if len(text_clean) < 100:
-            logger.info("CV validation rejected: text length too short (%d chars)", len(text_clean))
-            return False
+            return (
+                False,
+                "Nội dung hồ sơ quá ngắn (dưới 100 ký tự). Vui lòng tải lên file CV hoàn chỉnh có thông tin cá nhân, kinh nghiệm và kỹ năng.",
+            )
+
+        # Heuristic format check: kiểm tra sự xuất hiện của các từ khóa section phổ biến trong CV
+        cv_section_keywords = [
+            "kinh nghiệm", "experience", "kinh nghiem", "làm việc", "work", "dự án", "project", "du an",
+            "học vấn", "education", "hoc van", "đào tạo", "bằng cấp", "kỹ năng", "skill", "skills", "ky nang",
+            "mục tiêu", "objective", "summary", "giới thiệu", "thông tin liên hệ", "contact", "email", "điện thoại"
+        ]
+        text_lower = text_clean.lower()
+        matched_keywords = [kw for kw in cv_section_keywords if kw in text_lower]
+
+        # Nếu hoàn toàn không có bất kỳ từ khóa chuyên mục CV nào
+        if len(matched_keywords) < 2:
+            return (
+                False,
+                "Hồ sơ tải lên không đúng định dạng CV tiêu chuẩn thị trường (thiếu các phần mục cơ bản: "
+                "Thông tin cá nhân, Kinh nghiệm làm việc, Học vấn hoặc Kỹ năng). "
+                "Vui lòng tải lên file CV hợp lệ hoặc sử dụng CV Builder để tạo CV chuẩn ATS.",
+            )
 
         system_prompt = (
-            "Bạn là một hệ thống kiểm duyệt tài liệu tuyển dụng chuyên nghiệp. "
-            "Nhiệm vụ của bạn là kiểm tra xem đoạn văn bản sau có phải là một hồ sơ xin việc (CV/Resume) thực thụ, có cấu trúc nội dung hay không.\n"
-            "Tiêu chuẩn bắt buộc của một CV hợp lệ:\n"
-            "- Phải thể hiện thông tin ứng viên (họ tên, học vấn, kinh nghiệm làm việc, hoặc kỹ năng chuyên môn chi tiết).\n"
-            "- KHÔNG chấp nhận các đoạn văn bản cụt lủn chỉ có 1-2 câu sơ sài, văn bản rác, code ngẫu nhiên, hoặc tài liệu không liên quan.\n"
-            "Chỉ trả lời chính xác duy nhất một từ: 'YES' nếu là CV hợp lệ, hoặc 'NO' nếu không phải CV hoặc quá cụt lủn."
+            "Bạn là một hệ thống AI thẩm định hồ sơ tuyển dụng chuyên nghiệp (B2B ATS Validator). "
+            "Nhiệm vụ của bạn là nhận diện xem đoạn văn bản sau có tuân theo bất kỳ định dạng CV/Resume tiêu chuẩn nào trên thị trường tuyển dụng hay không.\n\n"
+            "TIÊU CHÍ ĐỊNH DẠNG CV HỢP LỆ:\n"
+            "- Phải có thông tin ứng viên (họ tên/chức danh/liên hệ) kết hợp với quá trình học vấn, lịch sử làm việc, hoặc kỹ năng chuyên môn.\n\n"
+            "CÁC TRƯỜNG HỢP BẮT BUỘC COI LÀ KHÔNG HỢP LỆ (is_valid = false):\n"
+            "- Văn bản tùy tiện, code lập trình, đề thi, bài viết kỹ thuật, hợp đồng, hóa đơn, bài báo, tài liệu hành chính.\n"
+            "- Đoạn văn bản cụt lủn chỉ gồm vài gạch đầu dòng từ khóa rời rạc, không có thông tin ứng viên.\n"
+            "- Bất kỳ nội dung nào không thể xác định là một bản hồ sơ ứng tuyển xin việc thực thụ.\n\n"
+            "QUY ĐỊNH ĐẦU RA: Bắt buộc trả về đúng định dạng JSON:\n"
+            "{\n"
+            '  "is_valid": true hoặc false,\n'
+            '  "reason": "Lý do súc tích bằng tiếng Việt nếu không hợp lệ (hướng dẫn cụ thể những gì đang thiếu), hoặc chuỗi rỗng nếu hợp lệ"\n'
+            "}\n"
+            "QUAN TRỌNG: Chỉ trả về duy nhất JSON hợp lệ, không có markdown hay bất kỳ văn bản nào bên ngoài."
         )
 
-        # Chỉ lấy 2000 ký tự đầu tiên để kiểm tra cho nhanh
-        user_prompt = f"Văn bản:\n{text_clean[:2000]}"
+        user_prompt = f"Văn bản cần thẩm định:\n{text_clean[:2000]}"
 
         try:
             response = await self.client.create_chat_completion(
@@ -95,20 +128,36 @@ class CVEvaluatorService:
                     {"role": "user", "content": user_prompt},
                 ],
                 model=settings.LLM_MODEL,
-                response_format=None,
+                response_format={"type": "json_object"},
             )
-            response_content = (
-                response.get("choices", [])[0].get("message", {}).get("content", "").strip().upper()
-            )
+            content = response.get("choices", [])[0].get("message", {}).get("content", "").strip()
+            data = json.loads(content)
+            is_valid = bool(data.get("is_valid", False))
+            reason = str(data.get("reason") or "").strip()
 
-            # Chỉ coi là hợp lệ nếu phản hồi có YES rõ ràng và KHÔNG chứa NO
-            if "YES" in response_content and "NO" not in response_content:
-                return True
+            if not is_valid:
+                if not reason:
+                    reason = (
+                        "Hồ sơ tải lên không đúng định dạng CV tiêu chuẩn thị trường. "
+                        "Vui lòng tải lên file CV hợp lệ có đầy đủ thông tin cá nhân, kinh nghiệm và kỹ năng."
+                    )
+                return False, reason
 
-            return False
+            return True, ""
         except Exception as exc:
-            logger.warning("Failed to validate CV with LLM: %s", exc)
-            raise normalize_ai_error(exc)
+            logger.warning("Failed to validate CV format with LLM: %s", exc)
+            if len(matched_keywords) >= 3:
+                return True, ""
+            return (
+                False,
+                "Hồ sơ tải lên không đúng định dạng CV tiêu chuẩn thị trường. Vui lòng kiểm tra lại file CV của bạn.",
+            )
+
+    async def validate_is_cv(self, resume_text: str) -> bool:
+        """Thực hiện kiểm tra nhanh xem văn bản có phải là CV hợp lệ không."""
+        is_valid, reason = await self.validate_cv_structure(resume_text)
+        self._last_reject_reason = reason
+        return is_valid
 
 
 cv_evaluator_service = CVEvaluatorService()
