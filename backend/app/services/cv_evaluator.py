@@ -69,19 +69,24 @@ class CVEvaluatorService:
         raise normalize_ai_error(last_error)
 
     async def validate_is_cv(self, resume_text: str) -> bool:
-        """Thực hiện một cuộc gọi LLM nhanh để xác định xem văn bản có phải là CV không."""
-        # NOTE: This prompt is intentionally hardcoded — NOT managed via Admin AI Control Panel.
-        # validate_is_cv is a binary safety gate (YES/NO). Allowing admin to edit this
-        # prompt introduces risk of accidentally blocking all CV uploads or accepting spam.
-        # See: docs/DESIGN_AI_ADMIN_CONTROL.md for the list of 5 managed features.
+        """Thực hiện kiểm tra nhanh xem văn bản có phải là CV hợp lệ không."""
+        text_clean = resume_text.strip()
+        # Heuristic: nếu văn bản quá ngắn (dưới 100 ký tự) thì không thể là CV hoàn chỉnh
+        if len(text_clean) < 100:
+            logger.info("CV validation rejected: text length too short (%d chars)", len(text_clean))
+            return False
+
         system_prompt = (
-            "Bạn là một hệ thống kiểm duyệt tài liệu. "
-            "Nhiệm vụ của bạn là kiểm tra xem đoạn văn bản sau đây có phải là một hồ sơ xin việc (CV/Resume) hợp lệ hay không. "
-            "Chỉ trả lời chính xác 'YES' hoặc 'NO' (không có dấu câu hoặc văn bản nào khác)."
+            "Bạn là một hệ thống kiểm duyệt tài liệu tuyển dụng chuyên nghiệp. "
+            "Nhiệm vụ của bạn là kiểm tra xem đoạn văn bản sau có phải là một hồ sơ xin việc (CV/Resume) thực thụ, có cấu trúc nội dung hay không.\n"
+            "Tiêu chuẩn bắt buộc của một CV hợp lệ:\n"
+            "- Phải thể hiện thông tin ứng viên (họ tên, học vấn, kinh nghiệm làm việc, hoặc kỹ năng chuyên môn chi tiết).\n"
+            "- KHÔNG chấp nhận các đoạn văn bản cụt lủn chỉ có 1-2 câu sơ sài, văn bản rác, code ngẫu nhiên, hoặc tài liệu không liên quan.\n"
+            "Chỉ trả lời chính xác duy nhất một từ: 'YES' nếu là CV hợp lệ, hoặc 'NO' nếu không phải CV hoặc quá cụt lủn."
         )
 
-        # Chỉ lấy 1500 ký tự đầu tiên để kiểm tra cho nhanh
-        user_prompt = f"Văn bản:\n{resume_text[:1500]}"
+        # Chỉ lấy 2000 ký tự đầu tiên để kiểm tra cho nhanh
+        user_prompt = f"Văn bản:\n{text_clean[:2000]}"
 
         try:
             response = await self.client.create_chat_completion(
@@ -96,11 +101,11 @@ class CVEvaluatorService:
                 response.get("choices", [])[0].get("message", {}).get("content", "").strip().upper()
             )
 
-            # Nếu LLM trả lời rõ ràng là NO thì coi là không hợp lệ
-            if "NO" in response_content and "YES" not in response_content:
-                return False
+            # Chỉ coi là hợp lệ nếu phản hồi có YES rõ ràng và KHÔNG chứa NO
+            if "YES" in response_content and "NO" not in response_content:
+                return True
 
-            return True
+            return False
         except Exception as exc:
             logger.warning("Failed to validate CV with LLM: %s", exc)
             raise normalize_ai_error(exc)

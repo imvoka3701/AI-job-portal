@@ -22,12 +22,21 @@ export interface LoginPayload {
   password: string;
 }
 
+export interface MatchBreakdown {
+  skills_score: number;
+  experience_score: number;
+  domain_score: number;
+}
+
 /** AI Match response */
 export interface AIMatchResult {
   score: number;
   explanation: string;
   strengths: string[];
   gaps: string[];
+  breakdown?: MatchBreakdown;
+  deal_breakers?: string[];
+  interview_questions?: string[];
 }
 
 /** CV Evaluation response */

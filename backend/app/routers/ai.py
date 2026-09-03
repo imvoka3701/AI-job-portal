@@ -286,7 +286,13 @@ async def match_resume_to_job(
         )
 
     job_embedding: list[float] = job.embedding  # type: ignore[assignment]
-    return await ai_matching_service.compute_match(db, resume=resume, job_embedding=job_embedding)
+    return await ai_matching_service.compute_match(
+        db,
+        resume=resume,
+        job_embedding=job_embedding,
+        job=job,
+        deep_analysis=True,
+    )
 
 
 @router.post(

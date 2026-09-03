@@ -14,8 +14,8 @@ MAX_FILE_SIZE_MB = 5  # Max 5MB
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp"}
 MAX_IMAGE_SIZE_MB = 5
 
-# Minimum text length extracted from PDF to consider it readable
-MIN_EXTRACTED_TEXT_LENGTH = 50
+# Minimum text length extracted from PDF to consider it readable (avoids 1-line or scan PDFs)
+MIN_EXTRACTED_TEXT_LENGTH = 100
 
 # Magic bytes (file signatures) used to verify real file content, independent of
 # the (client-controlled) filename extension and Content-Type header.
@@ -74,7 +74,8 @@ def extract_text_from_pdf(file_stream: IO[bytes]) -> str:
 
         if len(full_text) < MIN_EXTRACTED_TEXT_LENGTH:
             raise ValueError(
-                "Không đọc được nội dung CV. Vui lòng dùng file PDF có text, không phải ảnh scan."
+                "Nội dung CV quá ngắn hoặc không đọc được chữ (yêu cầu tối thiểu 100 ký tự). "
+                "Vui lòng dùng file PDF chứa văn bản đầy đủ, không dùng ảnh chụp hoặc file rỗng."
             )
 
         return full_text

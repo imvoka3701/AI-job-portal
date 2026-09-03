@@ -1,5 +1,4 @@
-"""AI Matching Service — computes cosine similarity between resume and job embeddings."""
-
+import json
 import logging
 import math
 from typing import Any
@@ -7,9 +6,13 @@ from typing import Any
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from app.config import settings
+from app.models.ai_call_log import AIFeature
 from app.models.cv_document import CvDocument
 from app.models.resume import Resume
-from app.schemas.ai import AIMatchResponse
+from app.schemas.ai import AIMatchResponse, MatchBreakdown
+from app.services.deepseek_client import deepseek_client
+from app.services.prompt_loader import get_system_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -117,12 +120,113 @@ def _cosine_similarity_python(a: list[float], b: list[float]) -> float:
 
 
 class AIMatchingService:
+    async def _run_deep_rubric_analysis(
+        self,
+        *,
+        resume_text: str,
+        job: Any,
+        base_cosine_score: float,
+        db: Session | None = None,
+    ) -> AIMatchResponse:
+        """Run deep LLM rubric analysis to evaluate skills, experience, and domain fit."""
+        system_prompt = get_system_prompt(AIFeature.MATCHING, db=db)
+
+        job_title = getattr(job, "title", "Công việc")
+        job_level = getattr(job, "experience_level", "")
+        if hasattr(job_level, "value"):
+            job_level = job_level.value
+        job_type = getattr(job, "job_type", "")
+        if hasattr(job_type, "value"):
+            job_type = job_type.value
+        job_loc = getattr(job, "location", "N/A") or "N/A"
+        job_req = getattr(job, "requirements", "") or "Không có yêu cầu cụ thể."
+        job_desc = getattr(job, "description", "") or "Không có mô tả chi tiết."
+
+        user_prompt = (
+            f"=== BẢN MÔ TẢ CÔNG VIỆC (JOB DESCRIPTION) ===\n"
+            f"Vị trí: {job_title}\n"
+            f"Cấp bậc yêu cầu: {job_level}\n"
+            f"Hình thức làm việc: {job_type}\n"
+            f"Địa điểm: {job_loc}\n"
+            f"Yêu cầu công việc:\n{job_req}\n"
+            f"Mô tả công việc:\n{job_desc[:1500]}\n\n"
+            f"=== HỒ SƠ ỨNG VIÊN (CANDIDATE CV) ===\n"
+            f"{resume_text[:2500]}"
+        )
+
+        try:
+            response = await deepseek_client.create_chat_completion(
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                model=settings.LLM_MODEL,
+                response_format={"type": "json_object"},
+                feature=AIFeature.MATCHING,
+                db=db,
+            )
+            content = response.get("choices", [])[0].get("message", {}).get("content", "")
+            if not content:
+                raise ValueError("Empty LLM response")
+
+            data = json.loads(content)
+
+            skills_score = float(data.get("skills_score", base_cosine_score))
+            experience_score = float(data.get("experience_score", base_cosine_score))
+            domain_score = float(data.get("domain_score", base_cosine_score))
+
+            strengths = [str(s) for s in data.get("strengths", []) if s]
+            gaps = [str(g) for g in data.get("gaps", []) if g]
+            deal_breakers = [str(d) for d in data.get("deal_breakers", []) if d]
+            explanation = str(data.get("explanation") or f"Độ tương thích tổng thể: {base_cosine_score:.1f}%")
+            interview_questions = [str(q) for q in data.get("interview_questions", []) if q]
+
+            # Weighted Formula: 35% Vector Semantic + 40% Hard Skills + 25% Experience Level
+            weighted = 0.35 * base_cosine_score + 0.40 * skills_score + 0.25 * experience_score
+
+            # Deal-breaker Penalty Cap: if serious deal-breaker exists, cap at 60%
+            if deal_breakers:
+                final_score = round(min(weighted, 60.0), 1)
+            else:
+                final_score = round(max(0.0, min(100.0, weighted)), 1)
+
+            return AIMatchResponse(
+                score=final_score,
+                explanation=explanation,
+                strengths=strengths,
+                gaps=gaps,
+                breakdown=MatchBreakdown(
+                    skills_score=round(max(0.0, min(100.0, skills_score)), 1),
+                    experience_score=round(max(0.0, min(100.0, experience_score)), 1),
+                    domain_score=round(max(0.0, min(100.0, domain_score)), 1),
+                ),
+                deal_breakers=deal_breakers,
+                interview_questions=interview_questions,
+            )
+        except Exception as exc:
+            logger.warning("Deep rubric matching failed, falling back to base cosine score: %s", exc)
+            return AIMatchResponse(
+                score=base_cosine_score,
+                explanation=f"AI matching score based on cosine similarity: {base_cosine_score:.1f}%",
+                strengths=[],
+                gaps=[],
+                breakdown=MatchBreakdown(
+                    skills_score=base_cosine_score,
+                    experience_score=base_cosine_score,
+                    domain_score=base_cosine_score,
+                ),
+                deal_breakers=[],
+                interview_questions=[],
+            )
+
     async def compute_match(
         self,
         db: Session,
         *,
         resume: Resume,
         job_embedding: list[float],
+        job: Any | None = None,
+        deep_analysis: bool = False,
     ) -> AIMatchResponse:
         """Compute cosine similarity between a resume embedding and a job embedding."""
         if resume.embedding is None and resume.raw_text and resume.raw_text.strip():
@@ -144,12 +248,22 @@ class AIMatchingService:
             )
 
         resume_embedding: list[float] = list(resume.embedding)  # type: ignore[assignment]
-        return await self.compute_match_for_embedding(
+        base_match = await self.compute_match_for_embedding(
             db,
             candidate_embedding=resume_embedding,
             job_embedding=job_embedding,
             resume_id=resume.id,
         )
+
+        if deep_analysis and job and resume.raw_text:
+            return await self._run_deep_rubric_analysis(
+                resume_text=resume.raw_text,
+                job=job,
+                base_cosine_score=base_match.score,
+                db=db,
+            )
+
+        return base_match
 
     async def compute_match_for_cv_document(
         self,
@@ -157,6 +271,8 @@ class AIMatchingService:
         *,
         cv_document: CvDocument,
         job_embedding: list[float],
+        job: Any | None = None,
+        deep_analysis: bool = False,
     ) -> AIMatchResponse:
         """Compute cosine similarity between a CV Builder document and a job embedding."""
         text_content = extract_cv_document_text(cv_document)
@@ -181,9 +297,19 @@ class AIMatchingService:
                 gaps=["Lỗi sinh vector"],
             )
 
-        return await self.compute_match_for_embedding(
+        base_match = await self.compute_match_for_embedding(
             db, candidate_embedding=cv_embedding, job_embedding=job_embedding
         )
+
+        if deep_analysis and job:
+            return await self._run_deep_rubric_analysis(
+                resume_text=text_content,
+                job=job,
+                base_cosine_score=base_match.score,
+                db=db,
+            )
+
+        return base_match
 
     async def compute_match_for_embedding(
         self,

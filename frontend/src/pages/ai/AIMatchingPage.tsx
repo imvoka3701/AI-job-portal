@@ -19,6 +19,7 @@ import {
   BookOpen,
   Send,
   HelpCircle,
+  AlertTriangle,
 } from "lucide-react";
 import { getMyResumes } from "@/lib/api/resumes";
 import { getCvDocuments } from "@/lib/api/cvDocuments";
@@ -693,15 +694,85 @@ export function AIMatchingPage() {
                 ) : activeMatchResult ? (
                   <div className="space-y-3">
                     {/* Overall AI Matching Score */}
-                    <div className="p-4 rounded-2xl bg-emerald-50/80 border border-emerald-200 space-y-1">
+                    <div className="p-4 rounded-2xl bg-emerald-50/80 border border-emerald-200 space-y-2">
                       <div className="flex justify-between items-center text-xs font-bold">
-                        <span className="text-emerald-900 flex items-center gap-1">
-                          <Sparkles size={13} className="text-[#00B86B]" /> Điểm So Khớp AI (pgvector)
+                        <span className="text-emerald-900 flex items-center gap-1.5">
+                          <Sparkles size={14} className="text-[#00B86B]" /> Điểm Phù Hợp Đa Chiều AI
                         </span>
-                        <span className="text-emerald-700 font-black text-base">{activeMatchResult.score.toFixed(0)}%</span>
+                        <span className="text-emerald-700 font-black text-lg">{activeMatchResult.score.toFixed(0)}%</span>
                       </div>
-                      <p className="text-[11px] text-emerald-800 leading-relaxed">{activeMatchResult.explanation}</p>
+                      <p className="text-[11px] text-emerald-800 leading-relaxed font-medium">{activeMatchResult.explanation}</p>
+
+                      {/* 3-Axis Multi-Criteria Breakdown */}
+                      {activeMatchResult.breakdown && (
+                        <div className="pt-2 border-t border-emerald-200/60 space-y-2">
+                          <span className="text-[10px] uppercase tracking-wider font-bold text-emerald-900 block">
+                            Ma Trận Trọng Số Năng Lực
+                          </span>
+                          <div className="space-y-1.5 text-[11px]">
+                            {/* Skills */}
+                            <div>
+                              <div className="flex justify-between text-slate-700 font-semibold mb-0.5">
+                                <span>Kỹ năng & Công nghệ (40%)</span>
+                                <span className="font-bold text-slate-900">{activeMatchResult.breakdown.skills_score.toFixed(0)}%</span>
+                              </div>
+                              <div className="h-1.5 w-full bg-emerald-200/70 rounded-full overflow-hidden">
+                                <div
+                                  className="h-full bg-[#00B86B] rounded-full transition-all duration-500"
+                                  style={{ width: `${activeMatchResult.breakdown.skills_score}%` }}
+                                />
+                              </div>
+                            </div>
+
+                            {/* Experience */}
+                            <div>
+                              <div className="flex justify-between text-slate-700 font-semibold mb-0.5">
+                                <span>Thâm niên & Cấp bậc (25%)</span>
+                                <span className="font-bold text-slate-900">{activeMatchResult.breakdown.experience_score.toFixed(0)}%</span>
+                              </div>
+                              <div className="h-1.5 w-full bg-emerald-200/70 rounded-full overflow-hidden">
+                                <div
+                                  className="h-full bg-teal-600 rounded-full transition-all duration-500"
+                                  style={{ width: `${activeMatchResult.breakdown.experience_score}%` }}
+                                />
+                              </div>
+                            </div>
+
+                            {/* Domain */}
+                            <div>
+                              <div className="flex justify-between text-slate-700 font-semibold mb-0.5">
+                                <span>Quy mô & Lĩnh vực dự án (20%)</span>
+                                <span className="font-bold text-slate-900">{activeMatchResult.breakdown.domain_score.toFixed(0)}%</span>
+                              </div>
+                              <div className="h-1.5 w-full bg-emerald-200/70 rounded-full overflow-hidden">
+                                <div
+                                  className="h-full bg-cyan-600 rounded-full transition-all duration-500"
+                                  style={{ width: `${activeMatchResult.breakdown.domain_score}%` }}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
+
+                    {/* Deal Breakers Warning Card (if any) */}
+                    {activeMatchResult.deal_breakers && activeMatchResult.deal_breakers.length > 0 && (
+                      <div className="p-3.5 rounded-2xl bg-rose-50/90 border border-rose-200 space-y-1.5">
+                        <div className="text-xs font-bold text-rose-800 flex items-center gap-1.5">
+                          <AlertTriangle size={13} className="text-rose-600 shrink-0" />
+                          <span>Điểm Nghẽn Tiên Quyết (Deal-breakers)</span>
+                        </div>
+                        <p className="text-[10px] text-rose-600">
+                          Hồ sơ có dấu hiệu lệch điều kiện cơ bản so với yêu cầu bắt buộc của JD:
+                        </p>
+                        <ul className="text-[11px] text-rose-700 space-y-1 list-disc list-inside font-medium">
+                          {activeMatchResult.deal_breakers.map((db, idx) => (
+                            <li key={idx}>{db}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
 
                     {/* Strengths */}
                     {activeMatchResult.strengths && activeMatchResult.strengths.length > 0 && (
@@ -736,6 +807,21 @@ export function AIMatchingPage() {
                         >
                           <span>Xem Lộ Trình Bổ Sung Kỹ Năng ↗</span>
                         </Link>
+                      </div>
+                    )}
+
+                    {/* Suggested Interview Questions */}
+                    {activeMatchResult.interview_questions && activeMatchResult.interview_questions.length > 0 && (
+                      <div className="p-3.5 rounded-2xl bg-indigo-50/70 border border-indigo-200 space-y-1.5">
+                        <div className="text-xs font-bold text-indigo-900 flex items-center gap-1.5">
+                          <HelpCircle size={13} className="text-indigo-600 shrink-0" />
+                          <span>Gợi Ý Câu Hỏi Phỏng Vấn Trọng Tâm</span>
+                        </div>
+                        <ul className="text-[11px] text-indigo-800 space-y-1 list-disc list-inside">
+                          {activeMatchResult.interview_questions.map((q, idx) => (
+                            <li key={idx}>{q}</li>
+                          ))}
+                        </ul>
                       </div>
                     )}
                   </div>

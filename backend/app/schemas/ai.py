@@ -10,11 +10,20 @@ class AIMatchRequest(BaseModel):
     job_id: int
 
 
+class MatchBreakdown(BaseModel):
+    skills_score: float = 0.0
+    experience_score: float = 0.0
+    domain_score: float = 0.0
+
+
 class AIMatchResponse(BaseModel):
     score: float
     explanation: str
-    strengths: list[str]
-    gaps: list[str]
+    strengths: list[str] = []
+    gaps: list[str] = []
+    breakdown: MatchBreakdown | None = None
+    deal_breakers: list[str] = []
+    interview_questions: list[str] = []
 
 
 class CVEvaluationRequest(BaseModel):
