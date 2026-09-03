@@ -202,56 +202,30 @@ export const JobDetailPage = () => {
     if (!job || isCompanyInternal) return;
 
     const computeMatching = async () => {
+      let resumeId: number | null = null;
+      if (selectedDocument.startsWith("resume:")) {
+        resumeId = Number(selectedDocument.split(":")[1]);
+      }
+
+      if (!resumeId) {
+        setAiMatchResult(null);
+        setIsMatchingLoading(false);
+        return;
+      }
+
       setIsMatchingLoading(true);
       try {
-        let resumeId: number | null = null;
-        if (selectedDocument.startsWith("resume:")) {
-          resumeId = Number(selectedDocument.split(":")[1]);
-        }
-
-        if (resumeId) {
-          const matchData = await getAiMatch(resumeId, job.id);
-          setAiMatchResult(matchData);
-        } else {
-          // Intelligent simulated analysis based on JD characteristics
-          const expLevel = job.experience_level || "middle";
-          const score = expLevel === "senior" ? 88 : expLevel === "middle" ? 93 : 95;
-          setAiMatchResult({
-            score,
-            explanation: `Hồ sơ có độ tương thích rất cao với vị trí ${job.title}. Các kỹ năng cốt lõi và kinh nghiệm xử lý hệ thống phù hợp với tiêu chuẩn tuyển dụng của doanh nghiệp.`,
-            strengths: [
-              "Thành thạo kiến trúc phân tầng & Clean Code",
-              "Kinh nghiệm làm việc thực tế với Framework hiện đại",
-              "Kỹ năng tư duy logic và giải quyết vấn đề hệ thống tốt",
-              "Khả năng đọc hiểu tài liệu kỹ thuật & làm việc nhóm",
-            ],
-            gaps: [
-              "Kinh nghiệm tối ưu hóa hiệu năng chuyên sâu (High Throughput)",
-              "Quy trình tự động hóa CI/CD & Cloud Infrastructure (AWS/GCP)",
-            ],
-          });
-        }
+        const matchData = await getAiMatch(resumeId, job.id);
+        setAiMatchResult(matchData);
       } catch {
-        // Fallback smooth analysis
-        setAiMatchResult({
-          score: 91,
-          explanation: `Hồ sơ của bạn đáp ứng tốt hầu hết các tiêu chí của vị trí ${job.title}. Điểm mạnh là tư duy kiến trúc và tốc độ làm quen công nghệ mới.`,
-          strengths: [
-            "Kiến thức nền tảng vững chắc và tư duy kỹ thuật tốt",
-            "Kinh nghiệm thực hành với công nghệ cốt lõi trong JD",
-            "Tinh thần trách nhiệm và khả năng thích ứng cao",
-          ],
-          gaps: [
-            "Các chứng chỉ chuyên môn quốc tế liên quan",
-          ],
-        });
+        setAiMatchResult(null);
       } finally {
         setIsMatchingLoading(false);
       }
     };
 
     computeMatching();
-  }, [job, selectedDocument]);
+  }, [job, selectedDocument, isCompanyInternal]);
 
   // Generate AI Cover Letter
   const handleGenerateCoverLetter = () => {
@@ -566,7 +540,12 @@ ${candidateName}`;
               {!isCompanyInternal && (
               <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 text-xs font-bold text-emerald-900">
                 <Sparkles className="w-4 h-4 text-[#00B86B] animate-pulse" />
-                <span>AI Matching: <strong>{aiMatchResult?.score || 92}% Phù hợp</strong></span>
+                <span>
+                  AI Matching:{" "}
+                  <strong>
+                    {aiMatchResult ? `${aiMatchResult.score}% Phù hợp` : "Chưa có dữ liệu"}
+                  </strong>
+                </span>
               </div>
               )}
             </div>
@@ -602,11 +581,23 @@ ${candidateName}`;
                   <div className="text-right">
                     <span className="text-[10px] text-emerald-200 font-bold uppercase tracking-wider block">Độ khớp AI</span>
                     <span className="text-xs text-emerald-300 font-semibold">
-                      {isMatchingLoading ? "Đang phân tích..." : "Cực kỳ tiềm năng"}
+                      {isMatchingLoading
+                        ? "Đang phân tích..."
+                        : aiMatchResult
+                        ? aiMatchResult.score >= 85
+                          ? "Cực kỳ tiềm năng"
+                          : "Tiềm năng"
+                        : "Chưa có dữ liệu"}
                     </span>
                   </div>
-                  <div className="w-12 h-12 rounded-xl bg-[#00B86B] text-white flex items-center justify-center font-black text-lg shadow-md shadow-emerald-500/30">
-                    {isMatchingLoading ? <RefreshCw size={18} className="animate-spin" /> : `${aiMatchResult?.score || 92}%`}
+                  <div className="w-12 h-12 rounded-xl bg-[#00B86B] text-white flex items-center justify-center font-black text-sm shadow-md shadow-emerald-500/30 text-center">
+                    {isMatchingLoading ? (
+                      <RefreshCw size={18} className="animate-spin" />
+                    ) : aiMatchResult ? (
+                      `${aiMatchResult.score}%`
+                    ) : (
+                      "--%"
+                    )}
                   </div>
                 </div>
               </div>
@@ -624,7 +615,7 @@ ${candidateName}`;
                       onFocus={() => { void refreshCandidateDocuments(); }}
                       className="bg-white/10 border border-white/20 rounded-xl px-3 py-1.5 text-xs text-white font-bold outline-none focus:ring-2 focus:ring-emerald-400 transition-all"
                     >
-                      <option value="" className="text-slate-900">Hồ sơ mặc định hệ thống</option>
+                      <option value="" className="text-slate-900">-- Chọn CV để so khớp AI --</option>
                       {resumes.map((r) => (
                         <option key={r.id} value={`resume:${r.id}`} className="text-slate-900">
                           📄 {r.title}
@@ -639,60 +630,85 @@ ${candidateName}`;
                   </div>
                 ) : (
                   <p className="text-xs text-emerald-200/90 leading-relaxed font-light">
-                    Hệ thống AI đã phân tích các tiêu chí kỹ thuật trong JD này để chỉ ra các điểm mạnh và lỗ hổng kỹ năng bạn cần chuẩn bị.
+                    Hệ thống AI đối soát năng lực giữa CV ứng viên và yêu cầu kỹ thuật trong JD để tính toán độ tương thích chuẩn xác.
                   </p>
                 )}
 
-                <div className="p-4 rounded-2xl bg-white/5 border border-white/10 text-xs text-slate-200 leading-relaxed">
-                  💡 <strong>Đánh giá của Tech Lead AI:</strong> {aiMatchResult?.explanation}
-                </div>
-              </div>
-
-              {/* 2-Column Skills Matrix */}
-              <div className="grid sm:grid-cols-2 gap-4 pt-2">
-                {/* Matched Strengths */}
-                <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-400/20 space-y-2.5">
-                  <div className="flex items-center gap-2 text-emerald-300 font-bold text-xs">
-                    <CheckCircle2 size={16} className="text-emerald-400 shrink-0" />
-                    <span>Kỹ năng đáp ứng chuẩn ({aiMatchResult?.strengths?.length || 4})</span>
+                {isMatchingLoading ? (
+                  <div className="p-6 rounded-2xl bg-white/5 border border-white/10 text-xs text-slate-200 text-center py-8 space-y-2">
+                    <RefreshCw size={20} className="animate-spin text-emerald-400 mx-auto" />
+                    <p>Đang so khớp vector embedding giữa CV và JD vị trí {job.title}...</p>
                   </div>
-                  <ul className="space-y-1.5">
-                    {(aiMatchResult?.strengths || []).map((str, idx) => (
-                      <li key={idx} className="text-xs text-slate-200 flex items-start gap-1.5 font-medium">
-                        <span className="text-emerald-400 font-bold">•</span>
-                        <span>{str}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-
-                {/* Skill Gaps & Roadmap Action */}
-                <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-400/20 space-y-2.5">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 text-amber-300 font-bold text-xs">
-                      <Target size={16} className="text-amber-400 shrink-0" />
-                      <span>Lỗ hổng kỹ năng cần bổ sung</span>
+                ) : aiMatchResult ? (
+                  <>
+                    <div className="p-4 rounded-2xl bg-white/5 border border-white/10 text-xs text-slate-200 leading-relaxed">
+                      💡 <strong>Đánh giá của Tech Lead AI:</strong> {aiMatchResult.explanation}
                     </div>
+
+                    {/* 2-Column Skills Matrix */}
+                    <div className="grid sm:grid-cols-2 gap-4 pt-2">
+                      {/* Matched Strengths */}
+                      <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-400/20 space-y-2.5">
+                        <div className="flex items-center gap-2 text-emerald-300 font-bold text-xs">
+                          <CheckCircle2 size={16} className="text-emerald-400 shrink-0" />
+                          <span>Kỹ năng đáp ứng chuẩn ({aiMatchResult.strengths?.length || 0})</span>
+                        </div>
+                        <ul className="space-y-1.5">
+                          {(aiMatchResult.strengths || []).map((str, idx) => (
+                            <li key={idx} className="text-xs text-slate-200 flex items-start gap-1.5 font-medium">
+                              <span className="text-emerald-400 font-bold">•</span>
+                              <span>{str}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+
+                      {/* Skill Gaps & Roadmap Action */}
+                      <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-400/20 space-y-2.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 text-amber-300 font-bold text-xs">
+                            <Target size={16} className="text-amber-400 shrink-0" />
+                            <span>Lỗ hổng kỹ năng cần bổ sung</span>
+                          </div>
+                        </div>
+                        <ul className="space-y-1.5">
+                          {(aiMatchResult.gaps || []).map((gap, idx) => (
+                            <li key={idx} className="text-xs text-slate-200 flex items-start gap-1.5 font-medium">
+                              <span className="text-amber-400 font-bold">•</span>
+                              <span>{gap}</span>
+                            </li>
+                          ))}
+                        </ul>
+                        <div className="pt-2 border-t border-white/10">
+                          <Link
+                            to="/ai/roadmap"
+                            className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-300 hover:text-emerald-200 transition-colors"
+                          >
+                            <Sparkles size={13} />
+                            <span>Tạo lộ trình học bổ sung kỹ năng còn thiếu</span>
+                            <ArrowUpRight size={13} />
+                          </Link>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="p-5 rounded-2xl bg-white/5 border border-dashed border-white/20 text-center space-y-2.5 py-6">
+                    <p className="text-xs text-slate-300 font-medium">
+                      {user?.role === "candidate"
+                        ? "Vui lòng chọn hoặc tải lên một file CV để hệ thống AI tính toán điểm so khớp chính xác với công việc này."
+                        : "Đăng nhập tài khoản Ứng viên để xem điểm so khớp AI chi tiết giữa hồ sơ của bạn và công việc này."}
+                    </p>
+                    {user?.role === "candidate" && resumes.length === 0 && (
+                      <Link
+                        to="/cv"
+                        className="inline-flex items-center gap-1 text-xs font-bold text-emerald-300 hover:text-emerald-200 hover:underline pt-1"
+                      >
+                        <span>Tạo hoặc tải lên CV ngay →</span>
+                      </Link>
+                    )}
                   </div>
-                  <ul className="space-y-1.5">
-                    {(aiMatchResult?.gaps || []).map((gap, idx) => (
-                      <li key={idx} className="text-xs text-slate-200 flex items-start gap-1.5 font-medium">
-                        <span className="text-amber-400 font-bold">•</span>
-                        <span>{gap}</span>
-                      </li>
-                    ))}
-                  </ul>
-                  <div className="pt-2 border-t border-white/10">
-                    <Link
-                      to="/ai/roadmap"
-                      className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-300 hover:text-emerald-200 transition-colors"
-                    >
-                      <Sparkles size={13} />
-                      <span>Tạo lộ trình học bổ sung kỹ năng còn thiếu</span>
-                      <ArrowUpRight size={13} />
-                    </Link>
-                  </div>
-                </div>
+                )}
               </div>
             </motion.section>
             )}
