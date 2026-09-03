@@ -121,6 +121,45 @@ class TestAIEndpoints:
         )
         assert response.status_code == 401
 
+    def test_roadmap_passes_parsed_skills_from_resume(self, client: TestClient, db_session: Session, monkeypatch):
+        """Verify that /ai/roadmap correctly extracts parsed_skills from resume and passes to suggest service."""
+        from unittest.mock import AsyncMock
+        from app.routers import ai as ai_router
+        from app.schemas.ai import RoadmapResponse, RoadmapStep
+
+        headers = _register_and_login(
+            client, "cand_roadmap@test.com", "secret123", "Roadmap Cand", "candidate"
+        )
+        me = client.get("/users/me", headers=headers)
+        cand_id = me.json()["id"]
+
+        mock_suggest = AsyncMock(return_value=RoadmapResponse(
+            target_role="AI Engineer",
+            current_level="Mid",
+            estimated_months=6,
+            steps=[RoadmapStep(order=1, title="Learn PyTorch", description="Basics", skills_to_learn=["PyTorch"], resources=[])],
+        ))
+        monkeypatch.setattr(ai_router.roadmap_suggest_service, "suggest", mock_suggest)
+
+        resume_in = ResumeCreate(
+            title="resume_with_skills.pdf",
+            file_url="uploads/test.pdf",
+            raw_text="Experienced developer with React and Python skills.",
+            parsed_skills='["React", "Python", "FastAPI"]',
+        )
+        resume = crud_resume.create(db_session, obj_in=resume_in, user_id=cand_id)
+
+        resp = client.post(
+            "/ai/roadmap",
+            json={"resume_id": resume.id, "target_role": "AI Engineer"},
+            headers=headers,
+        )
+        assert resp.status_code == 200
+        assert mock_suggest.called
+        kwargs = mock_suggest.call_args.kwargs
+        assert kwargs["parsed_skills"] == ["React", "Python", "FastAPI"]
+        assert kwargs["target_role"] == "AI Engineer"
+
 
 class TestAIMatchingIntegration:
     """Full-flow integration test: upload CV → post job → match → valid score."""
