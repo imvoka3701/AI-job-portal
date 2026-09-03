@@ -542,9 +542,9 @@ export const CandidateDashboard = () => {
                         key={app.id}
                         className="p-5 sm:p-6 hover:bg-emerald-50/20 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4 group"
                       >
-                        <div className="space-y-1.5 flex-1">
+                        <div className="space-y-1.5 flex-1 min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
-                            <span className="text-xs font-bold text-slate-500">
+                            <span className="text-xs font-bold text-slate-500 truncate max-w-[200px]">
                               {app.job?.employer?.company_name || app.job?.employer?.full_name || "Doanh nghiệp đối tác"}
                             </span>
                             <ApplicationStatusBadge status={app.status} size="sm" />
@@ -552,31 +552,33 @@ export const CandidateDashboard = () => {
 
                           <Link
                             to={`/jobs/${app.job_id}`}
-                            className="font-black text-sm sm:text-base text-slate-900 group-hover:text-emerald-700 transition-colors block"
+                            className="font-black text-sm sm:text-base text-slate-900 group-hover:text-emerald-700 transition-colors block break-words"
                           >
                             {app.job?.title || `Vị trí tuyển dụng #${app.job_id}`}
                           </Link>
 
                           <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
                             <span className="flex items-center gap-1">
-                              <Clock size={13} /> Nộp ngày: {new Date(app.applied_at).toLocaleDateString("vi-VN")}
+                              <Clock size={13} className="shrink-0" /> Nộp ngày: {new Date(app.applied_at).toLocaleDateString("vi-VN")}
                             </span>
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-3 shrink-0">
+                        <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4 shrink-0 sm:pl-4">
                           {app.ai_matching_score ? (
-                            <div className="text-right">
-                              <span className="text-[10px] text-slate-400 uppercase font-bold block">AI Match</span>
-                              <span className="text-xs font-black text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
+                            <div className="flex flex-col items-end shrink-0">
+                              <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider leading-tight mb-0.5">
+                                AI Match
+                              </span>
+                              <span className="inline-flex items-center justify-center text-xs font-black text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200 whitespace-nowrap shadow-2xs">
                                 {app.ai_matching_score}% Khớp
                               </span>
                             </div>
                           ) : null}
 
-                          <Link to={`/jobs/${app.job_id}`}>
-                            <Button size="sm" variant="outline" className="rounded-full text-xs font-bold border-slate-200 hover:border-emerald-300">
-                              Xem JD <ChevronRight size={13} className="ml-1" />
+                          <Link to={`/jobs/${app.job_id}`} className="shrink-0">
+                            <Button size="sm" variant="outline" className="rounded-full text-xs font-bold border-slate-200 hover:border-emerald-300 hover:bg-emerald-50/50 whitespace-nowrap px-3.5">
+                              Xem JD <ChevronRight size={13} className="ml-1 shrink-0" />
                             </Button>
                           </Link>
                         </div>
