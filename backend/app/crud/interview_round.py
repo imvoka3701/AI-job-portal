@@ -90,6 +90,16 @@ class CRUDInterviewRound:
         if not app:
             return
 
+        # Explicit human decisions (accepted, rejected) must never be overwritten by round updates
+        terminal_statuses = {
+            ApplicationStatus.ACCEPTED,
+            ApplicationStatus.ACCEPTED.value,
+            ApplicationStatus.REJECTED,
+            ApplicationStatus.REJECTED.value,
+        }
+        if app.status in terminal_statuses:
+            return
+
         rounds = (
             db.execute(
                 select(InterviewRound)
