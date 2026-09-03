@@ -2,7 +2,7 @@
 
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.company_permissions import (
@@ -40,6 +40,27 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/applications", tags=["Applications"])
 
 
+def _send_application_notification_task(
+    employer_id: int, candidate_name: str, job_title: str
+) -> None:
+    """Send notification to employer in background task using a fresh DB session."""
+    from app.database import SessionLocal
+
+    db = SessionLocal()
+    try:
+        crud_notification.create(
+            db,
+            user_id=employer_id,
+            title="Ứng viên mới ứng tuyển",
+            message=f'{candidate_name} đã ứng tuyển vào vị trí "{job_title}".',
+            type=NotificationType.APPLICATION_UPDATE,
+        )
+    except Exception:
+        logger.exception("Failed to create background notification for employer %s", employer_id)
+    finally:
+        db.close()
+
+
 @router.post(
     "",
     response_model=ApplicationRead,
@@ -48,6 +69,7 @@ router = APIRouter(prefix="/applications", tags=["Applications"])
 )
 async def create_application(
     data: ApplicationCreate,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(require_role(UserRole.CANDIDATE)),
     db: Session = Depends(get_db),
 ) -> ApplicationRead:
@@ -107,20 +129,19 @@ async def create_application(
     except Exception:
         logger.exception("Failed to create Round 1 for application %s", application.id)
 
-    # ── Notify employer ────────────────────────────────────────────────────
+    # ── Notify employer (via BackgroundTasks) ──────────────────────────────
     try:
         job = crud_job.get_by_id(db, job_id=application.job_id)
         if job:
-            crud_notification.create(
-                db,
-                user_id=job.employer_id,
-                title="Ứng viên mới ứng tuyển",
-                message=(f'{current_user.full_name} đã ứng tuyển vào vị trí "{job.title}".'),
-                type=NotificationType.APPLICATION_UPDATE,
+            background_tasks.add_task(
+                _send_application_notification_task,
+                employer_id=job.employer_id,
+                candidate_name=current_user.full_name or "Ứng viên",
+                job_title=job.title,
             )
     except Exception:
         logger.exception(
-            "Failed to create notification for employer %s", job.employer_id if job else "?"
+            "Failed to schedule notification for employer %s", job.employer_id if job else "?"
         )
 
     return ApplicationRead.model_validate(application)

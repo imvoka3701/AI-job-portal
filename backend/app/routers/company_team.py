@@ -1,6 +1,6 @@
 """Employer company context, departments, memberships, invitations, and assignments."""
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.core.company_permissions import (
@@ -224,11 +224,12 @@ def list_invitations(
 )
 def create_invitation(
     data: InvitationCreate,
+    background_tasks: BackgroundTasks,
     context: CompanyContext = Depends(require_company_permission(CompanyPermission.TEAM_MANAGE)),
     db: Session = Depends(get_db),
 ) -> InvitationCreated:
     invitation, token = company_service.create_invitation(
-        db, company=context.company, data=data, actor=context.user
+        db, company=context.company, data=data, actor=context.user, background_tasks=background_tasks
     )
     return _invitation_read(invitation, token=token)  # type: ignore[return-value]
 
@@ -239,6 +240,7 @@ def create_invitation(
 )
 def resend_invitation(
     invitation_id: int,
+    background_tasks: BackgroundTasks,
     context: CompanyContext = Depends(require_company_permission(CompanyPermission.TEAM_MANAGE)),
     db: Session = Depends(get_db),
 ) -> InvitationCreated:
@@ -246,7 +248,7 @@ def resend_invitation(
     if invitation is None or invitation.company_id != context.company.id:
         raise HTTPException(status_code=404, detail="Lời mời không tồn tại.")
     invitation, token = company_service.resend_invitation(
-        db, invitation=invitation, actor=context.user
+        db, invitation=invitation, actor=context.user, background_tasks=background_tasks
     )
     return _invitation_read(invitation, token=token)  # type: ignore[return-value]
 
