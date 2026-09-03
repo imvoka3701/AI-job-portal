@@ -38,6 +38,17 @@ vi.mock("@/lib/api/ai", () => ({
     summary: "Bad generic CV",
     suggestions: []
   }),
+  summarizeCV: vi.fn().mockResolvedValue({
+    summary: "Ứng viên có 5 năm kinh nghiệm React và FastAPI.",
+    fit_points: [
+      "Thành thạo TypeScript và Python backend",
+      "Kinh nghiệm thiết kế hệ thống phân tán",
+    ],
+    questions: [
+      "Bạn đã tối ưu hóa hiệu năng pgvector như thế nào?",
+      "Trình bày cách xử lý concurrency trong FastAPI.",
+    ],
+  }),
 }));
 
 vi.mock("@/lib/api/employer", () => ({
@@ -160,5 +171,52 @@ describe("EmployerCandidatesPage - AI Modal Logic", () => {
 
     // 3. Ensure it absolutely does NOT show "✓ Rất phù hợp" despite the 8.2 overall_score
     expect(screen.queryByText("✓ Rất phù hợp")).not.toBeInTheDocument();
+  });
+
+  it("renders summary, fit_points, and suggested questions in CV Summarize modal", async () => {
+    const { getEmployerApplications } = await import("@/lib/api/ai");
+    (getEmployerApplications as any).mockResolvedValue([
+      {
+        id: 1,
+        job_id: 1,
+        resume_id: 101,
+        candidate: { full_name: "Summarize Candidate", email: "candidate@example.com" },
+        ai_matching_score: 90,
+        status: "applied",
+        cv_document: {},
+        created_at: new Date().toISOString(),
+      }
+    ]);
+
+    const user = userEvent.setup();
+
+    render(
+      <MemoryRouter>
+        <EmployerCandidatesPage />
+      </MemoryRouter>
+    );
+
+    const candidateRow = await screen.findByText("Summarize Candidate");
+    await user.click(candidateRow);
+
+    const summarizeButton = await screen.findByRole("button", { name: /^tóm tắt$/i });
+    await user.click(summarizeButton);
+
+    await waitFor(() => {
+      expect(screen.getByText("Tóm tắt năng lực & kinh nghiệm cốt lõi")).toBeInTheDocument();
+    });
+
+    // 1. Verify core summary is rendered
+    expect(screen.getByText(/Ứng viên có 5 năm kinh nghiệm React và FastAPI/i)).toBeInTheDocument();
+
+    // 2. Verify fit_points are rendered
+    expect(screen.getByText("Điểm phù hợp nổi bật với vị trí (2)")).toBeInTheDocument();
+    expect(screen.getByText("Thành thạo TypeScript và Python backend")).toBeInTheDocument();
+    expect(screen.getByText("Kinh nghiệm thiết kế hệ thống phân tán")).toBeInTheDocument();
+
+    // 3. Verify suggested interview questions are rendered
+    expect(screen.getByText("Câu hỏi phỏng vấn đề xuất (2)")).toBeInTheDocument();
+    expect(screen.getByText("Bạn đã tối ưu hóa hiệu năng pgvector như thế nào?")).toBeInTheDocument();
+    expect(screen.getByText("Trình bày cách xử lý concurrency trong FastAPI.")).toBeInTheDocument();
   });
 });
