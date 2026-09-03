@@ -1,3 +1,4 @@
+import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { AlertCircle, RefreshCw } from "lucide-react";
 
@@ -21,40 +22,45 @@ export function ErrorState({
   className,
 }: ErrorStateProps) {
   return (
-    <div
+    <motion.div
+      initial={{ opacity: 0, y: 8, scale: 0.98 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ duration: 0.3, ease: "easeOut" }}
       className={cn(
-        "flex flex-col items-center justify-center text-center py-16 px-6",
+        "flex flex-col items-center justify-center text-center py-12 px-6 rounded-3xl border border-rose-100/90 bg-rose-50/30",
         className
       )}
       role="alert"
+      data-testid="error-state"
     >
       {/* Icon */}
-      <div className="w-16 h-16 rounded-2xl bg-red-50 flex items-center justify-center mb-5">
-        <AlertCircle className="w-7 h-7 text-red-400" />
+      <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-rose-50 to-red-100 text-rose-500 border border-rose-200/80 shadow-xs flex items-center justify-center mb-4">
+        <AlertCircle className="w-7 h-7 text-rose-500" />
       </div>
 
       {/* Title */}
-      <h3 className="text-base font-semibold text-gray-800 mb-1.5">
+      <h3 className="text-sm font-bold text-slate-900 mb-1.5">
         {title}
       </h3>
 
       {/* Message */}
       {message && (
-        <p className="text-sm text-gray-500 max-w-xs leading-relaxed mb-5">
+        <p className="text-xs text-slate-500 max-w-sm leading-relaxed mb-4 font-medium">
           {message}
         </p>
       )}
 
-      {/* Retry */}
+      {/* Retry Button */}
       {onRetry && (
         <button
+          type="button"
           onClick={onRetry}
-          className="inline-flex items-center gap-2 h-9 px-4 rounded-lg border border-gray-200 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-300 active:bg-gray-100 transition-all"
+          className="inline-flex items-center gap-2 h-9 px-4 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-700 hover:bg-slate-50 hover:border-slate-300 shadow-xs active:scale-95 transition-all cursor-pointer"
         >
           <RefreshCw className="w-3.5 h-3.5" />
-          Thử lại
+          <span>Thử lại</span>
         </button>
       )}
-    </div>
+    </motion.div>
   );
 }
