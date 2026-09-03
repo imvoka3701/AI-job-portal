@@ -124,6 +124,7 @@ class TestAIEndpoints:
     def test_roadmap_passes_parsed_skills_from_resume(self, client: TestClient, db_session: Session, monkeypatch):
         """Verify that /ai/roadmap correctly extracts parsed_skills from resume and passes to suggest service."""
         from unittest.mock import AsyncMock
+
         from app.routers import ai as ai_router
         from app.schemas.ai import RoadmapResponse, RoadmapStep
 
