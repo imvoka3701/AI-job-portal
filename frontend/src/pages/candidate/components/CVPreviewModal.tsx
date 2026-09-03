@@ -128,19 +128,11 @@ export function CVPreviewModal({ url, onClose }: CVPreviewModalProps) {
             </div>
           )}
           {blobUrl && (
-            <object 
-              data={`${blobUrl}#toolbar=0`} 
-              type="application/pdf"
+            <iframe 
+              src={`${blobUrl}#toolbar=0`} 
               className="absolute inset-0 w-full h-full border-0"
               title="CV Preview"
-            >
-              <div className="flex flex-col items-center justify-center h-full bg-white">
-                <p className="text-gray-600 mb-4">Trình duyệt của bạn không hỗ trợ xem trực tiếp PDF.</p>
-                <a href={blobUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
-                  Nhấn vào đây để tải/xem ở tab mới
-                </a>
-              </div>
-            </object>
+            />
           )}
         </div>
       </div>
