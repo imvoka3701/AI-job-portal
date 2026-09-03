@@ -21,6 +21,9 @@ class AuthService:
         Employers default to is_active=False — they must be approved by an Admin
         before they can log in or use any employer features.
         """
+        if data.role == UserRole.ADMIN:
+            raise ValueError("Không thể tự đăng ký tài khoản Quản trị viên (Admin).")
+
         existing = crud_user.get_by_email(db, email=data.email)
         if existing:
             raise ValueError("Email already registered")

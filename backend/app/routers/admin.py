@@ -35,7 +35,11 @@ from app.services.admin_service import (
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/admin", tags=["Admin"])
+router = APIRouter(
+    prefix="/admin",
+    tags=["Admin"],
+    dependencies=[Depends(require_role(UserRole.ADMIN))],
+)
 
 
 # ── Helper ─────────────────────────────────────────────────────────────────────

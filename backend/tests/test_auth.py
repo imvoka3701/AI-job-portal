@@ -31,6 +31,21 @@ class TestRegister:
         response = client.post("/auth/register", json=payload)
         assert response.status_code == 409
 
+    def test_cannot_register_as_admin(self, client: TestClient):
+        """Security: Verify that self-registration as admin is strictly blocked."""
+        response = client.post(
+            "/auth/register",
+            json={
+                "email": "hacker_admin@example.com",
+                "password": "StrongPass123!",
+                "full_name": "Malicious User",
+                "role": "admin",
+            },
+        )
+        assert response.status_code == 422
+        assert "Không thể tự đăng ký tài khoản Quản trị viên" in response.text
+
+
 
 class TestLogin:
     def test_login_success(self, client: TestClient):

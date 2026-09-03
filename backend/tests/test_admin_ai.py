@@ -101,6 +101,20 @@ class TestUpdatePrompt:
         assert data["system_prompt"] == new_prompt
         assert data["updated_by"] == admin.id
 
+        # Verify immutable audit log was created
+        from app.models.admin_audit_log import AdminAuditLog
+
+        audit = (
+            db_session.query(AdminAuditLog)
+            .filter(AdminAuditLog.action == "ai_prompt.updated")
+            .first()
+        )
+        assert audit is not None
+        assert audit.actor_user_id == admin.id
+        assert audit.target_type == "ai_prompt"
+        assert audit.target_label == "cv_evaluate"
+
+
     def test_update_creates_record_if_missing(self, client, db_session):
         admin = _create_user(db_session, email="admin-new@ai-test.example.com", role=UserRole.ADMIN)
         headers = _login(client, admin.email)
