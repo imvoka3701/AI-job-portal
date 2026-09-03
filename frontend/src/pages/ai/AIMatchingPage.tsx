@@ -5,7 +5,6 @@ import {
   Sparkles,
   Zap,
   Target,
-  Briefcase,
   CheckCircle2,
   AlertCircle,
   ArrowRight,
@@ -15,13 +14,12 @@ import {
   Building2,
   ChevronDown,
   ChevronUp,
-  Cpu,
-  Layers,
   Flame,
   FileText,
   BookOpen,
   Send,
   HelpCircle,
+  Loader2,
 } from "lucide-react";
 import { getMyResumes } from "@/lib/api/resumes";
 import { getCvDocuments } from "@/lib/api/cvDocuments";
@@ -142,8 +140,10 @@ export function AIMatchingPage() {
   const [selectedJobForDetail, setSelectedJobForDetail] = useState<Job | null>(null);
 
   // Deep Match Result state
-  const [, setActiveMatchResult] = useState<AIMatchResult | null>(null);
-  const [, setMatchingJobId] = useState<number | null>(null);
+  const [activeMatchResult, setActiveMatchResult] = useState<AIMatchResult | null>(null);
+  const [matchingJobId, setMatchingJobId] = useState<number | null>(null);
+  const [jobMatchScores, setJobMatchScores] = useState<Record<number, AIMatchResult>>({});
+  const [matchError, setMatchError] = useState<string | null>(null);
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
 
   // Hydrate user auth if token exists
@@ -215,7 +215,7 @@ export function AIMatchingPage() {
     return selectedPersona.skills;
   }, [selectedCvSource, cvDocs, selectedPersona]);
 
-  // Dynamic Matching Score Generator for Job items
+  // Matching Metrics Generator for Job items — only uses real API scores from DB/backend
   const getJobMatchMetrics = useCallback(
     (job: Job) => {
       const jobDesc = `${job.title} ${job.description} ${job.requirements || ""}`.toLowerCase();
@@ -223,34 +223,36 @@ export function AIMatchingPage() {
       const missingSkills: string[] = [];
 
       activeCandidateSkills.forEach((skill) => {
-        if (jobDesc.includes(skill.toLowerCase()) || skill.toLowerCase().includes("react") && jobDesc.includes("frontend")) {
+        if (
+          jobDesc.includes(skill.toLowerCase()) ||
+          (skill.toLowerCase().includes("react") && jobDesc.includes("frontend"))
+        ) {
           matchedSkills.push(skill);
         }
       });
 
-      // Typical skills required for IT jobs if not matched
       const commonTechs = ["TypeScript", "React", "Node.js", "Docker", "PostgreSQL", "FastAPI", "AWS", "Python"];
       commonTechs.forEach((tech) => {
-        if (jobDesc.includes(tech.toLowerCase()) && !activeCandidateSkills.some((s) => s.toLowerCase() === tech.toLowerCase())) {
+        if (
+          jobDesc.includes(tech.toLowerCase()) &&
+          !activeCandidateSkills.some((s) => s.toLowerCase() === tech.toLowerCase())
+        ) {
           missingSkills.push(tech);
         }
       });
 
-      // Calculate realistic baseline score (65 - 98%)
-      const matchRatio = matchedSkills.length / Math.max(matchedSkills.length + missingSkills.length, 1);
-      const calculatedScore = Math.min(
-        98,
-        Math.max(68, Math.round(matchRatio * 35 + 63 + (job.id % 7)))
-      );
+      // Real matching score from backend API, null if not yet matched
+      const realMatch = jobMatchScores[job.id];
+      const realScore = realMatch ? realMatch.score : null;
 
       return {
-        score: calculatedScore,
-        matchedSkills: matchedSkills.length > 0 ? matchedSkills : ["Kỹ năng phù hợp chung"],
-        missingSkills: missingSkills.slice(0, 3),
-        vectorDistance: (1 - calculatedScore / 100).toFixed(3),
+        score: realScore,
+        matchedSkills: realMatch?.strengths?.length ? realMatch.strengths : matchedSkills,
+        missingSkills: realMatch?.gaps?.length ? realMatch.gaps : missingSkills.slice(0, 3),
+        vectorDistance: realScore != null ? (1 - realScore / 100).toFixed(4) : null,
       };
     },
-    [activeCandidateSkills]
+    [activeCandidateSkills, jobMatchScores]
   );
 
   // Filtered and Ranked Jobs
@@ -265,7 +267,7 @@ export function AIMatchingPage() {
           !searchQuery ||
           job.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
           ((job as any).company_name || job.employer?.company_name || job.employer?.full_name || "").toLowerCase().includes(searchQuery.toLowerCase());
-        const matchesScore = metrics.score >= filterMinScore;
+        const matchesScore = filterMinScore <= 0 || (metrics.score != null && metrics.score >= filterMinScore);
         const matchesType =
           filterJobType === "ALL" ||
           (filterJobType === "REMOTE" && job.job_type?.toLowerCase().includes("remote")) ||
@@ -273,41 +275,52 @@ export function AIMatchingPage() {
 
         return matchesKeyword && matchesScore && matchesType;
       })
-      .sort((a, b) => b.metrics.score - a.metrics.score);
+      .sort((a, b) => {
+        if (a.metrics.score != null && b.metrics.score != null) {
+          return b.metrics.score - a.metrics.score;
+        }
+        if (a.metrics.score != null) return -1;
+        if (b.metrics.score != null) return 1;
+        return 0;
+      });
   }, [jobs, getJobMatchMetrics, searchQuery, filterMinScore, filterJobType]);
 
-  // Deep AI Match Trigger
+  const bestMatchedJob = useMemo(() => {
+    return rankedJobs.find((j) => j.metrics.score != null) || null;
+  }, [rankedJobs]);
+
+  // Deep AI Match Trigger — connects directly to real backend API
   const handleRunDeepMatch = async (job: Job) => {
     setSelectedJobForDetail(job);
-    setMatchingJobId(job.id);
-    setActiveMatchResult(null);
+    setMatchError(null);
 
-    // If candidate has real uploaded resume, call real backend API
+    // If already computed, restore from state cache
+    if (jobMatchScores[job.id]) {
+      setActiveMatchResult(jobMatchScores[job.id]);
+      return;
+    }
+
     const realResumeId =
       selectedCvSource?.type === "resume"
         ? selectedCvSource.id
         : resumes[0]?.id;
 
     if (realResumeId) {
+      setMatchingJobId(job.id);
+      setActiveMatchResult(null);
       try {
         const data = await getAiMatch(realResumeId, job.id);
         setActiveMatchResult(data);
-      } catch {
-        // Fallback to local semantic metrics
+        setJobMatchScores((prev) => ({ ...prev, [job.id]: data }));
+      } catch (err) {
+        setMatchError(getApiErrorMessage(err));
       } finally {
         setMatchingJobId(null);
       }
     } else {
-      // Simulate real calculation
-      setTimeout(() => {
-        setMatchingJobId(null);
-      }, 500);
+      setMatchError("Vui lòng chọn hoặc tải lên một CV dạng file để so khớp AI với công việc này.");
     }
   };
-
-  const activeJobMetrics = selectedJobForDetail
-    ? getJobMatchMetrics(selectedJobForDetail)
-    : rankedJobs[0]?.metrics;
 
   return (
     <div className="min-h-screen bg-[#F8FAFB] font-sans text-slate-900 selection:bg-emerald-500 selection:text-white">
@@ -417,22 +430,41 @@ export function AIMatchingPage() {
                 <span className="text-xs font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
                   <Zap size={14} className="text-amber-400" /> Điểm Khớp Cao Nhất
                 </span>
-                <span className="text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2.5 py-0.5 rounded-full">
-                  Cực kỳ tiềm năng
-                </span>
+                {bestMatchedJob && bestMatchedJob.metrics.score != null && (
+                  <span className="text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2.5 py-0.5 rounded-full">
+                    {bestMatchedJob.metrics.score >= 85 ? "Rất phù hợp" : "Tiềm năng"}
+                  </span>
+                )}
               </div>
 
               <div className="flex items-center gap-5">
-                <div className="relative w-20 h-20 flex items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-700 text-white font-black text-2xl shadow-lg shadow-emerald-900/40">
-                  <span>{rankedJobs[0]?.metrics.score || 95}%</span>
-                </div>
-                <div className="space-y-1 text-xs">
-                  <h4 className="font-bold text-white line-clamp-1">{rankedJobs[0]?.job.title || "Senior Software Engineer"}</h4>
-                  <p className="text-slate-400 font-medium">{(rankedJobs[0]?.job as any)?.company_name || rankedJobs[0]?.job.employer?.company_name || rankedJobs[0]?.job.employer?.full_name || "Công ty Công nghệ Hàng đầu"}</p>
-                  <p className="text-emerald-400 font-semibold text-[11px]">
-                    Cosine Similarity: {rankedJobs[0]?.metrics.vectorDistance || "0.052"}
-                  </p>
-                </div>
+                {bestMatchedJob && bestMatchedJob.metrics.score != null ? (
+                  <>
+                    <div className="relative w-20 h-20 flex items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-700 text-white font-black text-2xl shadow-lg shadow-emerald-900/40">
+                      <span>{bestMatchedJob.metrics.score.toFixed(0)}%</span>
+                    </div>
+                    <div className="space-y-1 text-xs">
+                      <h4 className="font-bold text-white line-clamp-1">{bestMatchedJob.job.title}</h4>
+                      <p className="text-slate-400 font-medium">
+                        {(bestMatchedJob.job as any)?.company_name || bestMatchedJob.job.employer?.company_name || bestMatchedJob.job.employer?.full_name || "Công ty tuyển dụng"}
+                      </p>
+                      <p className="text-emerald-400 font-semibold text-[11px]">
+                        Cosine Similarity: {(bestMatchedJob.metrics.score / 100).toFixed(4)}
+                      </p>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="relative w-20 h-20 flex items-center justify-center rounded-2xl bg-slate-800 text-slate-400 font-bold text-xs shadow-inner border border-slate-700 text-center px-2">
+                      <span>Chưa có dữ liệu</span>
+                    </div>
+                    <div className="space-y-1 text-xs">
+                      <h4 className="font-bold text-slate-300">Chưa có kết quả so khớp</h4>
+                      <p className="text-slate-400 font-medium">Chọn một công việc để bắt đầu so khớp AI</p>
+                      <p className="text-slate-500 text-[11px]">Cosine Similarity: --</p>
+                    </div>
+                  </>
+                )}
               </div>
 
               <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
@@ -528,7 +560,7 @@ export function AIMatchingPage() {
               <div className="space-y-3.5">
                 {rankedJobs.map(({ job, metrics }) => {
                   const isSelected = selectedJobForDetail?.id === job.id;
-                  const isHighMatch = metrics.score >= 85;
+                  const isHighMatch = metrics.score != null && metrics.score >= 85;
 
                   return (
                     <motion.div
@@ -593,16 +625,22 @@ export function AIMatchingPage() {
 
                         {/* Match Badge & Action */}
                         <div className="flex sm:flex-col items-center sm:items-end justify-between gap-3 shrink-0">
-                          <div
-                            className={`px-3.5 py-2 rounded-2xl text-center shadow-xs ${
-                              isHighMatch
-                                ? "bg-gradient-to-br from-[#00B86B] to-teal-600 text-white"
-                                : "bg-slate-100 text-slate-800 border border-slate-200"
-                            }`}
-                          >
-                            <span className="text-[10px] uppercase font-bold block opacity-90">AI Match</span>
-                            <span className="text-lg font-black">{metrics.score}%</span>
-                          </div>
+                          {metrics.score != null ? (
+                            <div
+                              className={`px-3.5 py-2 rounded-2xl text-center shadow-xs ${
+                                isHighMatch
+                                  ? "bg-gradient-to-br from-[#00B86B] to-teal-600 text-white"
+                                  : "bg-slate-100 text-slate-800 border border-slate-200"
+                              }`}
+                            >
+                              <span className="text-[10px] uppercase font-bold block opacity-90">AI Match</span>
+                              <span className="text-lg font-black">{metrics.score.toFixed(0)}%</span>
+                            </div>
+                          ) : (
+                            <div className="px-3 py-1.5 rounded-xl bg-slate-100 text-slate-500 text-xs font-semibold text-center border border-slate-200">
+                              <span>Chưa có dữ liệu</span>
+                            </div>
+                          )}
 
                           <Link
                             to={`/jobs/${job.id}`}
@@ -641,58 +679,82 @@ export function AIMatchingPage() {
                   <p className="text-xs text-slate-600 font-semibold">{(selectedJobForDetail as any).company_name || selectedJobForDetail.employer?.company_name || selectedJobForDetail.employer?.full_name || "Doanh nghiệp tuyển dụng"}</p>
                 </div>
 
-                {/* 4-Pillar Breakdown */}
-                <div className="space-y-3">
-                  <h4 className="text-xs font-black uppercase text-slate-800 flex items-center gap-1.5">
-                    <Layers size={13} className="text-[#00B86B]" /> 4 Trụ Cột Độ Tương Thích
-                  </h4>
-
-                  {/* 1. Tech Stack Fit */}
-                  <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1.5">
-                    <div className="flex justify-between items-center text-xs font-bold">
-                      <span className="text-slate-800 flex items-center gap-1">
-                        <Cpu size={12} className="text-[#00B86B]" /> Kỹ Năng & Công Nghệ
-                      </span>
-                      <span className="text-emerald-700 font-black">92%</span>
-                    </div>
-                    <p className="text-[11px] text-slate-600 leading-relaxed">
-                      Khớp các kỹ năng then chốt: {activeJobMetrics?.matchedSkills.join(", ")}.
-                    </p>
+                {/* Real Deep Match Breakdown */}
+                {matchingJobId === selectedJobForDetail.id ? (
+                  <div className="p-8 text-center space-y-3">
+                    <Loader2 className="w-8 h-8 text-[#00B86B] animate-spin mx-auto" />
+                    <p className="text-xs font-bold text-slate-600">Đang so khớp vector embedding với JD...</p>
                   </div>
-
-                  {/* 2. Experience Fit */}
-                  <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1.5">
-                    <div className="flex justify-between items-center text-xs font-bold">
-                      <span className="text-slate-800 flex items-center gap-1">
-                        <Briefcase size={12} className="text-blue-600" /> Kinh Nghiệm & Cấp Bậc
-                      </span>
-                      <span className="text-blue-700 font-black">Phù hợp</span>
-                    </div>
-                    <p className="text-[11px] text-slate-600 leading-relaxed">
-                      Kinh nghiệm dự án và thành tựu phù hợp với yêu cầu tuyển dụng cấp cao.
-                    </p>
-                  </div>
-
-                  {/* 3. Skill Gaps Action */}
-                  {activeJobMetrics?.missingSkills && activeJobMetrics.missingSkills.length > 0 && (
-                    <div className="p-3.5 rounded-2xl bg-amber-50/70 border border-amber-200 space-y-2">
-                      <div className="flex justify-between items-center text-xs font-bold text-amber-900">
-                        <span className="flex items-center gap-1">
-                          <AlertCircle size={12} className="text-amber-600" /> Kỹ Năng Cần Bổ Sung
+                ) : activeMatchResult ? (
+                  <div className="space-y-3">
+                    {/* Overall AI Matching Score */}
+                    <div className="p-4 rounded-2xl bg-emerald-50/80 border border-emerald-200 space-y-1">
+                      <div className="flex justify-between items-center text-xs font-bold">
+                        <span className="text-emerald-900 flex items-center gap-1">
+                          <Sparkles size={13} className="text-[#00B86B]" /> Điểm So Khớp AI (pgvector)
                         </span>
+                        <span className="text-emerald-700 font-black text-base">{activeMatchResult.score.toFixed(0)}%</span>
                       </div>
-                      <p className="text-[11px] text-amber-800">
-                        {activeJobMetrics.missingSkills.join(", ")}
-                      </p>
-                      <Link
-                        to="/ai/roadmap"
-                        className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-900 underline hover:text-amber-950"
-                      >
-                        <span>Xem Lộ Trình Bổ Sung Kỹ Năng ↗</span>
-                      </Link>
+                      <p className="text-[11px] text-emerald-800 leading-relaxed">{activeMatchResult.explanation}</p>
                     </div>
-                  )}
-                </div>
+
+                    {/* Strengths */}
+                    {activeMatchResult.strengths && activeMatchResult.strengths.length > 0 && (
+                      <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1.5">
+                        <div className="text-xs font-bold text-slate-800 flex items-center gap-1">
+                          <CheckCircle2 size={12} className="text-[#00B86B]" /> Điểm Phù Hợp Nổi Bật
+                        </div>
+                        <ul className="text-[11px] text-slate-600 space-y-1 list-disc list-inside">
+                          {activeMatchResult.strengths.map((s, idx) => (
+                            <li key={idx}>{s}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {/* Skill Gaps */}
+                    {activeMatchResult.gaps && activeMatchResult.gaps.length > 0 && (
+                      <div className="p-3.5 rounded-2xl bg-amber-50/70 border border-amber-200 space-y-2">
+                        <div className="flex justify-between items-center text-xs font-bold text-amber-900">
+                          <span className="flex items-center gap-1">
+                            <AlertCircle size={12} className="text-amber-600" /> Kỹ Năng Cần Bổ Sung
+                          </span>
+                        </div>
+                        <ul className="text-[11px] text-amber-800 space-y-1 list-disc list-inside">
+                          {activeMatchResult.gaps.map((g, idx) => (
+                            <li key={idx}>{g}</li>
+                          ))}
+                        </ul>
+                        <Link
+                          to="/ai/roadmap"
+                          className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-900 underline hover:text-amber-950 pt-1"
+                        >
+                          <span>Xem Lộ Trình Bổ Sung Kỹ Năng ↗</span>
+                        </Link>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="p-6 rounded-2xl bg-slate-50 border border-dashed border-slate-200 text-center space-y-3">
+                    {matchError ? (
+                      <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium">
+                        {matchError}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-slate-500 font-medium">
+                        Chưa có dữ liệu so khớp chi tiết cho công việc này.
+                      </p>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => handleRunDeepMatch(selectedJobForDetail)}
+                      className="px-4 py-2 bg-[#00B86B] hover:bg-emerald-600 text-white rounded-xl text-xs font-bold transition-colors inline-flex items-center gap-1.5 shadow-xs"
+                    >
+                      <Sparkles size={13} />
+                      <span>So Khớp AI Ngay</span>
+                    </button>
+                  </div>
+                )}
 
                 {/* Direct CTA */}
                 <div className="pt-3 border-t border-slate-100 space-y-2">
