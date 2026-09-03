@@ -5,13 +5,14 @@ and standard X-RateLimit-* headers.
 """
 
 import time
+
 import pytest
-from fastapi import FastAPI, Depends, status
+from fastapi import Depends, FastAPI, status
 from fastapi.testclient import TestClient
 from jose import jwt
 
 from app.config import settings
-from app.core.rate_limiter import rate_limit, rate_limiter_store, SlidingWindowRateLimiter
+from app.core.rate_limiter import SlidingWindowRateLimiter, rate_limit, rate_limiter_store
 
 
 @pytest.fixture(autouse=True)

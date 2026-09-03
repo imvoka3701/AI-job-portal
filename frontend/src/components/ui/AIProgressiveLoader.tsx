@@ -88,7 +88,6 @@ export function AIProgressiveLoader({
         {stages.map((stage, idx) => {
           const isDone = idx < currentStage;
           const isCurrent = idx === currentStage;
-          const isPending = idx > currentStage;
 
           return (
             <AnimatePresence key={stage} mode="wait">

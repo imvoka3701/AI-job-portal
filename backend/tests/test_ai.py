@@ -256,7 +256,7 @@ class TestAIMatchingIntegration:
 
         # Resume WITHOUT embedding
         resume_in = ResumeCreate(
-            title="empty.pdf", file_url="uploads/test/empty.pdf", raw_text="Some text"
+            title="empty.pdf", file_url="uploads/test/empty.pdf", raw_text=""
         )
         resume = crud_resume.create(db_session, obj_in=resume_in, user_id=cand_id)
 

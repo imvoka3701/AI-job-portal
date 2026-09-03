@@ -15,7 +15,6 @@ from app.models.user import User, UserRole
 from app.services.ai_matching import (
     ai_matching_service,
     extract_cv_document_text,
-    _cosine_similarity_python,
 )
 from app.services.embedding_service import EMBEDDING_DIM
 

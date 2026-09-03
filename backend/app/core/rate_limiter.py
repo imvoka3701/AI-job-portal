@@ -4,10 +4,10 @@ Provides thread-safe in-memory rate limiting with standard RFC 6585 headers:
 Retry-After, X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset.
 """
 
-from collections import defaultdict, deque
 import math
 import threading
 import time
+from collections import defaultdict, deque
 from typing import Callable
 
 from fastapi import HTTPException, Request, Response, status
