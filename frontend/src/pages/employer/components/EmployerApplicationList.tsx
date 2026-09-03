@@ -23,6 +23,8 @@ import {
   Phone,
   Calendar,
   Sparkles,
+  Columns3,
+  ListFilter,
 } from "lucide-react";
 import { Badge, Button, Card, EmptyState, ErrorState, PipelineStepper } from "@/components/ui";
 import { getInitials, cn } from "@/lib/utils";
@@ -31,6 +33,7 @@ import type { ApplicationStatus, EmployerApplication } from "@/types/application
 import type { RoundItem } from "@/lib/api/rounds";
 import { EmployerAIActionMenu } from "./EmployerAIActionMenu";
 import { EmployerCandidateRadarChart } from "./EmployerCandidateRadarChart";
+import { EmployerKanbanBoard } from "./EmployerKanbanBoard";
 
 export type SortMode = "match_score" | "submitted_date" | "status_priority" | "name_asc";
 export type FilterStatus = ApplicationStatus | "all";
@@ -99,6 +102,7 @@ export function EmployerApplicationList({
   onRecommendationChange,
 }: EmployerApplicationListProps) {
   const [selectedApplicationId, setSelectedApplicationId] = useState<number | null>(null);
+  const [viewMode, setViewMode] = useState<"list" | "kanban">("list");
   const [internalNoteDraft, setInternalNoteDraft] = useState("");
   const [decisionReason, setDecisionReason] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
@@ -385,6 +389,38 @@ export function EmployerApplicationList({
                 </div>
               </div>
               <div className="flex items-center gap-2 flex-wrap">
+                {/* View Mode Toggle: List vs Kanban */}
+                <div className="inline-flex items-center p-0.5 rounded-lg border border-gray-200 bg-gray-50/90 shadow-2xs">
+                  <button
+                    type="button"
+                    onClick={() => setViewMode("list")}
+                    className={cn(
+                      "inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer",
+                      viewMode === "list"
+                        ? "bg-white text-gray-900 shadow-2xs border border-gray-200/80"
+                        : "text-gray-500 hover:text-gray-800"
+                    )}
+                    title="Chế độ Danh sách & Chi tiết"
+                  >
+                    <ListFilter className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Danh sách</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setViewMode("kanban")}
+                    className={cn(
+                      "inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer",
+                      viewMode === "kanban"
+                        ? "bg-white text-gray-900 shadow-2xs border border-gray-200/80"
+                        : "text-gray-500 hover:text-gray-800"
+                    )}
+                    title="Chế độ Kanban Pipeline"
+                  >
+                    <Columns3 className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Kanban</span>
+                  </button>
+                </div>
+
                 <Button
                   variant="outline"
                   size="sm"
@@ -509,7 +545,42 @@ export function EmployerApplicationList({
             )}
           </div>
 
-          <div className="grid gap-0 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+          {viewMode === "kanban" ? (
+            <div className="p-4 border-t border-gray-100">
+              {appsLoading ? (
+                <div className="flex gap-4 min-w-[1240px] p-2">
+                  {Array.from({ length: 6 }).map((_, index) => (
+                    <div key={index} className="flex-1 h-72 animate-pulse rounded-2xl bg-gray-100" />
+                  ))}
+                </div>
+              ) : appsError ? (
+                <ErrorState title="Không tải được ứng viên" message={appsError} className="py-10" />
+              ) : !selectedJobId ? (
+                <EmptyState
+                  icon={<SearchX className="w-7 h-7 text-gray-400" />}
+                  title="Chưa chọn job"
+                  description="Chọn một tin tuyển dụng bên trái để xem pipeline ứng viên."
+                  className="py-10"
+                />
+              ) : (
+                <EmployerKanbanBoard
+                  applications={filteredAndSortedApplications}
+                  roundsMap={roundsMap}
+                  selectedApplicationId={selectedApplicationId}
+                  onSelectApplication={(appId) => {
+                    setSelectedApplicationId(appId);
+                  }}
+                  onStatusChange={async (appId, newStatus) => {
+                    await onStatusChange(appId, newStatus);
+                  }}
+                  onPreviewResume={onPreviewResume}
+                  onPreviewBuilder={onPreviewBuilder}
+                  canManagePipeline={canManagePipeline}
+                />
+              )}
+            </div>
+          ) : (
+            <div className="grid gap-0 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
             <div className="border-b border-gray-200 xl:border-b-0 xl:border-r">
               <div className="max-h-[640px] overflow-y-auto p-4">
                 {appsLoading ? (
@@ -1198,6 +1269,7 @@ export function EmployerApplicationList({
               </div>
             </div>
           </div>
+          )}
         </div>
       </div>
     </Card>
