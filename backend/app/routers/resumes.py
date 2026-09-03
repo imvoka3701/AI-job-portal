@@ -134,6 +134,11 @@ def create_resume(
     db: Session = Depends(get_db),
 ) -> ResumeRead:
     """Create a new resume entry. File upload handled separately."""
+    if data.embedding is None and data.raw_text and data.raw_text.strip():
+        try:
+            data.embedding = generate_embedding(data.raw_text)
+        except Exception:
+            logger.warning("Could not pre-generate embedding during create_resume for user %s", current_user.id)
     resume = crud_resume.create(db, obj_in=data, user_id=current_user.id)
     return ResumeRead.model_validate(resume)
 

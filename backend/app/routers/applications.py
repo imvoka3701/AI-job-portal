@@ -70,21 +70,30 @@ async def create_application(
     application = crud_application.create(db, obj_in=data, candidate_id=current_user.id)
 
     # ── Auto-compute AI matching score if embeddings available ───────────
-    if resume and resume.embedding is not None:
-        job = crud_job.get_by_id(db, job_id=application.job_id)
-        if job and job.embedding is not None:
-            try:
+    job = crud_job.get_by_id(db, job_id=application.job_id)
+    if job and job.embedding is not None:
+        try:
+            match_score = None
+            if resume:
                 match_res = await ai_matching_service.compute_match(
                     db, resume=resume, job_embedding=list(job.embedding)
                 )
-                application.ai_matching_score = match_res.score
+                match_score = match_res.score
+            elif cv_document:
+                match_res = await ai_matching_service.compute_match_for_cv_document(
+                    db, cv_document=cv_document, job_embedding=list(job.embedding)
+                )
+                match_score = match_res.score
+
+            if match_score is not None:
+                application.ai_matching_score = match_score
                 db.commit()
                 db.refresh(application)
-            except Exception:
-                logger.exception(
-                    "Failed to auto-compute ai_matching_score for application %s",
-                    application.id,
-                )
+        except Exception:
+            logger.exception(
+                "Failed to auto-compute ai_matching_score for application %s",
+                application.id,
+            )
 
     # ── Auto-create Round 1 (CV Screen, pending) ────────────────────────────
     try:
