@@ -15,6 +15,7 @@ from app.core.company_permissions import (
     require_job_scope,
 )
 from app.core.dependencies import get_current_user, get_optional_user
+from app.core.rate_limiter import rate_limit
 from app.crud.application import crud_application
 from app.crud.cv_document import crud_cv_document
 from app.crud.job import crud_job
@@ -135,7 +136,11 @@ def _authorize_resume_access(
         )
 
 
-@router.post("/cv/suggest-summary", response_model=CvSummarySuggestionResponse)
+@router.post(
+    "/cv/suggest-summary",
+    response_model=CvSummarySuggestionResponse,
+    dependencies=[Depends(rate_limit("ai_interactive"))],
+)
 async def suggest_cv_summary(
     data: CvSummarySuggestionRequest,
     current_user: User = Depends(get_current_user),
@@ -171,7 +176,11 @@ async def suggest_cv_summary(
         raise ai_http_exception(exc)
 
 
-@router.post("/cv/rewrite-experience", response_model=CvExperienceSuggestionResponse)
+@router.post(
+    "/cv/rewrite-experience",
+    response_model=CvExperienceSuggestionResponse,
+    dependencies=[Depends(rate_limit("ai_interactive"))],
+)
 async def rewrite_cv_experience(
     data: CvExperienceSuggestionRequest,
     current_user: User = Depends(get_current_user),
@@ -218,7 +227,11 @@ async def rewrite_cv_experience(
         raise ai_http_exception(exc)
 
 
-@router.post("/cv/suggest-skills", response_model=CvSkillsSuggestionResponse)
+@router.post(
+    "/cv/suggest-skills",
+    response_model=CvSkillsSuggestionResponse,
+    dependencies=[Depends(rate_limit("ai_interactive"))],
+)
 async def suggest_cv_skills(
     data: CvSkillsSuggestionRequest,
     current_user: User = Depends(get_current_user),
@@ -245,7 +258,12 @@ async def suggest_cv_skills(
         raise ai_http_exception(exc)
 
 
-@router.post("/match", response_model=AIMatchResponse, summary="Compute AI matching score")
+@router.post(
+    "/match",
+    response_model=AIMatchResponse,
+    summary="Compute AI matching score",
+    dependencies=[Depends(rate_limit("ai_matching"))],
+)
 async def match_resume_to_job(
     data: AIMatchRequest,
     current_user: User = Depends(get_current_user),
@@ -271,7 +289,12 @@ async def match_resume_to_job(
     return await ai_matching_service.compute_match(db, resume=resume, job_embedding=job_embedding)
 
 
-@router.post("/evaluate", response_model=CVEvaluationResponse, summary="Evaluate CV quality")
+@router.post(
+    "/evaluate",
+    response_model=CVEvaluationResponse,
+    summary="Evaluate CV quality",
+    dependencies=[Depends(rate_limit("ai_expensive"))],
+)
 async def evaluate_cv(
     data: CVEvaluationRequest,
     current_user: User = Depends(get_current_user),
@@ -320,7 +343,12 @@ async def evaluate_cv(
         raise ai_http_exception(exc)
 
 
-@router.post("/roadmap", response_model=RoadmapResponse, summary="Suggest career roadmap")
+@router.post(
+    "/roadmap",
+    response_model=RoadmapResponse,
+    summary="Suggest career roadmap",
+    dependencies=[Depends(rate_limit("ai_expensive"))],
+)
 async def suggest_roadmap(
     data: RoadmapRequest,
     current_user: User = Depends(get_current_user),
@@ -389,7 +417,10 @@ async def suggest_roadmap(
 
 
 @router.post(
-    "/summarize-cv", response_model=CVSummarizeResponse, summary="Summarize CV against a job"
+    "/summarize-cv",
+    response_model=CVSummarizeResponse,
+    summary="Summarize CV against a job",
+    dependencies=[Depends(rate_limit("ai_expensive"))],
 )
 async def summarize_cv(
     data: CVSummarizeRequest,
@@ -437,6 +468,7 @@ async def summarize_cv(
     "/interview-questions",
     response_model=InterviewQuestionsResponse,
     summary="Generate targeted interview questions based on selected skills",
+    dependencies=[Depends(rate_limit("ai_expensive"))],
 )
 async def generate_interview_questions(
     data: InterviewQuestionsRequest,
@@ -496,6 +528,7 @@ async def generate_interview_questions(
     "/generate-email",
     response_model=GenerateEmailResponse,
     summary="Generate a draft email for an applicant (invite/reject/offer)",
+    dependencies=[Depends(rate_limit("ai_expensive"))],
 )
 async def generate_email(
     data: GenerateEmailRequest,
@@ -578,6 +611,7 @@ async def generate_email(
     response_model=AssistantChatResponse,
     summary="JobPortal AI Copilot conversational chat",
     description="Context-aware chat assistant for candidates, employers, guests, and admins.",
+    dependencies=[Depends(rate_limit("ai_interactive"))],
 )
 async def assistant_chat(
     data: AssistantChatRequest,

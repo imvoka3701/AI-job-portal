@@ -74,5 +74,8 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_SECRET: str = ""
     GOOGLE_REDIRECT_URI: str = "http://localhost:8000/auth/google/callback"
 
+    # --- Rate Limiting ---
+    RATE_LIMIT_ENABLED: bool = True
+
 
 settings = Settings()
