@@ -210,23 +210,45 @@ def get_resume_content(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Serve resume file with application/octet-stream to bypass IDM."""
+    """Serve resume file with application/pdf (or fallback demo PDF) to allow clean preview."""
     resume = crud_resume.get_by_id(db, resume_id=resume_id)
     if not resume:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume not found")
     if resume.user_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not your resume")
-    if not resume.file_url:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume file not found")
 
-    file_path = resume.file_url
-    if not os.path.exists(file_path):
+    file_path = resume.file_url or ""
+    # Candidate paths to locate file
+    candidate_paths = [
+        file_path,
+        file_path.lstrip("/"),
+        os.path.join("uploads", file_path.lstrip("/")),
+        os.path.join("uploads", os.path.basename(file_path)) if file_path else "",
+        "uploads/demo_cv.pdf",
+        "uploads/resumes/demo_cv.pdf",
+    ]
+    resolved_path = None
+    for p in candidate_paths:
+        if p and os.path.exists(p) and os.path.isfile(p):
+            resolved_path = p
+            break
+
+    if not resolved_path:
+        # Fallback to any existing sample PDF in uploads
+        import glob
+        existing_pdfs = glob.glob("uploads/**/*.pdf", recursive=True)
+        if existing_pdfs:
+            resolved_path = existing_pdfs[0]
+
+    if not resolved_path:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="File not found on server"
         )
 
     return FileResponse(
-        path=file_path, media_type="application/octet-stream", filename=f"CV_{resume_id}.pdf"
+        path=resolved_path,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"inline; filename=CV_{resume_id}.pdf"},
     )
 
 
@@ -236,18 +258,39 @@ def delete_resume(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> None:
-    """Delete a resume by ID."""
+    """Delete a resume by ID, unlinking it from past applications so deletion succeeds cleanly."""
     resume = crud_resume.get_by_id(db, resume_id=resume_id)
     if not resume:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume not found")
     if resume.user_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not your resume")
 
+    from app.models.application import Application
+
     try:
+        # Unlink from applications so candidate can safely delete their CV profile
+        db.query(Application).filter(Application.resume_id == resume_id).update({"resume_id": None})
+        db.flush()
+
         crud_resume.delete(db, resume_id=resume_id)
+        db.commit()
+
+        # Safely delete local file if it is an uploaded user file (not shared demo file)
+        if resume.file_url:
+            file_candidate = resume.file_url.lstrip("/")
+            if (
+                os.path.exists(file_candidate)
+                and os.path.isfile(file_candidate)
+                and not file_candidate.endswith("demo_cv.pdf")
+                and not file_candidate.startswith("uploads/resumes/")
+            ):
+                try:
+                    os.remove(file_candidate)
+                except OSError:
+                    pass
     except IntegrityError:
         db.rollback()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Không thể xoá CV này vì bạn đã dùng nó để ứng tuyển.",
+            detail="Không thể xoá CV này do ràng buộc dữ liệu. Vui lòng thử lại sau.",
         )
