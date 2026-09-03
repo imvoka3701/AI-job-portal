@@ -78,86 +78,94 @@ export function EmailDraftModal({
 
   const loadDefaultTemplate = (type: EmailType, tone: EmailTone) => {
     const compName = "TechCorp VN";
+    const divider = "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━";
+
     if (type === "invite") {
-      setSubject(`[${compName}] Thư mời phỏng vấn vị trí ${jobTitle} - ${candidateName}`);
+      setSubject(`[${compName}] THƯ MỜI PHỎNG VẤN - Vị trí ${jobTitle} - ${candidateName}`);
       if (tone === "friendly") {
         setBody(
-          `Chào ${candidateName},\n\n` +
-          `Cảm ơn bạn đã dành sự quan tâm và gửi hồ sơ ứng tuyển vị trí ${jobTitle} tại ${compName}.\n\n` +
-          `Đội ngũ tuyển dụng rất ấn tượng với profile và kinh nghiệm chuyên môn của bạn. Chúng tôi trân trọng mời bạn tham gia buổi phỏng vấn trực tiếp để cùng trao đổi chi tiết hơn về cơ hội hợp tác:\n\n` +
+          `Chào ${candidateName} 👋,\n\n` +
+          `Cảm ơn bạn đã quan tâm và gửi CV ứng tuyển vị trí ${jobTitle} tại ${compName}.\n\n` +
+          `Đội ngũ tuyển dụng cực kỳ ấn tượng với kinh nghiệm của bạn. Chúng tôi trân trọng mời bạn tham gia buổi phỏng vấn trực tiếp để cùng trao đổi chi tiết hơn về cơ hội hợp tác:\n\n` +
           `📅 Thời gian: [Nhập ngày giờ, VD: 14:00 - Thứ Năm, 20/08/2026]\n` +
-          `📍 Hình thức: Phỏng vấn Online qua Google Meet: [Link Google Meet]\n` +
+          `📍 Hình thức: Phỏng vấn Online qua Google Meet\n` +
+          `🔗 Link tham dự: [Google Meet Link]\n` +
           `👥 Người phỏng vấn: Trưởng bộ phận Kỹ thuật & Phòng Nhân sự\n\n` +
-          `Bạn vui lòng phản hồi email này trước 17:00 ngày mai để xác nhận lịch hẹn nhé.\n\n` +
-          `Chúc bạn một ngày làm việc tuyệt vời!\n` +
-          `Trân trọng,\n` +
-          `Phòng Tuyển dụng TechCorp VN`
+          `Bạn vui lòng phản hồi (Reply) email này trước 17:00 ngày mai để xác nhận lịch hẹn nhé.\n\n` +
+          `Hẹn gặp lại bạn!\n\n` +
+          `${divider}\n` +
+          `Bộ phận Tuyển dụng | ${compName}\n` +
+          `🌐 Website: https://aijobportal.vn\n` +
+          `🏢 Địa chỉ: Tầng 10, Tòa nhà Tech, Hà Nội`
         );
       } else if (tone === "concise") {
-        setSubject(`[${compName}] Lịch phỏng vấn vị trí ${jobTitle} - ${candidateName}`);
+        setSubject(`[${compName}] Mời Phỏng vấn: ${jobTitle} - ${candidateName}`);
         setBody(
           `Kính gửi ${candidateName},\n\n` +
-          `Phòng Nhân sự ${compName} trân trọng mời bạn tham dự buổi phỏng vấn vị trí ${jobTitle}:\n\n` +
-          `• Thời gian: [Thời gian cụ thể]\n` +
-          `• Địa điểm / Link: [Google Meet / Văn phòng]\n` +
-          `• Thời lượng: ~45 phút\n\n` +
-          `Vui lòng phản hồi để xác nhận tham dự.\n\n` +
-          `Trân trọng,\n` +
+          `Phòng Nhân sự ${compName} trân trọng mời bạn tham dự phỏng vấn vị trí ${jobTitle}:\n\n` +
+          `▶ Thời gian: [Thời gian cụ thể]\n` +
+          `▶ Địa điểm: [Google Meet / Văn phòng]\n` +
+          `▶ Thời lượng: ~45 phút\n\n` +
+          `Vui lòng phản hồi (Reply) để xác nhận tham dự.\n\n` +
+          `${divider}\n` +
           `${compName} Talent Acquisition`
         );
       } else {
         setSubject(`[${compName}] Thư mời tham dự phỏng vấn - Vị trí ${jobTitle}`);
         setBody(
-          `Kính gửi Ông/Bà ${candidateName},\n\n` +
+          `Kính gửi Anh/Chị ${candidateName},\n\n` +
           `Lời đầu tiên, thay mặt Công ty ${compName}, chúng tôi xin gửi lời cảm ơn chân thành vì sự quan tâm của bạn dành cho vị trí ${jobTitle}.\n\n` +
-          `Qua quá trình thẩm định hồ sơ, chúng tôi đánh giá cao năng lực cũng như những thành tựu mà bạn đã đạt được. Chúng tôi trân trọng kính mời bạn tham dự buổi phỏng vấn trao đổi chuyên môn với thông tin chi tiết như sau:\n\n` +
-          `1. Thời gian phỏng vấn: [Thời gian dự kiến]\n` +
-          `2. Hình thức: [Trực tiếp tại trụ sở công ty / Google Meet]\n` +
-          `3. Thành phần tham dự: Hội đồng Tuyển dụng & Đại diện Ban Giám đốc\n\n` +
+          `Qua quá trình thẩm định, chúng tôi đánh giá cao năng lực của bạn. Trân trọng kính mời bạn tham dự buổi phỏng vấn chuyên môn với thông tin chi tiết như sau:\n\n` +
+          `▪ Thời gian phỏng vấn: [Thời gian dự kiến]\n` +
+          `▪ Hình thức: [Trực tiếp tại trụ sở công ty / Google Meet]\n` +
+          `▪ Thành phần tham dự: Hội đồng Tuyển dụng & Đại diện Ban Giám đốc\n\n` +
           `Xin vui lòng phản hồi email này để xác nhận sự hiện diện của bạn.\n\n` +
           `Trân trọng,\n` +
-          `Ban Nhân sự - ${compName}`
+          `${divider}\n` +
+          `Ban Nhân sự | ${compName}`
         );
       }
     } else if (type === "offer") {
-      setSubject(`[${compName}] Thư đề nghị nhận việc (Job Offer Letter) - Vị trí ${jobTitle}`);
+      setSubject(`🎉 [${compName}] THƯ MỜI LÀM VIỆC (Job Offer) - Vị trí ${jobTitle}`);
       setBody(
         `Thân gửi ${candidateName},\n\n` +
-        `Chúc mừng bạn đã hoàn thành xuất sắc các vòng phỏng vấn tại ${compName}!\n\n` +
-        `Chúng tôi rất vui mừng chính thức gửi đến bạn Thư đề nghị nhận việc (Job Offer) cho vị trí ${jobTitle} với các điều khoản tóm tắt sau:\n\n` +
-        `• Vị trí công tác: ${jobTitle}\n` +
-        `• Mức lương chính thức: [Nhập mức lương thỏa thuận, VD: 35.000.000 VNĐ/tháng]\n` +
-        `• Ngày bắt đầu làm việc (Onboarding): [Ngày bắt đầu]\n` +
-        `• Chế độ phúc lợi: Thưởng hiệu suất quý, MacBook Pro, Bảo hiểm sức khỏe cao cấp\n\n` +
-        `Chi tiết hợp đồng và thư mời đính kèm. Vui lòng xác nhận trước [Hạn phản hồi].\n\n` +
+        `Chúc mừng bạn đã xuất sắc vượt qua các vòng phỏng vấn tại ${compName}!\n\n` +
+        `Chúng tôi rất vui mừng chính thức gửi đến bạn Thư mời làm việc (Offer Letter) cho vị trí ${jobTitle} với các thông tin tóm tắt sau:\n\n` +
+        `💼 Vị trí công tác: ${jobTitle}\n` +
+        `💰 Mức lương chính thức: [Nhập mức lương thỏa thuận]\n` +
+        `🚀 Ngày nhận việc (Onboarding): [Ngày bắt đầu]\n` +
+        `🎁 Chế độ phúc lợi: Thưởng hiệu suất quý, Bảo hiểm sức khỏe cao cấp\n\n` +
+        `Chi tiết hợp đồng và Offer Letter bản cứng đã được đính kèm (hoặc gửi qua hệ thống riêng). Vui lòng phản hồi xác nhận trước [Hạn phản hồi].\n\n` +
         `Chào mừng bạn gia nhập đại gia đình ${compName}!\n\n` +
-        `Trân trọng,\n` +
-        `Phòng Nhân sự ${compName}`
+        `${divider}\n` +
+        `Phòng Nhân sự | ${compName}`
       );
     } else if (type === "reject") {
-      setSubject(`[${compName}] Thư cảm ơn và phản hồi ứng tuyển - Vị trí ${jobTitle}`);
+      setSubject(`[${compName}] Kết quả ứng tuyển - Vị trí ${jobTitle}`);
       setBody(
         `Kính gửi ${candidateName},\n\n` +
         `Lời đầu tiên, ${compName} xin chân thành cảm ơn bạn đã dành thời gian và tâm huyết tham gia quy trình ứng tuyển cho vị trí ${jobTitle}.\n\n` +
-        `Hội đồng tuyển dụng đánh giá rất cao năng lực và tinh thần làm việc của bạn. Tuy nhiên, sau khi cân nhắc kỹ lưỡng các tiêu chí phù hợp nhất với giai đoạn hiện tại của dự án, chúng tôi rất tiếc chưa thể có cơ hội đồng hành cùng bạn lần này.\n\n` +
-        `Chúng tôi xin phép được lưu giữ hồ sơ của bạn trong Mạng lưới Nhân tài (Talent Pool) và sẽ chủ động liên hệ ngay khi có vị trí phù hợp hơn trong tương lai.\n\n` +
-        `Chúc bạn luôn dồi dào sức khỏe và gặt hái nhiều thành công rực rỡ trên con đường sự nghiệp!\n\n` +
+        `Hội đồng tuyển dụng đánh giá rất cao năng lực của bạn. Tuy nhiên, sau khi cân nhắc kỹ lưỡng các định hướng phát triển hiện tại của dự án, chúng tôi rất tiếc chưa thể có cơ hội đồng hành cùng bạn lần này.\n\n` +
+        `Chúng tôi xin phép lưu giữ thông tin của bạn trong Mạng lưới Nhân tài (Talent Pool) và sẽ chủ động liên hệ ngay khi có vị trí phù hợp hơn.\n\n` +
+        `Chúc bạn dồi dào sức khỏe và gặt hái nhiều thành công rực rỡ trên con đường sự nghiệp!\n\n` +
         `Trân trọng,\n` +
-        `Đội ngũ Tuyển dụng ${compName}`
+        `${divider}\n` +
+        `Đội ngũ Tuyển dụng | ${compName}`
       );
     } else if (type === "test") {
-      setSubject(`[${compName}] Bài kiểm tra năng lực kỹ thuật (Technical Assessment) - ${jobTitle}`);
+      setSubject(`[${compName}] Bài kiểm tra năng lực (Technical Assessment) - ${jobTitle}`);
       setBody(
         `Chào ${candidateName},\n\n` +
         `Cảm ơn bạn đã ứng tuyển vị trí ${jobTitle} tại ${compName}.\n\n` +
-        `Để đánh giá chính xác kỹ năng thực chiến của bạn, chúng tôi gửi bài test kỹ thuật nhỏ sau:\n\n` +
-        `• Đề bài / Yêu cầu: [Mô tả bài test hoặc đính kèm link bài tập]\n` +
-        `• Thời hạn nộp bài: [Hạn chót, VD: 23:59 Chủ Nhật]\n` +
-        `• Hình thức nộp: Phản hồi email này hoặc đính kèm link GitHub repo.\n\n` +
+        `Để đánh giá chính xác kỹ năng thực chiến của bạn, chúng tôi gửi bài test chuyên môn sau:\n\n` +
+        `📝 Đề bài / Yêu cầu: [Mô tả bài test hoặc đính kèm link bài tập]\n` +
+        `⏳ Thời hạn nộp bài: [Hạn chót, VD: 23:59 Chủ Nhật]\n` +
+        `📤 Hình thức nộp: Phản hồi (Reply) trực tiếp email này hoặc đính kèm link.\n\n` +
         `Nếu có bất kỳ thắc mắc nào, đừng ngần ngại trao đổi lại nhé.\n\n` +
         `Chúc bạn hoàn thành bài test thật tốt!\n\n` +
         `Trân trọng,\n` +
-        `Tech Team - ${compName}`
+        `${divider}\n` +
+        `Đội ngũ Chuyên môn | ${compName}`
       );
     }
   };
