@@ -124,6 +124,7 @@ class TestAIEndpoints:
     def test_roadmap_passes_parsed_skills_from_resume(self, client: TestClient, db_session: Session, monkeypatch):
         """Verify that /ai/roadmap correctly extracts parsed_skills from resume and passes to suggest service."""
         from unittest.mock import AsyncMock
+
         from app.routers import ai as ai_router
         from app.schemas.ai import RoadmapResponse, RoadmapStep
 
@@ -255,7 +256,7 @@ class TestAIMatchingIntegration:
 
         # Resume WITHOUT embedding
         resume_in = ResumeCreate(
-            title="empty.pdf", file_url="uploads/test/empty.pdf", raw_text="Some text"
+            title="empty.pdf", file_url="uploads/test/empty.pdf", raw_text=""
         )
         resume = crud_resume.create(db_session, obj_in=resume_in, user_id=cand_id)
 

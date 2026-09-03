@@ -201,15 +201,7 @@ class CompanyService:
         db.commit()
         db.refresh(invitation)
         invitation = crud_company.get_invitation(db, invitation_id=invitation.id)
-        if background_tasks is not None:
-            background_tasks.add_task(
-                deliver_invitation_background_task,
-                invitation_id=invitation.id,
-                token=token,
-                actor_id=actor.id,
-            )
-        else:
-            self.deliver_invitation(db, invitation=invitation, token=token, actor=actor)  # type: ignore[arg-type]
+        self.deliver_invitation(db, invitation=invitation, token=token, actor=actor)  # type: ignore[arg-type]
         return crud_company.get_invitation(db, invitation_id=invitation.id), token  # type: ignore[union-attr,return-value]
 
     def get_invitation_by_token(self, db: Session, *, token: str) -> CompanyInvitation:
@@ -325,15 +317,7 @@ class CompanyService:
         )
         db.commit()
         invitation = crud_company.get_invitation(db, invitation_id=invitation.id)
-        if background_tasks is not None:
-            background_tasks.add_task(
-                deliver_invitation_background_task,
-                invitation_id=invitation.id,
-                token=token,
-                actor_id=actor.id,
-            )
-        else:
-            self.deliver_invitation(db, invitation=invitation, token=token, actor=actor)  # type: ignore[arg-type]
+        self.deliver_invitation(db, invitation=invitation, token=token, actor=actor)  # type: ignore[arg-type]
         return crud_company.get_invitation(db, invitation_id=invitation.id), token  # type: ignore[union-attr,return-value]
 
     def deliver_invitation(
@@ -656,19 +640,3 @@ class CompanyService:
 
 
 company_service = CompanyService()
-
-
-def deliver_invitation_background_task(invitation_id: int, token: str, actor_id: int) -> None:
-    """Deliver invitation email in a background task using its own fresh DB session."""
-    from app.database import SessionLocal
-
-    db = SessionLocal()
-    try:
-        invitation = crud_company.get_invitation(db, invitation_id=invitation_id)
-        actor = crud_user.get_by_id(db, user_id=actor_id)
-        if invitation and actor:
-            company_service.deliver_invitation(db, invitation=invitation, token=token, actor=actor)
-    except Exception:
-        logger.exception("Failed to deliver background invitation %s", invitation_id)
-    finally:
-        db.close()

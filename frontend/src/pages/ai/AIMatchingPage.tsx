@@ -19,7 +19,6 @@ import {
   BookOpen,
   Send,
   HelpCircle,
-  Loader2,
 } from "lucide-react";
 import { getMyResumes } from "@/lib/api/resumes";
 import { getCvDocuments } from "@/lib/api/cvDocuments";

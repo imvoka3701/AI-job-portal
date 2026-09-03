@@ -24,7 +24,6 @@ from app.database import get_db
 from app.models.interview_round import RoundType
 from app.models.notification import NotificationType
 from app.models.user import User, UserRole
-from app.services.ai_matching import ai_matching_service
 from app.schemas.application import (
     ApplicationCreate,
     ApplicationRead,
