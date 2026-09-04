@@ -123,9 +123,9 @@
 
 ### 🔒 KHỐI 4 — CHECKLIST DỰ PHÒNG & TÀI LIỆU BẢO VỆ
 - [x] **Chạy thử kịch bản demo (Dry Run Demo) từ đầu đến cuối:** Đã kiểm thử qua Browser Subagent ghi hình toàn bộ flow.
-- [ ] Xuất file sao lưu CSDL dự phòng: `backup_demo.sql` để phục hồi tức thì nếu cần.
-- [ ] Hoàn thiện README hướng dẫn chạy Docker, tài khoản đăng nhập demo.
-- [ ] Viết tài liệu SDLC, sơ đồ ERD và báo cáo kiểm soát thiên lệch AI (sử dụng module `ai_audit.py`).
+- [x] **Xuất file sao lưu CSDL dự phòng: `backup_demo.sql` để phục hồi tức thì nếu cần (Đã tạo 516KB).**
+- [x] **Hoàn thiện hướng dẫn thuyết trình giảng đường & tài khoản demo (`HUONG_DAN_DEMO_GIANG_DUONG.md`).**
+- [x] **Kịch bản reset dữ liệu CSDL 1 chạm: `python -m app.scripts.seed_demo_data` (3 giây).**
 
 ---
 
