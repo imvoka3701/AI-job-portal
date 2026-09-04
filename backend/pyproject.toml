@@ -10,10 +10,22 @@ asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 addopts = "--cov=app --cov-report=term-missing --cov-fail-under=80"
 
+[tool.coverage.run]
+omit = [
+    "app/scripts/*",
+]
+
+[tool.coverage.report]
+omit = [
+    "app/scripts/*",
+]
+
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+extend-exclude = ["app/scripts"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W"]
 ignore = ["E501", "E702", "E402", "F821", "F841", "N811"]
+
