@@ -109,8 +109,8 @@ export function EmployerDashboard() {
   const companyName = companyContext?.company.name || user.company_name || user.full_name;
 
   return (
-    <PageTransition className="min-h-screen bg-[#F8FAFB] font-sans pb-16 text-slate-900">
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+    <PageTransition className="w-full font-sans pb-16 text-slate-900">
+      <div className="w-full space-y-8">
         {/* ── 1. COMMAND HERO BENTO HEADER ───────────────────────────────── */}
         <section className="rounded-[32px] bg-white border border-slate-200/90 shadow-xs p-6 sm:p-8 space-y-6 relative overflow-hidden">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
@@ -217,7 +217,7 @@ export function EmployerDashboard() {
             className="py-16 bg-white rounded-3xl border border-slate-200 shadow-xs"
           />
         )}
-      </main>
+      </div>
     </PageTransition>
   );
 }

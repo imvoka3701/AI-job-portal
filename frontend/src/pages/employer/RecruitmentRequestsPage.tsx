@@ -97,7 +97,7 @@ export function RecruitmentRequestsPage() {
 
   if (!context) return <RequestListSkeleton />;
 
-  return <div className="mx-auto max-w-7xl space-y-6 pb-10">
+  return <div className="w-full space-y-6 pb-10">
     <header className="flex flex-wrap items-start justify-between gap-4"><div><div className="mb-2 flex items-center gap-2 text-sm font-medium text-primary"><ClipboardList className="h-4 w-4" />Kế hoạch nhân sự nội bộ</div><h1 className="text-2xl font-semibold text-gray-900">Nhu cầu tuyển dụng</h1><p className="mt-1 text-sm text-gray-500">Trưởng bộ phận đề xuất nhu cầu; HR xác minh và chuyển yêu cầu đã duyệt thành tin tuyển dụng.</p></div>{canCreate && <Button leftIcon={<Plus className="h-4 w-4" />} onClick={() => { setEditing(null); setFormOpen(true); }}>Tạo yêu cầu</Button>}</header>
 
     <div className="grid grid-cols-3 gap-px overflow-hidden rounded-lg border border-gray-200 bg-gray-200"><Metric icon={ClipboardList} value={total} label="Tổng yêu cầu" /><Metric icon={CalendarDays} value={metrics.submitted} label="Chờ duyệt" /><Metric icon={Users} value={metrics.headcount} label="Nhân sự đề xuất" /></div>
