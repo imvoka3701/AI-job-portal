@@ -1,6 +1,7 @@
 /** Vertical round timeline with schedule form, quick-pick presets, live preview. */
 
 import { useState, useEffect, useCallback } from "react";
+import { Download } from "lucide-react";
 import { getRounds, createRound, updateRound, type RoundItem } from "@/lib/api/rounds";
 import { apiClient } from "@/lib/axios";
 
@@ -132,6 +133,45 @@ export function RoundTimeline({ applicationId }: Props) {
     : "";
   const previewTime = schedTime ? `${schedTime.replace(":", "h")}` : "";
 
+  // ── Export iCalendar (.ics) ─────────────────────────────────────────────
+  const downloadICS = (r: RoundItem) => {
+    if (!r.scheduled_at) return;
+    const start = new Date(r.scheduled_at);
+    const end = new Date(start.getTime() + 60 * 60 * 1000); // 1 hour duration
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const formatICSDate = (d: Date) =>
+      `${d.getUTCFullYear()}${pad(d.getUTCMonth() + 1)}${pad(d.getUTCDate())}T${pad(d.getUTCHours())}${pad(d.getUTCMinutes())}${pad(d.getUTCSeconds())}Z`;
+
+    const icsData = [
+      "BEGIN:VCALENDAR",
+      "VERSION:2.0",
+      "PRODID:-//AI Job Portal//Interview System//VI",
+      "CALSCALE:GREGORIAN",
+      "METHOD:PUBLISH",
+      "BEGIN:VEVENT",
+      `UID:interview-round-${r.id}-${Date.now()}@jobportal.vn`,
+      `DTSTAMP:${formatICSDate(new Date())}`,
+      `DTSTART:${formatICSDate(start)}`,
+      `DTEND:${formatICSDate(end)}`,
+      `SUMMARY:Lịch Phỏng Vấn: ${r.round_name || `Vòng ${r.round_number}`}`,
+      `DESCRIPTION:Phỏng vấn ứng viên tuyển dụng. Loại vòng: ${r.round_type}. Ghi chú: ${r.notes || "Không có"}.`,
+      `LOCATION:${r.location || "Online"}`,
+      "STATUS:CONFIRMED",
+      "END:VEVENT",
+      "END:VCALENDAR",
+    ].join("\r\n");
+
+    const blob = new Blob([icsData], { type: "text/calendar;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `lich-phong-van-vong-${r.round_number}.ics`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   // ── Render ───────────────────────────────────────────────────────────────
   if (loading) { return <div className="space-y-3 py-4">{[1,2,3].map(i=><div key={i} className="flex gap-3"><div className="w-3 h-3 rounded-full bg-gray-200 animate-pulse mt-1"/><div className="flex-1 space-y-2"><div className="h-4 w-1/3 bg-gray-200 rounded animate-pulse"/><div className="h-3 w-2/3 bg-gray-100 rounded animate-pulse"/></div></div>)}</div>; }
   if (error) { return <div className="rounded-lg bg-red-50 border border-red-200 p-4 text-sm text-red-700">{error}</div>; }
@@ -170,11 +210,21 @@ export function RoundTimeline({ applicationId }: Props) {
                   </div>
                   <div className="flex items-center gap-2">
                     {isScheduled && (
-                      <span className="text-[10px] text-gray-400">
-                        {new Date(r.scheduled_at!).toLocaleDateString("vi-VN", { weekday: "short", day: "2-digit", month: "2-digit" })} {new Date(r.scheduled_at!).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}
-                      </span>
+                      <>
+                        <span className="text-[10px] text-gray-400">
+                          {new Date(r.scheduled_at!).toLocaleDateString("vi-VN", { weekday: "short", day: "2-digit", month: "2-digit" })} {new Date(r.scheduled_at!).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}
+                        </span>
+                        <button
+                          onClick={() => downloadICS(r)}
+                          className="inline-flex items-center gap-1 text-[10px] text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-1.5 py-0.5 rounded transition-colors cursor-pointer"
+                          title="Tải tệp lịch (.ics) để thêm vào Google Calendar / Outlook"
+                        >
+                          <Download size={10} />
+                          <span>Xuất .ics</span>
+                        </button>
+                      </>
                     )}
-                    <button onClick={() => setScheduleRoundId(showSchedule ? null : r.id)} className="text-[10px] text-primary hover:text-primary-hover font-medium">
+                    <button onClick={() => setScheduleRoundId(showSchedule ? null : r.id)} className="text-[10px] text-primary hover:text-primary-hover font-medium cursor-pointer">
                       {showSchedule ? "Ẩn" : isScheduled ? "Sửa lịch" : "Đặt lịch"}
                     </button>
                   </div>

@@ -219,10 +219,13 @@ def get_resume_content(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not your resume")
 
     file_path = resume.file_url or ""
+    clean_path = file_path.replace("/api/", "/").lstrip("/")
     # Candidate paths to locate file
     candidate_paths = [
         file_path,
         file_path.lstrip("/"),
+        clean_path,
+        os.path.join("uploads", clean_path.replace("uploads/", "", 1) if clean_path.startswith("uploads/") else clean_path),
         os.path.join("uploads", file_path.lstrip("/")),
         os.path.join("uploads", os.path.basename(file_path)) if file_path else "",
         "uploads/demo_cv.pdf",

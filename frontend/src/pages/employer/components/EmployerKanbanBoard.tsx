@@ -230,12 +230,28 @@ export function EmployerKanbanBoard({
                         {/* Middle: AI Match Badge & Rounds count */}
                         <div className="flex items-center justify-between gap-1.5 mb-3 flex-wrap">
                           {getMatchScoreBadge(app.ai_matching_score)}
-                          {rounds.length > 0 && (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-medium text-purple-700 bg-purple-50 border border-purple-200 px-1.5 py-0.5 rounded">
-                              <Calendar className="w-2.5 h-2.5" />
-                              {rounds.length} vòng
-                            </span>
-                          )}
+                          {rounds.length > 0 && (() => {
+                            const activeRound = rounds.find((r) => r.status === "in_progress") || rounds.find((r) => r.status === "pending") || rounds[rounds.length - 1];
+                            const roundTypeNames: Record<string, string> = {
+                              cv_screen: "Duyệt CV",
+                              tech: "Tech",
+                              hr: "HR",
+                              final: "Final",
+                              custom: "PV",
+                            };
+                            const typeLabel = roundTypeNames[activeRound.round_type] || activeRound.round_type;
+                            const statusBadge = activeRound.status === "in_progress" ? "Đang PV" : activeRound.status === "passed" ? "Đạt" : activeRound.status === "failed" ? "Rớt" : "Chờ";
+
+                            return (
+                              <span
+                                className="inline-flex items-center gap-1 text-[10px] font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200/90 px-1.5 py-0.5 rounded shadow-2xs"
+                                title={`Vòng ${activeRound.round_number}: ${activeRound.round_name || typeLabel} (${statusBadge}) - Tổng ${rounds.length} vòng`}
+                              >
+                                <Calendar className="w-2.5 h-2.5 text-indigo-500" />
+                                <span>V{activeRound.round_number}: {typeLabel} ({statusBadge})</span>
+                              </span>
+                            );
+                          })()}
                         </div>
 
                         {/* Footer: CV actions & Quick Stage advance */}

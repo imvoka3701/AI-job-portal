@@ -113,6 +113,19 @@ Desktop.ini
 # --- Third-party Tools & Metadata Cache ---
 .postman/
 
+# --- Images & Media (Strictly Excluded) ---
+*.png
+*.jpg
+*.jpeg
+*.webp
+*.gif
+*.bmp
+*.ico
+docs/screenshots/
+
+# --- Temporary Scratch Files ---
+scratch/
+
 # --- Internal Documentation & Academic Reports ---
 BAO_CAO_DO_AN.md
 HUONG_DAN_DEMO_GIANG_DUONG.md
@@ -123,4 +136,4 @@ walkthrough.md
 .claude/
 .agents/
 MDfiles/
-docs/
+

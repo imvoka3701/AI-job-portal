@@ -207,6 +207,7 @@ app.include_router(assessments.router)
 # --- Mount Static Files ---
 Path("uploads").mkdir(exist_ok=True)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+app.mount("/api/uploads", StaticFiles(directory="uploads"), name="api_uploads")
 
 
 @app.get("/", tags=["Health"])

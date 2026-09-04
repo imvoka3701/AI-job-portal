@@ -144,7 +144,7 @@ async def save_file_upload(file, user_id: int) -> str:
     upload_path = generate_user_upload_path(filename, user_id)
     upload_path.write_bytes(file_content)
     file.file.seek(0)  # Reset stream position for subsequent reads
-    return f"/api/{upload_path.as_posix()}"
+    return f"/{upload_path.as_posix()}"
 
 
 async def save_upload_file(file_content: bytes, filename: str) -> str:
@@ -164,7 +164,7 @@ async def save_upload_file(file_content: bytes, filename: str) -> str:
 
     upload_path = generate_upload_path(filename)
     upload_path.write_bytes(file_content)
-    return f"/api/{upload_path.as_posix()}"
+    return f"/{upload_path.as_posix()}"
 
 
 async def save_avatar_upload(file, user_id: int) -> str:
@@ -192,4 +192,4 @@ async def save_avatar_upload(file, user_id: int) -> str:
     upload_path.write_bytes(file_content)
     file.file.seek(0)
 
-    return f"/api/uploads/{user_id}/{unique_name}"
+    return f"/uploads/{user_id}/{unique_name}"

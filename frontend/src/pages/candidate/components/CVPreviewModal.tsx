@@ -45,7 +45,9 @@ export function CVPreviewModal({ url, onClose }: CVPreviewModalProps) {
     setError(false);
 
     // Fetch PDF via configured axios to auto-attach token and bypass IDM
-    apiClient.get(url, { 
+    // Clean redundant /api prefix if passed because apiClient baseURL already prefixes /api
+    const requestUrl = url.startsWith("/api/") ? url.replace(/^\/api/, "") : url;
+    apiClient.get(requestUrl, { 
       responseType: "arraybuffer",
       headers: {
         Accept: "application/pdf",

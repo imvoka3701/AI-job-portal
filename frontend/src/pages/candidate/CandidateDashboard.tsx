@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useState, useRef } from "react";
 import { Link } from "react-router-dom";
 import { getMyApplications } from "@/lib/api/applications";
+import { getRounds, type RoundItem } from "@/lib/api/rounds";
 import { uploadResume, getMyResumes, deleteResume, evaluateResume } from "@/lib/api/resumes";
 import { getJobs } from "@/lib/api/jobs";
 import { uploadAvatar } from "@/lib/api/users";
 import { useUser, useAuthStore } from "@/stores/authStore";
 import { tokenStorage, apiClient } from "@/lib/axios";
-import { Button, Card, CardHeader, CardContent, Spinner, ApplicationStatusBadge, EmptyState, ErrorState } from "@/components/ui";
+import { Button, Card, CardHeader, CardContent, Spinner, ApplicationStatusBadge, EmptyState, ErrorState, PipelineStepper } from "@/components/ui";
 import { getApiErrorMessage } from "@/lib/axios";
 import type { Application } from "@/types/application";
 import type { Resume } from "@/types/resume";
@@ -49,6 +50,7 @@ export const CandidateDashboard = () => {
   const user = useUser();
   const fetchMe = useAuthStore((s) => s.fetchMe);
   const [applications, setApplications] = useState<Application[]>([]);
+  const [appRoundsMap, setAppRoundsMap] = useState<Record<number, RoundItem[]>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
@@ -103,6 +105,15 @@ export const CandidateDashboard = () => {
     getMyApplications()
       .then((data) => {
         setApplications(data);
+        data.forEach((app) => {
+          getRounds(app.id)
+            .then((rounds) => {
+              if (rounds && rounds.length > 0) {
+                setAppRoundsMap((prev) => ({ ...prev, [app.id]: rounds }));
+              }
+            })
+            .catch(() => {});
+        });
       })
       .catch(() => {
         setError("Không thể tải danh sách ứng tuyển. Vui lòng thử lại.");
@@ -562,7 +573,29 @@ export const CandidateDashboard = () => {
                             <span className="flex items-center gap-1">
                               <Clock size={13} className="shrink-0" /> Nộp ngày: {new Date(app.applied_at).toLocaleDateString("vi-VN")}
                             </span>
+                            {appRoundsMap[app.id] && appRoundsMap[app.id].length > 0 && (
+                              <div className="flex items-center gap-2 pl-2 border-l border-slate-200">
+                                <span className="text-[11px] font-semibold text-slate-600">Tiến trình ({appRoundsMap[app.id].length} vòng):</span>
+                                <PipelineStepper rounds={appRoundsMap[app.id]} />
+                              </div>
+                            )}
                           </div>
+
+                          {appRoundsMap[app.id] && (() => {
+                            const upcoming = appRoundsMap[app.id].find((r) => (r.status === "in_progress" || r.status === "pending") && r.scheduled_at);
+                            if (!upcoming) return null;
+                            return (
+                              <div className="mt-1.5 inline-flex items-center gap-2 px-2.5 py-1 rounded-lg bg-indigo-50 border border-indigo-100/90 text-xs text-indigo-700">
+                                <Video size={13} className="text-indigo-600 shrink-0 animate-pulse" />
+                                <span>Lịch hẹn: <strong>{upcoming.round_name || "Vòng phỏng vấn"}</strong> ({new Date(upcoming.scheduled_at!).toLocaleString("vi-VN", { dateStyle: "short", timeStyle: "short" })})</span>
+                                {upcoming.location && upcoming.location.startsWith("http") && (
+                                  <a href={upcoming.location} target="_blank" rel="noreferrer" className="font-bold underline text-indigo-800 hover:text-indigo-950 shrink-0">
+                                    Vào họp
+                                  </a>
+                                )}
+                              </div>
+                            );
+                          })()}
                         </div>
 
                         <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4 shrink-0 sm:pl-4">
