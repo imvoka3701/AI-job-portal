@@ -70,6 +70,12 @@
   - [x] Danh sách thành viên công ty (Owner, Admin, Member, Department Head).
   - [x] Mời thành viên mới qua email token, đổi vai trò, phân chia tin tuyển dụng phụ trách.
   - [x] Bảng nhật ký hoạt động (Activity Timeline) ghi nhận chi tiết lịch sử phân quyền.
+- [x] **Lịch phỏng vấn ứng viên (`/employer/interviews`):**
+  - [x] 3 Thẻ KPI tổng quan (Tổng lịch phỏng vấn, Diễn ra hôm nay, Phỏng vấn Online).
+  - [x] Agenda cards nhóm theo Hôm nay / Ngày mai / Tuần này / Sắp tới, hỗ trợ link họp trực tuyến & điều hướng nhanh tới hồ sơ ứng viên.
+- [x] **Nhu cầu Tuyển dụng Nội bộ (`/employer/recruitment-requests`):**
+  - [x] 3 Thẻ chỉ số (Tổng số yêu cầu, Đang chờ HR duyệt, Nhân sự đề xuất).
+  - [x] Bộ lọc theo trạng thái & phạm vi phòng ban; bảng dữ liệu chuẩn B2B SaaS với thao tác Duyệt/Từ chối định biên.
 
 #### 1.3 Phân hệ Quản trị Viên Cấp cao (Admin Command Center):
 - [x] **Admin Dashboard (`/admin/dashboard`):**
