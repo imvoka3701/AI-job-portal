@@ -20,17 +20,17 @@ if backend_dir not in sys.path:
     sys.path.insert(0, backend_dir)
 
 from datetime import datetime, timezone
+
+from app.core.security import hash_password
 from app.database import SessionLocal
-from app.models.user import User, UserRole
+from app.models.ai_call_log import AICallLog, AIFeature
+from app.models.application import Application, ApplicationStatus
 from app.models.company import Company, CompanyMembership, MembershipRole
+from app.models.criteria_score import CriteriaScore
+from app.models.interview_round import InterviewRound, RoundStatus, RoundType
 from app.models.job import Job
 from app.models.resume import Resume
-from app.models.application import Application, ApplicationStatus
-from app.models.interview_round import InterviewRound, RoundType, RoundStatus
-from app.models.criteria_score import CriteriaScore
-from app.models.ai_prompt_config import AIPromptConfig
-from app.models.ai_call_log import AICallLog, AIFeature
-from app.core.security import hash_password
+from app.models.user import User, UserRole
 
 DUMMY_VECTOR = [0.01 * (i % 50) for i in range(384)]
 
@@ -191,7 +191,7 @@ def run_crud_matrix_verification():
         # READ & UPDATE STATUS
         app_read = db.query(Application).filter(Application.id == app.id).first()
         assert app_read and app_read.status == ApplicationStatus.PENDING, "Read Application failed"
-        
+
         # Move through stages: reviewed -> interview -> accepted
         app_read.status = ApplicationStatus.REVIEWED
         db.commit()
@@ -264,7 +264,7 @@ def run_crud_matrix_verification():
 
         # ── 8. TEARDOWN & SAFE DELETION MATRIX ───────────────────────────────
         print("\n▶ [TEARDOWN] Kiểm tra chu trình XÓA AN TOÀN (Safe Delete & Foreign Key Constraints)...")
-        
+
         # Delete Rubric Score
         db.delete(c_score)
         db.commit()
