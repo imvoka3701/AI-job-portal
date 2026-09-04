@@ -25,6 +25,7 @@ import {
   Sparkles,
   Columns3,
   ListFilter,
+  PanelLeftClose,
 } from "lucide-react";
 import { Badge, Button, Card, EmptyState, ErrorState, PipelineStepper } from "@/components/ui";
 import { getInitials, cn } from "@/lib/utils";
@@ -303,17 +304,26 @@ export function EmployerApplicationList({
     <Card className="border-gray-200 shadow-sm overflow-hidden font-sans bg-white">
       <div className={cn(
         "grid gap-0 transition-all duration-300 ease-in-out",
-        isSidebarOpen ? "lg:grid-cols-[300px_minmax(0,1fr)]" : "lg:grid-cols-[0px_minmax(0,1fr)]"
+        isSidebarOpen ? "lg:grid-cols-[280px_minmax(0,1fr)]" : "lg:grid-cols-[0px_minmax(0,1fr)]"
       )}>
         <div className={cn(
           "border-b border-gray-200 bg-gray-50/50 lg:border-b-0 lg:border-r transition-all duration-300 ease-in-out overflow-hidden",
-          isSidebarOpen ? "opacity-100" : "opacity-0 lg:border-r-0"
+          isSidebarOpen ? "opacity-100" : "opacity-0 lg:border-r-0 pointer-events-none"
         )}>
-          <div className="border-b border-gray-200 px-5 py-4 flex items-center justify-between">
-            <div>
-              <h2 className="text-lg font-bold text-gray-900">Tuyển dụng đang mở</h2>
-              <p className="text-[13px] text-gray-500 mt-0.5">Danh sách các job ({jobs.length})</p>
+          <div className="border-b border-gray-200 px-4 py-4 flex items-center justify-between">
+            <div className="min-w-0">
+              <h2 className="text-base font-bold text-gray-900 truncate">Tuyển dụng đang mở</h2>
+              <p className="text-[12px] text-gray-500 mt-0.5">Danh sách các job ({jobs.length})</p>
             </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsSidebarOpen(false)}
+              className="hidden lg:inline-flex p-1.5 h-7 w-7 text-gray-400 hover:text-gray-700 hover:bg-gray-200/60 rounded-lg"
+              title="Thu gọn danh sách Job để mở rộng bảng ứng viên"
+            >
+              <PanelLeftClose className="w-4 h-4" />
+            </Button>
           </div>
           <div className="max-h-[640px] overflow-y-auto p-3">
             {jobsLoading ? (
@@ -371,13 +381,14 @@ export function EmployerApplicationList({
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div className="flex items-center gap-3">
                 <Button
-                  variant="ghost"
+                  variant="outline"
                   size="sm"
                   onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                  className="hidden lg:flex w-8 h-8 p-0 items-center justify-center rounded-lg hover:bg-gray-100"
-                  title={isSidebarOpen ? "Thu gọn danh sách Job" : "Mở rộng danh sách Job"}
+                  className="hidden lg:inline-flex items-center gap-1.5 font-semibold text-xs border-slate-200 shadow-2xs hover:bg-slate-100 h-8 px-2.5"
+                  title={isSidebarOpen ? "Thu gọn danh sách Job để mở rộng bảng ứng viên" : "Mở danh sách Job"}
                 >
-                  <SlidersHorizontal className="w-4 h-4 text-gray-500" />
+                  <PanelLeftClose className={cn("w-4 h-4 text-slate-600 transition-transform", !isSidebarOpen && "rotate-180")} />
+                  <span>{isSidebarOpen ? "Thu gọn Job" : "Mở danh sách Job"}</span>
                 </Button>
                 <div>
                   <h2 className="text-lg font-semibold text-gray-900">
@@ -548,7 +559,7 @@ export function EmployerApplicationList({
           {viewMode === "kanban" ? (
             <div className="p-4 border-t border-gray-100">
               {appsLoading ? (
-                <div className="flex gap-4 min-w-[1240px] p-2">
+                <div className="flex gap-3.5 min-w-[1140px] w-full p-2">
                   {Array.from({ length: 6 }).map((_, index) => (
                     <div key={index} className="flex-1 h-72 animate-pulse rounded-2xl bg-gray-100" />
                   ))}

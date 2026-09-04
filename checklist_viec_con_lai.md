@@ -59,7 +59,8 @@
   - [x] Thao tác sửa tin, Đóng tin / Mở lại tin.
   - [x] Xóa tin an toàn (kích hoạt **Soft Delete** khi đã có ứng viên nộp đơn để tránh lỗi FK CSDL).
 - [x] **Đường ống Tuyển dụng ATS (`/employer/candidates`):**
-  - [x] Chuyển đổi linh hoạt giữa dạng Bảng (Table) và dạng **Kanban Board** 6 cột kéo thả (`Nộp đơn`, `Duyệt CV`, `Sơ vấn HR`, `PV Kỹ thuật`, `Vòng cuối`, `Trúng tuyển`).
+  - [x] **Tối ưu không gian làm việc rộng rãi (Ultra-wide Workspace Canvas):** Mở rộng canvas lên `max-w-[1840px]`, xóa bỏ lề xám lãng phí. Bổ sung nút 1-click **"Thu gọn Job" / "Mở danh sách Job"** để bảng ứng viên và Kanban chiếm trọn 100% chiều ngang màn hình.
+  - [x] Chuyển đổi linh hoạt giữa dạng Bảng (Table) và dạng **Kanban Board** 6 cột (`Chờ duyệt`, `Đang xem xét`, `Hồ sơ chọn lọc`, `Vòng phỏng vấn`, `Đã trúng tuyển`, `Từ chối`). 6 cột tự co giãn mượt mà (`min-w-[220px] max-w-[340px] flex-1`), vừa vặn tuyệt đối không tràn màn hình.
   - [x] Kéo thả cập nhật trạng thái ứng viên mượt mà với Framer Motion.
   - [x] Thẻ ứng viên hiển thị điểm AI Matching Score + Badge phân loại chuẩn xác.
 - [x] **Modal Đánh giá & AI Soạn Thảo Email:**

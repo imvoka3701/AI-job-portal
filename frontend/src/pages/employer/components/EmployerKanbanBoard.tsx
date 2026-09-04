@@ -154,7 +154,7 @@ export function EmployerKanbanBoard({
       className="overflow-x-auto pb-6 pt-2"
       data-testid="employer-kanban-board"
     >
-      <div className="flex gap-4 min-w-[1240px] px-2">
+      <div className="flex gap-3.5 min-w-[1140px] w-full px-2">
         {KANBAN_COLUMNS.map((column) => {
           const colApps = applications.filter((app) => app.status === column.id);
           const ColumnIcon = column.icon;
@@ -162,7 +162,7 @@ export function EmployerKanbanBoard({
           return (
             <div
               key={column.id}
-              className="flex-1 flex flex-col bg-slate-50/70 rounded-2xl border border-slate-200/80 p-3 min-w-[210px] max-w-[260px] shadow-xs"
+              className="flex-1 flex flex-col bg-slate-50/70 rounded-2xl border border-slate-200/80 p-3 min-w-[220px] max-w-[340px] shadow-xs"
               data-testid={`kanban-column-${column.id}`}
             >
               {/* Column Header */}

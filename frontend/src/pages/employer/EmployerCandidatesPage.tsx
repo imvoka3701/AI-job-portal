@@ -406,8 +406,8 @@ export function EmployerCandidatesPage() {
   }
 
   return (
-    <PageTransition className="min-h-screen bg-page-bg px-4 py-8 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-7xl space-y-6">
+    <PageTransition className="w-full space-y-6">
+      <div className="w-full space-y-6">
         {/* Enterprise Workspace Header Banner */}
         <Card className="border-gray-200 shadow-sm bg-gradient-to-r from-white via-slate-50/50 to-emerald-50/30 overflow-hidden">
           <div className="p-6">
