@@ -1,8 +1,11 @@
 """Resumes router — upload and manage resumes."""
 
 import logging
+import os
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi.responses import FileResponse
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -34,8 +37,9 @@ ALLOWED_CONTENT_TYPES = {"application/pdf"}
     status_code=status.HTTP_201_CREATED,
     summary="Upload a resume (PDF) and generate AI embedding",
     description=(
-        "Uploads a PDF resume, extracts text, generates a vector embedding "
-        "via sentence-transformers, and stores everything in the database."
+        "Uploads a PDF resume, validates it is a real CV, extracts text, "
+        "generates a vector embedding via sentence-transformers, and stores "
+        "everything in the database. File is only persisted after validation passes."
     ),
 )
 async def upload_resume(
@@ -52,16 +56,9 @@ async def upload_resume(
             detail="Định dạng file không hợp lệ. Chỉ chấp nhận file PDF.",
         )
 
-    # ── 2. Save file to disk ─────────────────────────────────────────────────
-    try:
-        file_location = await save_file_upload(file=file, user_id=current_user.id)
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(exc),
-        )
-
-    # ── 3. Extract text from PDF ─────────────────────────────────────────────
+    # ── 2. Extract text from PDF (BEFORE saving to disk) ─────────────────────
+    # Read the file stream for text extraction first — avoid orphan files from
+    # rejected uploads.
     file.file.seek(0)
     try:
         raw_text = extract_text_from_pdf(file.file)
@@ -71,7 +68,7 @@ async def upload_resume(
             detail=str(exc),
         )
 
-    # ── 4. Validate extracted text ──────────────────────────────────────────
+    # ── 3. Validate extracted text length ────────────────────────────────────
     if not raw_text or len(raw_text.strip()) < MIN_EXTRACTED_TEXT_LENGTH:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -80,7 +77,7 @@ async def upload_resume(
             ),
         )
 
-    # ── 4.5. Validate with AI (Standard CV format check) ────────────────────
+    # ── 4. Validate with AI (Standard CV format check) ───────────────────────
     try:
         is_valid_cv = await cv_evaluator_service.validate_is_cv(raw_text)
         reject_reason = getattr(cv_evaluator_service, "_last_reject_reason", "")
@@ -93,7 +90,28 @@ async def upload_resume(
             detail=reject_reason or "Hồ sơ tải lên không đúng định dạng CV tiêu chuẩn thị trường (thiếu thông tin cá nhân, kinh nghiệm hoặc học vấn). Vui lòng tải lên file CV hợp lệ.",
         )
 
-    # ── 5. Generate embedding ────────────────────────────────────────────────
+    # ── 4.5. Parse CV metadata (industry, skills, experience level) ──────────
+    from app.services.cv_parser import cv_parser_service
+
+    try:
+        cv_metadata = await cv_parser_service.parse_cv_metadata(raw_text, db=db)
+        category_id = cv_parser_service.resolve_category_id(cv_metadata.industry, db)
+    except Exception as exc:
+        logger.warning("CV metadata parsing failed (non-blocking): %s", exc)
+        cv_metadata = None
+        category_id = None
+
+    # ── 5. Save file to disk (ONLY after validation passes) ──────────────────
+    file.file.seek(0)
+    try:
+        file_location = await save_file_upload(file=file, user_id=current_user.id)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        )
+
+    # ── 6. Generate embedding ────────────────────────────────────────────────
     try:
         embedding = generate_embedding(raw_text)
     except Exception as exc:
@@ -103,7 +121,9 @@ async def upload_resume(
             detail=f"Không thể tạo embedding cho CV: {exc}",
         )
 
-    # ── 6. Create resume entry with embedding ────────────────────────────────
+    # ── 7. Create resume entry with embedding + validated flag + metadata ────
+    import json as _json
+
     resume_in = ResumeCreate(
         title=file.filename or "untitled_resume",
         file_url=file_location,
@@ -111,14 +131,24 @@ async def upload_resume(
         parsed_skills=None,
         parsed_experience=None,
         embedding=embedding,
+        is_validated=True,
+        validated_at=datetime.now(timezone.utc),
+        # Structured CV metadata
+        parsed_industry=cv_metadata.industry if cv_metadata else None,
+        desired_role=cv_metadata.desired_role if cv_metadata else None,
+        desired_location=cv_metadata.desired_location if cv_metadata else None,
+        parsed_experience_level=cv_metadata.experience_level if cv_metadata else None,
+        parsed_key_skills=_json.dumps(cv_metadata.key_skills, ensure_ascii=False) if cv_metadata and cv_metadata.key_skills else None,
+        industry_category_id=category_id,
     )
     resume = crud_resume.create(db, obj_in=resume_in, user_id=current_user.id)
     logger.info(
-        "Resume created: id=%s user=%s file=%s text_len=%s",
+        "Resume created: id=%s user=%s file=%s text_len=%s validated=True industry=%s",
         resume.id,
         current_user.id,
         resume.title,
         len(raw_text),
+        cv_metadata.industry if cv_metadata else "unknown",
     )
     return ResumeRead.model_validate(resume)
 
@@ -129,17 +159,44 @@ async def upload_resume(
     status_code=status.HTTP_201_CREATED,
     summary="Create a resume entry",
 )
-def create_resume(
+async def create_resume(
     data: ResumeCreate,
     current_user: User = Depends(require_role(UserRole.CANDIDATE)),
     db: Session = Depends(get_db),
 ) -> ResumeRead:
-    """Create a new resume entry. File upload handled separately."""
-    if data.embedding is None and data.raw_text and data.raw_text.strip():
+    """Create a new resume entry. File upload handled separately.
+
+    If raw_text is provided, the CV is validated through the same AI pipeline
+    as the upload endpoint to prevent invalid documents from entering the system.
+    """
+    # Validate CV content if raw_text is provided
+    if data.raw_text and data.raw_text.strip():
+        if len(data.raw_text.strip()) < MIN_EXTRACTED_TEXT_LENGTH:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Nội dung CV quá ngắn. Vui lòng cung cấp CV đầy đủ.",
+            )
         try:
-            data.embedding = generate_embedding(data.raw_text)
-        except Exception:
-            logger.warning("Could not pre-generate embedding during create_resume for user %s", current_user.id)
+            is_valid_cv = await cv_evaluator_service.validate_is_cv(data.raw_text)
+            reject_reason = getattr(cv_evaluator_service, "_last_reject_reason", "")
+        except Exception as exc:
+            logger.exception("CV validation failed for user %s", current_user.id)
+            raise ai_http_exception(exc)
+        if not is_valid_cv:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=reject_reason or "Hồ sơ không đúng định dạng CV tiêu chuẩn.",
+            )
+        data.is_validated = True
+        data.validated_at = datetime.now(timezone.utc)
+
+        # Auto-generate embedding if not provided
+        if data.embedding is None:
+            try:
+                data.embedding = generate_embedding(data.raw_text)
+            except Exception:
+                logger.warning("Could not pre-generate embedding during create_resume for user %s", current_user.id)
+
     resume = crud_resume.create(db, obj_in=data, user_id=current_user.id)
     return ResumeRead.model_validate(resume)
 
@@ -200,59 +257,95 @@ async def evaluate_resume(
         )
 
 
-import os
+def _resolve_resume_file_path(file_url: str | None) -> str | None:
+    """Safely resolve the physical file path from a resume's stored file_url.
 
-from fastapi.responses import FileResponse
+    Returns the resolved path if the file exists, or None.
+    SECURITY: Never falls back to random/demo files — only returns the
+    exact file belonging to this resume record.
+    """
+    if not file_url:
+        return None
+
+    # Try multiple path normalization strategies (handles /uploads/... vs uploads/...)
+    candidate_paths = [
+        file_url,
+        file_url.lstrip("/"),
+        file_url.replace("/api/", "/").lstrip("/"),
+    ]
+    # Also try prefixing with "uploads" if the stored path doesn't include it
+    clean = file_url.replace("/api/", "/").lstrip("/")
+    if not clean.startswith("uploads"):
+        candidate_paths.append(os.path.join("uploads", clean))
+
+    for p in candidate_paths:
+        if p and os.path.exists(p) and os.path.isfile(p):
+            return p
+    return None
 
 
-@router.get("/{resume_id}/content", summary="Get resume raw file content safely")
+@router.get("/{resume_id}/content", summary="Get resume raw file content for preview")
 def get_resume_content(
     resume_id: int,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Serve resume file with application/pdf (or fallback demo PDF) to allow clean preview."""
+    """Serve resume PDF for in-browser preview (Content-Disposition: inline).
+
+    Returns exactly the file belonging to this resume — never falls back to
+    random or demo files (security fix).
+    """
     resume = crud_resume.get_by_id(db, resume_id=resume_id)
     if not resume:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume not found")
     if resume.user_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not your resume")
 
-    file_path = resume.file_url or ""
-    clean_path = file_path.replace("/api/", "/").lstrip("/")
-    # Candidate paths to locate file
-    candidate_paths = [
-        file_path,
-        file_path.lstrip("/"),
-        clean_path,
-        os.path.join("uploads", clean_path.replace("uploads/", "", 1) if clean_path.startswith("uploads/") else clean_path),
-        os.path.join("uploads", file_path.lstrip("/")),
-        os.path.join("uploads", os.path.basename(file_path)) if file_path else "",
-        "uploads/demo_cv.pdf",
-        "uploads/resumes/demo_cv.pdf",
-    ]
-    resolved_path = None
-    for p in candidate_paths:
-        if p and os.path.exists(p) and os.path.isfile(p):
-            resolved_path = p
-            break
-
-    if not resolved_path:
-        # Fallback to any existing sample PDF in uploads
-        import glob
-        existing_pdfs = glob.glob("uploads/**/*.pdf", recursive=True)
-        if existing_pdfs:
-            resolved_path = existing_pdfs[0]
-
+    resolved_path = _resolve_resume_file_path(resume.file_url)
     if not resolved_path:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="File not found on server"
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="File CV không tồn tại trên server. Vui lòng tải lên lại.",
         )
 
     return FileResponse(
         path=resolved_path,
         media_type="application/pdf",
-        headers={"Content-Disposition": f"inline; filename=CV_{resume_id}.pdf"},
+        headers={"Content-Disposition": f'inline; filename="CV_{resume_id}.pdf"'},
+    )
+
+
+@router.get("/{resume_id}/download", summary="Download resume file")
+def download_resume(
+    resume_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Download resume PDF as a file attachment (triggers browser download).
+
+    Unlike /content (inline preview), this endpoint sets
+    Content-Disposition: attachment to force the browser to save the file.
+    """
+    resume = crud_resume.get_by_id(db, resume_id=resume_id)
+    if not resume:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume not found")
+    if resume.user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not your resume")
+
+    resolved_path = _resolve_resume_file_path(resume.file_url)
+    if not resolved_path:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="File CV không tồn tại trên server. Vui lòng tải lên lại.",
+        )
+
+    # Use the original filename if available, otherwise generate a safe name
+    download_name = resume.title if resume.title and resume.title.endswith(".pdf") else f"CV_{resume_id}.pdf"
+
+    return FileResponse(
+        path=resolved_path,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{download_name}"'},
     )
 
 

@@ -353,41 +353,176 @@ class AIMatchingService:
             gaps=[],
         )
 
-    async def find_top_matches(
+    async def find_top_matching_jobs(
         self,
         db: Session,
         *,
-        job_embedding: list[float],
-        limit: int = 10,
+        resume_embedding: list[float],
+        category_id: int | None = None,
+        experience_level: str | None = None,
+        limit: int = 20,
     ) -> list[dict]:
-        """Find top N resumes most similar to a job embedding using HNSW index."""
-        clean_emb_str = "[" + ",".join(str(float(x)) for x in job_embedding) + "]"
+        """Find top N jobs most similar to a resume embedding using HNSW index.
+
+        Optionally filters by job category (industry) and experience level
+        BEFORE computing cosine similarity — reduces noise from cross-industry matches.
+        """
+        clean_emb_str = "[" + ",".join(str(float(x)) for x in resume_embedding) + "]"
+
+        # Build dynamic WHERE clause
+        where_clauses = ["j.is_active = true", "j.embedding IS NOT NULL"]
+        params: dict = {"embedding": clean_emb_str, "limit": limit}
+
+        if category_id is not None:
+            where_clauses.append("j.category_id = :category_id")
+            params["category_id"] = category_id
+
+        if experience_level is not None:
+            where_clauses.append("j.experience_level = :exp_level")
+            params["exp_level"] = experience_level
+
+        where_sql = " AND ".join(where_clauses)
+
         try:
             result = db.execute(
                 text(
-                    """
-                    SELECT id, user_id, title,
-                           1 - (embedding <=> :embedding::vector) AS similarity
-                    FROM resumes
-                    WHERE embedding IS NOT NULL
-                    ORDER BY embedding <=> :embedding::vector
+                    f"""
+                    SELECT j.id, j.title, j.location, j.experience_level,
+                           j.salary_min, j.salary_max, j.job_type,
+                           j.company_id, j.employer_id, j.category_id,
+                           1 - (j.embedding <=> :embedding::vector) AS similarity
+                    FROM jobs j
+                    WHERE {where_sql}
+                    ORDER BY j.embedding <=> :embedding::vector
                     LIMIT :limit
                     """
                 ),
-                {"embedding": clean_emb_str, "limit": limit},
+                params,
             )
             return [
                 {
-                    "resume_id": row.id,
-                    "user_id": row.user_id,
+                    "job_id": row.id,
                     "title": row.title,
-                    "score": row.similarity,
+                    "location": row.location,
+                    "experience_level": row.experience_level,
+                    "salary_min": row.salary_min,
+                    "salary_max": row.salary_max,
+                    "job_type": row.job_type,
+                    "company_id": row.company_id,
+                    "employer_id": row.employer_id,
+                    "category_id": row.category_id,
+                    "similarity": float(row.similarity),
                 }
                 for row in result
             ]
         except Exception:
-            logger.debug("pgvector unavailable — top matches not supported in test env")
+            logger.debug("pgvector unavailable — job recommendations not supported in test env")
             return []
+
+    async def recommend_jobs_for_resume(
+        self,
+        db: Session,
+        *,
+        resume: "Resume",
+        limit: int = 20,
+    ) -> dict:
+        """Orchestrate full job recommendation for a validated resume.
+
+        Flow:
+        1. Verify resume has embedding + is validated
+        2. Use resume's industry_category_id for pre-filtering
+        3. Run pgvector HNSW cosine similarity search
+        4. If industry-filtered results are too few, fall back to broader search
+        5. Enrich with company names and match reasons
+
+        Returns:
+            Dict with resume_id, industry_detected, total_matched, recommendations.
+        """
+        if resume.embedding is None:
+            return {
+                "resume_id": resume.id,
+                "industry_detected": resume.parsed_industry or "unknown",
+                "total_matched": 0,
+                "recommendations": [],
+            }
+
+        embedding = [float(x) for x in resume.embedding]
+
+        # Step 1: Try industry-filtered search first
+        results = []
+        if resume.industry_category_id:
+            results = await self.find_top_matching_jobs(
+                db,
+                resume_embedding=embedding,
+                category_id=resume.industry_category_id,
+                limit=limit,
+            )
+
+        # Step 2: If too few results, broaden search (no industry filter)
+        if len(results) < 5:
+            broader_results = await self.find_top_matching_jobs(
+                db,
+                resume_embedding=embedding,
+                category_id=None,
+                limit=limit,
+            )
+            # Merge: prioritize industry-filtered, then append broader unique
+            seen_ids = {r["job_id"] for r in results}
+            for r in broader_results:
+                if r["job_id"] not in seen_ids:
+                    results.append(r)
+                    seen_ids.add(r["job_id"])
+            results = results[:limit]
+
+        # Step 3: Enrich with company names
+        from app.models.company import Company
+
+        company_ids = {r["company_id"] for r in results if r.get("company_id")}
+        company_map: dict[int, str] = {}
+        if company_ids:
+            companies = db.query(Company.id, Company.name).filter(Company.id.in_(company_ids)).all()
+            company_map = {c.id: c.name for c in companies}
+
+        # Step 4: Build response
+        recommendations = []
+        industry = resume.parsed_industry or "unknown"
+        skills_json = resume.parsed_key_skills
+        skills_list = json.loads(skills_json) if skills_json else []
+        skills_text = ", ".join(skills_list[:5]) if skills_list else "N/A"
+
+        for r in results:
+            score = round(max(0.0, min(100.0, r["similarity"] * 100)), 1)
+            is_same_category = (
+                resume.industry_category_id is not None
+                and r.get("category_id") == resume.industry_category_id
+            )
+
+            if is_same_category and score >= 60:
+                reason = f"Phù hợp ngành {industry}, kỹ năng {skills_text} trùng khớp cao."
+            elif is_same_category:
+                reason = f"Cùng ngành {industry}, mức độ phù hợp trung bình."
+            elif score >= 60:
+                reason = f"Kỹ năng {skills_text} phù hợp dù khác ngành chính."
+            else:
+                reason = "Có một số điểm tương đồng về kinh nghiệm và kỹ năng."
+
+            recommendations.append({
+                "job_id": r["job_id"],
+                "title": r["title"],
+                "company_name": company_map.get(r["company_id"]) if r.get("company_id") else None,
+                "location": r["location"],
+                "experience_level": r["experience_level"],
+                "match_score": score,
+                "match_reason": reason,
+            })
+
+        return {
+            "resume_id": resume.id,
+            "industry_detected": industry,
+            "total_matched": len(recommendations),
+            "recommendations": recommendations,
+        }
 
 
 ai_matching_service = AIMatchingService()
+

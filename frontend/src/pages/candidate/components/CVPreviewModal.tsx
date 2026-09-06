@@ -1,16 +1,30 @@
-import { X, ExternalLink, Loader2 } from "lucide-react";
+import { X, ExternalLink, Loader2, Download } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui";
 import { apiClient } from "@/lib/axios";
 interface CVPreviewModalProps {
   url: string | null;
   onClose: () => void;
+  resumeTitle?: string;
+  resumeId?: number;
 }
 
-export function CVPreviewModal({ url, onClose }: CVPreviewModalProps) {
+export function CVPreviewModal({ url, onClose, resumeTitle, resumeId }: CVPreviewModalProps) {
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
+
+  const handleDownload = () => {
+    if (!blobUrl) return;
+    const a = document.createElement("a");
+    a.href = blobUrl;
+    a.download = resumeTitle?.endsWith(".pdf")
+      ? resumeTitle
+      : `CV_${resumeId ?? "download"}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
 
   useEffect(() => {
     if (url) {
@@ -87,6 +101,16 @@ export function CVPreviewModal({ url, onClose }: CVPreviewModalProps) {
             {error && <span className="text-sm text-red-500 ml-2">(Không thể tải CV)</span>}
           </div>
           <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-9 gap-2"
+              disabled={!blobUrl}
+              onClick={handleDownload}
+            >
+              <Download className="w-4 h-4" />
+              Tải về máy
+            </Button>
             <Button
               variant="outline"
               size="sm"

@@ -26,6 +26,22 @@ class Resume(Base):
     # pgvector embedding for AI matching (Cosine Similarity)
     embedding = mapped_column(Vector(EMBEDDING_DIM), nullable=True)
 
+    # Validation gate — True only after passing CV format validation pipeline
+    is_validated: Mapped[bool] = mapped_column(default=False)
+    validated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    # ── Structured CV metadata (populated by CVParserService) ────────────────
+    parsed_industry: Mapped[str | None] = mapped_column(String(100), nullable=True, index=True)
+    desired_role: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    desired_location: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    parsed_experience_level: Mapped[str | None] = mapped_column(
+        String(20), nullable=True, index=True
+    )  # "fresher" | "junior" | "middle" | "senior" | "lead"
+    parsed_key_skills: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON array
+    industry_category_id: Mapped[int | None] = mapped_column(
+        ForeignKey("job_categories.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+
     # Foreign key
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
 

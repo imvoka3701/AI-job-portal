@@ -4,7 +4,7 @@ import json
 import logging
 import time
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.config import settings
@@ -39,6 +39,7 @@ from app.schemas.ai import (
     GenerateEmailResponse,
     InterviewQuestionsRequest,
     InterviewQuestionsResponse,
+    JobRecommendationResponse,
     RoadmapRequest,
     RoadmapResponse,
 )
@@ -275,6 +276,12 @@ async def match_resume_to_job(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume not found")
     _authorize_resume_access(db, current_user=current_user, resume=resume, job_id=data.job_id)
 
+    if not resume.is_validated:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="CV chưa được xác thực. Vui lòng tải lên lại CV hợp lệ trước khi sử dụng AI Matching.",
+        )
+
     job = crud_job.get_by_id(db, job_id=data.job_id)
     if not job:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
@@ -293,6 +300,55 @@ async def match_resume_to_job(
         job=job,
         deep_analysis=True,
     )
+
+
+@router.get(
+    "/recommend-jobs",
+    response_model=JobRecommendationResponse,
+    summary="Get AI-recommended jobs for a resume",
+    description=(
+        "Finds the top matching job postings for a candidate's resume using "
+        "industry-aware filtering and pgvector cosine similarity ranking. "
+        "Resume must be validated before recommendations are available."
+    ),
+)
+async def recommend_jobs_for_candidate(
+    resume_id: int = Query(..., description="ID of the validated resume"),
+    limit: int = Query(20, ge=1, le=50, description="Max number of recommendations"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> JobRecommendationResponse:
+    """Find top N jobs matching a candidate's resume profile.
+
+    Uses the resume's parsed industry and embedding to:
+    1. Pre-filter jobs by matching industry/category
+    2. Rank remaining jobs by pgvector cosine similarity
+    3. Return enriched results with company names and match reasons
+    """
+    resume = crud_resume.get_by_id(db, resume_id=resume_id)
+    if not resume:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume not found")
+    if resume.user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not your resume")
+
+    if not resume.is_validated:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="CV ch\u01b0a \u0111\u01b0\u1ee3c x\u00e1c th\u1ef1c. Vui l\u00f2ng t\u1ea3i l\u00ean l\u1ea1i CV h\u1ee3p l\u1ec7 \u0111\u1ec3 nh\u1eadn g\u1ee3i \u00fd vi\u1ec7c l\u00e0m.",
+        )
+
+    if resume.embedding is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="CV ch\u01b0a c\u00f3 embedding. Vui l\u00f2ng t\u1ea3i l\u00ean l\u1ea1i CV.",
+        )
+
+    result = await ai_matching_service.recommend_jobs_for_resume(
+        db,
+        resume=resume,
+        limit=limit,
+    )
+    return JobRecommendationResponse(**result)
 
 
 @router.post(
@@ -315,6 +371,12 @@ async def evaluate_cv(
     if not resume:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume not found")
     _authorize_resume_access(db, current_user=current_user, resume=resume)
+
+    if not resume.is_validated:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="CV chưa được xác thực. Vui lòng tải lên lại CV hợp lệ trước khi đánh giá.",
+        )
 
     if not resume.raw_text:
         raise HTTPException(

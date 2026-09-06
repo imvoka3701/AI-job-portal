@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { FileText, Trash2, Eye, Loader2, AlertCircle, Zap } from "lucide-react";
+import { FileText, Trash2, Eye, Loader2, AlertCircle, Zap, Download } from "lucide-react";
 import { Button, Badge, ConfirmDialog } from "@/components/ui";
+import { apiClient } from "@/lib/axios";
 import type { Resume } from "@/types/resume";
 
 interface CVCardProps {
@@ -14,7 +15,30 @@ interface CVCardProps {
 
 export function CVCard({ resume, onDelete, onPreview, onEvaluate, state = "idle", isEvaluating = false }: CVCardProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
   const isReady = !!resume.ai_evaluation_json;
+
+  const handleDownload = async () => {
+    setIsDownloading(true);
+    try {
+      const res = await apiClient.get(`/resumes/${resume.id}/download`, {
+        responseType: "arraybuffer",
+      });
+      const blob = new Blob([res.data], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = resume.title?.endsWith(".pdf") ? resume.title : `CV_${resume.id}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch {
+      // Silently fail — user can try again
+    } finally {
+      setIsDownloading(false);
+    }
+  };
 
   return (
     <>
@@ -54,6 +78,9 @@ export function CVCard({ resume, onDelete, onPreview, onEvaluate, state = "idle"
             
             <p className="text-xs text-gray-500 flex items-center gap-2">
               <span>Tải lên {new Date(resume.created_at).toLocaleDateString("vi-VN")}</span>
+              {resume.is_validated && (
+                <Badge variant="success" size="sm" className="text-[10px] px-1.5 py-0">✓ Verified</Badge>
+              )}
             </p>
           </div>
         </div>
@@ -69,6 +96,16 @@ export function CVCard({ resume, onDelete, onPreview, onEvaluate, state = "idle"
           >
             <Eye className="w-4 h-4 mr-2 text-gray-500" />
             Xem CV
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-9 h-9 p-0 text-gray-500 hover:text-primary hover:bg-primary/5 shrink-0"
+            onClick={handleDownload}
+            disabled={state !== "idle" || isEvaluating || isDownloading}
+            title="Tải CV về máy"
+          >
+            {isDownloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
           </Button>
           <Button 
             variant="outline" 

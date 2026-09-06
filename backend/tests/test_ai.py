@@ -82,6 +82,7 @@ def _create_resume_with_embedding(
         file_url="uploads/test/test_cv.pdf",
         raw_text="Experienced Python developer with 5 years in web development.",
         embedding=embedding,
+        is_validated=True,
     )
     resume = crud_resume.create(db, obj_in=resume_in, user_id=user_id)
     return resume.id
@@ -256,7 +257,7 @@ class TestAIMatchingIntegration:
 
         # Resume WITHOUT embedding
         resume_in = ResumeCreate(
-            title="empty.pdf", file_url="uploads/test/empty.pdf", raw_text=""
+            title="empty.pdf", file_url="uploads/test/empty.pdf", raw_text="", is_validated=True
         )
         resume = crud_resume.create(db_session, obj_in=resume_in, user_id=cand_id)
 
@@ -308,6 +309,35 @@ class TestAIMatchingIntegration:
         )
         assert resp.status_code == 422
         assert "no embedding" in resp.json()["error"]["message"].lower()
+
+    def test_match_unvalidated_resume_rejected(self, client: TestClient, db_session: Session):
+        """When a resume is not validated, /ai/match must reject it with 422."""
+        cand_headers = _register_and_login(
+            client, "unvalidated@test.com", "secret123", "Unvalidated Cand", "candidate"
+        )
+        empl_headers = _register_and_login(
+            client, "empl_uv@test.com", "secret123", "Company UV", "employer", db=db_session
+        )
+        cand_id = client.get("/users/me", headers=cand_headers).json()["id"]
+        empl_id = client.get("/users/me", headers=empl_headers).json()["id"]
+
+        resume_in = ResumeCreate(
+            title="unvalidated.pdf",
+            file_url="uploads/test/unvalidated.pdf",
+            raw_text="Some text",
+            embedding=_make_vector(1.0, 0.0),
+            is_validated=False,
+        )
+        resume = crud_resume.create(db_session, obj_in=resume_in, user_id=cand_id)
+        job_id = _create_job_with_embedding(db_session, empl_id, _make_vector(0.6, 0.8))
+
+        resp = client.post(
+            "/ai/match",
+            json={"resume_id": resume.id, "job_id": job_id},
+            headers=cand_headers,
+        )
+        assert resp.status_code == 422
+        assert "chưa được xác thực" in resp.json()["error"]["message"]
 
 
 class TestAIMatchingRealEmbeddings:
@@ -369,6 +399,7 @@ class TestAIMatchingRealEmbeddings:
             file_url="uploads/test/cv_python_dev.pdf",
             raw_text=resume_text,
             embedding=resume_emb,
+            is_validated=True,
         )
         resume = crud_resume.create(db_session, obj_in=resume_in, user_id=cand_user_id)
 

@@ -143,3 +143,23 @@ class CvSkillsSuggestionRequest(CvSuggestionBase):
 class CvSkillsSuggestionResponse(BaseModel):
     skills: list[str]
     rationale: str
+
+
+class RecommendedJob(BaseModel):
+    """A single job recommendation with match score and reason."""
+    job_id: int
+    title: str
+    company_name: str | None = None
+    location: str | None = None
+    experience_level: str
+    match_score: float  # 0-100
+    match_reason: str  # Vietnamese explanation of why it matches
+
+
+class JobRecommendationResponse(BaseModel):
+    """Response for GET /ai/recommend-jobs endpoint."""
+    resume_id: int
+    industry_detected: str
+    total_matched: int
+    recommendations: list[RecommendedJob]
+

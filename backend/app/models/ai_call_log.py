@@ -10,6 +10,7 @@ from app.database import Base
 class AIFeature(str, enum.Enum):
     MATCHING = "matching"  # local embedding, no Deepseek
     CV_EVALUATE = "cv_evaluate"
+    CV_PARSE = "cv_parse"  # parse industry/skills/role from CV
     ROADMAP = "roadmap"
     SUMMARIZE_CV = "summarize_cv"
     INTERVIEW_QUESTIONS = "interview_questions"

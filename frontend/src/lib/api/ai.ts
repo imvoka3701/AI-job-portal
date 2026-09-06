@@ -195,3 +195,39 @@ export async function getEmployerApplications(
   );
   return data;
 }
+
+
+// ── Job Recommendations ─────────────────────────────────────────────────────
+
+export interface RecommendedJob {
+  job_id: number;
+  title: string;
+  company_name: string | null;
+  location: string | null;
+  experience_level: string;
+  match_score: number;
+  match_reason: string;
+}
+
+export interface JobRecommendationResponse {
+  resume_id: number;
+  industry_detected: string;
+  total_matched: number;
+  recommendations: RecommendedJob[];
+}
+
+/**
+ * Get AI-recommended jobs for a candidate's resume.
+ * GET /ai/recommend-jobs?resume_id=X&limit=Y
+ */
+export async function getRecommendedJobs(
+  resumeId: number,
+  limit: number = 20,
+): Promise<JobRecommendationResponse> {
+  const { data } = await apiClient.get<JobRecommendationResponse>(
+    "/ai/recommend-jobs",
+    { params: { resume_id: resumeId, limit } },
+  );
+  return data;
+}
+

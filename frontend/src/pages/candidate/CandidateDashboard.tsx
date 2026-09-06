@@ -3,7 +3,6 @@ import { Link } from "react-router-dom";
 import { getMyApplications } from "@/lib/api/applications";
 import { getRounds, type RoundItem } from "@/lib/api/rounds";
 import { uploadResume, getMyResumes, deleteResume, evaluateResume } from "@/lib/api/resumes";
-import { getJobs } from "@/lib/api/jobs";
 import { uploadAvatar } from "@/lib/api/users";
 import { useUser, useAuthStore } from "@/stores/authStore";
 import { tokenStorage, apiClient } from "@/lib/axios";
@@ -11,7 +10,6 @@ import { Button, Card, CardHeader, CardContent, Spinner, ApplicationStatusBadge,
 import { getApiErrorMessage } from "@/lib/axios";
 import type { Application } from "@/types/application";
 import type { Resume } from "@/types/resume";
-import type { Job } from "@/types/job";
 import {
   Briefcase,
   FileText,
@@ -37,6 +35,7 @@ import { CVCard } from "./components/CVCard";
 import { CVPreviewModal } from "./components/CVPreviewModal";
 import { AICVReviewModal, type CVEvaluationResponse } from "./components/AICVReviewModal";
 import { RadarChartWidget } from "./components/RadarChartWidget";
+import { RecommendedJobs } from "./components/RecommendedJobs";
 
 // ─── Constants ──────────────────────────────────────────────────────────────────
 const ALLOWED_TYPES = ["application/pdf"];
@@ -64,11 +63,10 @@ export const CandidateDashboard = () => {
   const [evaluatingResumeId, setEvaluatingResumeId] = useState<number | null>(null);
   const [reviewModalData, setReviewModalData] = useState<CVEvaluationResponse | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewResumeId, setPreviewResumeId] = useState<number | null>(null);
+  const [previewResumeTitle, setPreviewResumeTitle] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // ── Recommended Jobs state ────────────────────────────────────────────────
-  const [recommendedJobs, setRecommendedJobs] = useState<Job[]>([]);
-  const [recommendedLoading, setRecommendedLoading] = useState(false);
 
   // ── Interview banner ──────────────────────────────────────────────────────
   const [interviews, setInterviews] = useState<Array<{
@@ -152,23 +150,6 @@ export const CandidateDashboard = () => {
     return cancel;
   }, [fetchResumes]);
 
-  // ── Fetch recommended jobs ────────────────────────────────────────────────
-  useEffect(() => {
-    if (!user) return;
-    let isCancelled = false;
-    setRecommendedLoading(true);
-    getJobs({ page: 1, page_size: 4 })
-      .then((data) => {
-        if (!isCancelled) setRecommendedJobs(data.items);
-      })
-      .catch(() => {})
-      .finally(() => {
-        if (!isCancelled) setRecommendedLoading(false);
-      });
-    return () => {
-      isCancelled = true;
-    };
-  }, [user]);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -216,6 +197,9 @@ export const CandidateDashboard = () => {
   };
 
   const handlePreview = (resumeId: number) => {
+    const resume = resumes.find((r) => r.id === resumeId);
+    setPreviewResumeId(resumeId);
+    setPreviewResumeTitle(resume?.title ?? "");
     setPreviewUrl(`/resumes/${resumeId}/content`);
   };
 
@@ -752,65 +736,23 @@ export const CandidateDashboard = () => {
               <RadarChartWidget />
             </div>
 
-            {/* AI Recommended Jobs */}
-            <Card className="rounded-[32px] border-slate-200/90 bg-white shadow-xs overflow-hidden space-y-4 p-6">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                <div className="flex items-center gap-2">
-                  <Sparkles size={16} className="text-[#00B86B]" />
-                  <h3 className="font-black text-sm text-slate-900">Việc Làm Phù Hợp (AI Match)</h3>
-                </div>
-                <Link to="/jobs" className="text-xs font-bold text-emerald-700 hover:underline">
-                  Xem tất cả
-                </Link>
-              </div>
-
-              {recommendedLoading ? (
-                <div className="py-8 flex justify-center">
-                  <Spinner size="md" />
-                </div>
-              ) : recommendedJobs.length === 0 ? (
-                <div className="py-6 text-center text-xs text-slate-500">
-                  Chưa có gợi ý việc làm.
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {recommendedJobs.map((rJob) => (
-                    <Link
-                      key={rJob.id}
-                      to={`/jobs/${rJob.id}`}
-                      className="p-4 rounded-2xl border border-slate-200 hover:border-emerald-400 hover:bg-emerald-50/30 transition-all block space-y-2 group"
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <h4 className="font-bold text-xs text-slate-900 group-hover:text-emerald-700 transition-colors line-clamp-1">
-                          {rJob.title}
-                        </h4>
-                        <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 shrink-0">
-                          {avgAIScore}% Match
-                        </span>
-                      </div>
-
-                      <p className="text-[11px] text-slate-500 line-clamp-1">
-                        {rJob.employer?.company_name || "Doanh nghiệp đối tác"}
-                      </p>
-
-                      <div className="flex items-center justify-between text-[11px] text-slate-600 font-semibold pt-1 border-t border-slate-100">
-                        <span className="text-emerald-700 font-black">
-                          {rJob.salary_min ? `${rJob.salary_min / 1000000}tr+` : "Thoả thuận"}
-                        </span>
-                        <span>{rJob.location || "Toàn quốc"}</span>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              )}
-            </Card>
+            {/* AI Recommended Jobs — Industry-Aware Matching */}
+            <RecommendedJobs
+              resumeId={resumes.length > 0 ? resumes[0].id : null}
+              isValidated={resumes.length > 0 && resumes[0].is_validated}
+            />
           </aside>
         </div>
       </main>
 
       {/* CV Preview Modal */}
       {previewUrl && (
-        <CVPreviewModal url={previewUrl} onClose={() => setPreviewUrl(null)} />
+        <CVPreviewModal
+          url={previewUrl}
+          onClose={() => setPreviewUrl(null)}
+          resumeId={previewResumeId ?? undefined}
+          resumeTitle={previewResumeTitle}
+        />
       )}
 
       {/* AI CV Evaluation Review Modal */}
