@@ -195,7 +195,7 @@ export const JobDetailPage = () => {
     return () => {
       cancelled = true;
     };
-  }, [user?.role]);
+  }, [user?.role, isCompanyInternal]);
 
   // Trigger AI Matching Evaluation when job & selected document change
   useEffect(() => {

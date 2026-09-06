@@ -30,7 +30,7 @@ jobs:
     - name: Lint with ruff
       run: |
         pip install ruff
-        ruff check app tests --exit-zero
+        ruff check app tests
     
     - name: Test with pytest and coverage
       env:
