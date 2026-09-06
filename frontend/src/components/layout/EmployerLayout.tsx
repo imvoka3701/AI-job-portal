@@ -61,7 +61,7 @@ function EmployerLayoutContent() {
   const userAvatarSrc = getFileUrl(user?.avatar_url);
 
   return (
-    <div className="min-h-screen bg-page-bg flex font-sans">
+    <div className="min-h-screen bg-slate-50/60 flex font-sans">
       {/* ── Mobile Sidebar Overlay ── */}
       <AnimatePresence>
         {isSidebarOpen && (
@@ -80,7 +80,7 @@ function EmployerLayoutContent() {
         initial={{ x: -280 }}
         animate={{ x: isSidebarOpen ? 0 : 0 }}
         className={cn(
-          "fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-gray-200 shadow-sm flex flex-col transition-transform duration-300 lg:translate-x-0 lg:static",
+          "fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-gray-200 shadow-sm flex flex-col transition-transform duration-300 lg:translate-x-0 lg:sticky lg:top-0 lg:h-screen lg:shrink-0",
           !isSidebarOpen && "-translate-x-full"
         )}
       >
@@ -170,9 +170,9 @@ function EmployerLayoutContent() {
       </motion.aside>
 
       {/* ── Main Content Area ── */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden h-screen">
+      <div className="flex-1 flex flex-col min-w-0 min-h-screen">
         {/* Topbar */}
-        <header className="h-16 bg-white/80 backdrop-blur-md border-b border-gray-200 sticky top-0 z-30 flex items-center justify-between px-4 sm:px-6">
+        <header className="h-16 bg-white/80 backdrop-blur-md border-b border-gray-200 sticky top-0 z-30 flex items-center justify-between px-4 sm:px-6 shrink-0">
           <div className="flex items-center gap-4">
             <button
               onClick={() => setIsSidebarOpen(true)}
@@ -226,7 +226,7 @@ function EmployerLayoutContent() {
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 overflow-y-auto bg-slate-50/40">
+        <main className="flex-1 w-full bg-slate-50/40">
           <div className="w-full max-w-[1840px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 py-6 sm:py-8">
             <Outlet />
           </div>
