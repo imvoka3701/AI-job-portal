@@ -15,6 +15,7 @@ class AIFeature(str, enum.Enum):
     SUMMARIZE_CV = "summarize_cv"
     INTERVIEW_QUESTIONS = "interview_questions"
     GENERATE_EMAIL = "generate_email"
+    GENERATE_JD = "generate_jd"
 
 
 class AICallStatus(str, enum.Enum):

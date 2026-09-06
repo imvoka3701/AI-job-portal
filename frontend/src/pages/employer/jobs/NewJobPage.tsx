@@ -13,9 +13,10 @@ import {
   ArrowLeft,
   Wand2,
   CheckCircle2,
-  Loader2,
 } from "lucide-react";
 import { motion } from "framer-motion";
+import { AIJDGeneratorModal } from "./components/AIJDGeneratorModal";
+import type { GenerateJDResponse } from "@/lib/api/aiJD";
 
 const newJobSchema = z.object({
   title: z.string().min(5, "Tiêu đề phải có ít nhất 5 ký tự"),
@@ -33,66 +34,23 @@ const newJobSchema = z.object({
 
 type NewJobFormValues = z.infer<typeof newJobSchema>;
 
-const AI_JOB_PRESETS: Record<
-  string,
-  {
-    description: string;
-    requirements: string;
-    benefits: string;
-    salary_min: number;
-    salary_max: number;
-    job_type: "full_time" | "remote";
-    experience_level: "junior" | "middle" | "senior" | "lead";
-  }
-> = {
-  frontend: {
-    description:
-      "• Tham gia thiết kế và phát triển các tính năng giao diện người dùng (Web Application) hiệu năng cao, chuẩn Responsive.\n• Tối ưu hóa trải nghiệm người dùng (Core Web Vitals, Rendering Performance) và tương thích đa thiết bị.\n• Phối hợp chặt chẽ với Product Manager, UI/UX Designer và Backend Engineer để đưa sản phẩm vào vận hành thực tế.\n• Xây dựng và duy trì hệ thống Design System / Component Library nhất quán.",
-    requirements:
-      "• Có từ 2+ năm kinh nghiệm làm việc với React.js, TypeScript, Next.js hoặc Vue.js.\n• Thành thạo HTML5, CSS3, Tailwind CSS và quản lý State (Zustand / Redux Toolkit).\n• Nắm vững kiến trúc RESTful API, WebSocket và tối ưu hóa hiệu năng Frontend.\n• Tư duy giải quyết vấn đề tốt, viết code sạch sẽ (Clean Code) và có khả năng làm việc nhóm.",
-    benefits:
-      "• Mức lương cạnh tranh theo năng lực, xét tăng lương định kỳ 2 lần/năm.\n• Thưởng tháng 13 + Thưởng hiệu suất dự án theo quý.\n• Bảo hiểm sức khỏe cao cấp (PVI / PTI) dành cho nhân viên.\n• Cung cấp MacBook Pro M-series + Màn hình 4K khi nhận việc.\n• Môi trường làm việc năng động, lộ trình thăng tiến rõ ràng lên Senior / Tech Lead.",
-    salary_min: 25000000,
-    salary_max: 45000000,
-    job_type: "full_time",
-    experience_level: "senior",
-  },
-  backend: {
-    description:
-      "• Thiết kế, phát triển và bảo trì hệ thống Microservices backend chịu tải cao, sẵn sàng mở rộng quy mô (Scalable Architecture).\n• Xây dựng và tối ưu hóa các RESTful API & gRPC endpoints với độ trễ thấp.\n• Quản trị, tối ưu hóa cơ sở dữ liệu quan hệ (PostgreSQL, MySQL) và NoSQL / Caching (Redis, Elasticsearch).\n• Triển khai CI/CD pipelines và giám sát hệ thống trên nền tảng Cloud (AWS / GCP / Docker / Kubernetes).",
-    requirements:
-      "• Có từ 2-4 năm kinh nghiệm phát triển Backend với Python (FastAPI/Django), Golang, Node.js hoặc Java.\n• Nắm vững thiết kế Database, Indexing, Query Optimization và kiến trúc Event-Driven.\n• Có kinh nghiệm làm việc với Docker, Docker Compose, Linux và Git workflows.\n• Hiểu biết về bảo mật hệ thống (OAuth2, JWT, Rate Limiting, CORS).",
-    benefits:
-      "• Gói thu nhập hấp dẫn từ 30 - 55 triệu VND + Thưởng kết quả kinh doanh.\n• Thời gian làm việc linh hoạt (Flexible working hours), hỗ trợ Hybrid 2 ngày Remote/tuần.\n• Khám sức khỏe tổng quát hàng năm tại bệnh viện quốc tế.\n• Ngân sách học tập (Education Budget) tham gia các khóa học và chứng chỉ Cloud (AWS/GCP).",
-    salary_min: 30000000,
-    salary_max: 55000000,
-    job_type: "full_time",
-    experience_level: "senior",
-  },
-  fullstack: {
-    description:
-      "• Chịu trách nhiệm phát triển toàn diện tính năng từ giao diện người dùng (Frontend) đến dịch vụ API và Database (Backend).\n• Tham gia thảo luận kiến trúc hệ thống, lựa chọn giải pháp công nghệ phù hợp cho từng giai đoạn của sản phẩm.\n• Đảm bảo chất lượng mã nguồn thông qua Unit Test, Integration Test và Code Review định kỳ.",
-    requirements:
-      "• Nắm vững cả Frontend (React / TypeScript / Next.js) và Backend (Node.js / Python / Go).\n• Kinh nghiệm thực chiến với PostgreSQL, Redis, RESTful API và Docker.\n• Khả năng tự chủ trong công việc, chủ động nghiên cứu và áp dụng công nghệ AI mới.",
-    benefits:
-      "• Mức lương thỏa thuận hấp dẫn tương xứng với năng lực thực chiến.\n• Cơ hội sở hữu ESOP theo đóng góp phát triển sản phẩm dài hạn.\n• Du lịch công ty hàng năm (Company Trip) và các hoạt động Team Building định kỳ.",
-    salary_min: 28000000,
-    salary_max: 50000000,
-    job_type: "full_time",
-    experience_level: "middle",
-  },
-  ai: {
-    description:
-      "• Nghiên cứu và triển khai các giải pháp Trí tuệ nhân tạo (AI / LLM / Machine Learning) tích hợp vào sản phẩm thực tế.\n• Xây dựng và tối ưu hóa hệ thống Vector Database (pgvector, Milvus) cho bài toán Semantic Search và AI Matching.\n• Fine-tuning, tối ưu Prompt Engineering và quản lý chi phí / độ trễ khi gọi LLM APIs.",
-    requirements:
-      "• Thành thạo Python, PyTorch / TensorFlow, LangChain, LlamaIndex hoặc OpenAI / DeepSeek APIs.\n• Hiểu sâu về NLP, Embeddings, RAG (Retrieval-Augmented Generation) và xử lý dữ liệu lớn.\n• Tư duy nghiên cứu khoa học kết hợp kỹ năng kỹ thuật phần mềm vững chắc.",
-    benefits:
-      "• Mức đãi ngộ dẫn đầu thị trường + Gói thưởng dự án AI đột phá.\n• Làm việc trực tiếp với đội ngũ AI R&D và chuyên gia quốc tế.\n• Cung cấp hạ tầng GPU mạnh mẽ phục vụ đào tạo và thử nghiệm mô hình.",
-    salary_min: 35000000,
-    salary_max: 70000000,
-    job_type: "full_time",
-    experience_level: "senior",
-  },
+const mapExperienceLevel = (lvl: string): "fresher" | "junior" | "middle" | "senior" | "lead" => {
+  const lower = lvl.toLowerCase();
+  if (lower.includes("fresher") || lower.includes("intern")) return "fresher";
+  if (lower.includes("junior")) return "junior";
+  if (lower.includes("middle") || lower.includes("mid")) return "middle";
+  if (lower.includes("senior")) return "senior";
+  if (lower.includes("lead") || lower.includes("manager") || lower.includes("director")) return "lead";
+  return "middle";
+};
+
+const mapJobType = (jt: string): "full_time" | "part_time" | "internship" | "freelance" | "remote" => {
+  const lower = jt.toLowerCase();
+  if (lower.includes("part")) return "part_time";
+  if (lower.includes("intern")) return "internship";
+  if (lower.includes("free") || lower.includes("project")) return "freelance";
+  if (lower.includes("remote") || lower.includes("hybrid")) return "remote";
+  return "full_time";
 };
 
 export function NewJobPage() {
@@ -101,7 +59,7 @@ export function NewJobPage() {
   const { data: companyContext, hasPermission } = useEmployerCompany();
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+  const [isAiModalOpen, setIsAiModalOpen] = useState(false);
   const [aiSuccessMessage, setAiSuccessMessage] = useState<string | null>(null);
   const [sourceRequest, setSourceRequest] = useState<RecruitmentRequest | null>(null);
   const requestId = Number(searchParams.get("request_id"));
@@ -163,36 +121,23 @@ export function NewJobPage() {
     };
   }, [hasPermission, requestId, reset]);
 
-  const handleAIGenerateJD = (presetType?: "frontend" | "backend" | "fullstack" | "ai") => {
-    setIsGeneratingAI(true);
-    setAiSuccessMessage(null);
+  const handleApplyJD = (data: GenerateJDResponse) => {
+    setValue("title", data.title, { shouldValidate: true });
+    setValue("description", data.description, { shouldValidate: true });
+    setValue("requirements", data.requirements, { shouldValidate: true });
+    setValue("benefits", data.benefits, { shouldValidate: true });
+    if (data.salary_min) setValue("salary_min", data.salary_min, { shouldValidate: true });
+    if (data.salary_max) setValue("salary_max", data.salary_max, { shouldValidate: true });
+    setValue("job_type", mapJobType(data.job_type), { shouldValidate: true });
+    setValue("experience_level", mapExperienceLevel(data.experience_level), { shouldValidate: true });
+    if (data.suggested_category_id) {
+      setValue("category_id", data.suggested_category_id, { shouldValidate: true });
+    }
 
-    setTimeout(() => {
-      let selectedPreset = AI_JOB_PRESETS.frontend;
-      const lower = (currentTitle || "").toLowerCase();
-
-      if (presetType) {
-        selectedPreset = AI_JOB_PRESETS[presetType];
-      } else if (lower.includes("back") || lower.includes("golang") || lower.includes("python") || lower.includes("java")) {
-        selectedPreset = AI_JOB_PRESETS.backend;
-      } else if (lower.includes("ai") || lower.includes("ml") || lower.includes("data") || lower.includes("machine")) {
-        selectedPreset = AI_JOB_PRESETS.ai;
-      } else if (lower.includes("full") || lower.includes("fullstack")) {
-        selectedPreset = AI_JOB_PRESETS.fullstack;
-      }
-
-      setValue("description", selectedPreset.description, { shouldValidate: true });
-      setValue("requirements", selectedPreset.requirements, { shouldValidate: true });
-      setValue("benefits", selectedPreset.benefits, { shouldValidate: true });
-      setValue("salary_min", selectedPreset.salary_min, { shouldValidate: true });
-      setValue("salary_max", selectedPreset.salary_max, { shouldValidate: true });
-      setValue("job_type", selectedPreset.job_type, { shouldValidate: true });
-      setValue("experience_level", selectedPreset.experience_level, { shouldValidate: true });
-
-      setIsGeneratingAI(false);
-      setAiSuccessMessage("AI Copilot đã hoàn thiện toàn bộ bản mô tả JD, yêu cầu và chế độ đãi ngộ!");
-      setTimeout(() => setAiSuccessMessage(null), 5000);
-    }, 600);
+    setAiSuccessMessage(
+      `AI Copilot đã hoàn thiện toàn bộ bản mô tả JD, yêu cầu, đãi ngộ và gợi ý ${data.suggested_skills.length} kỹ năng trọng tâm!`
+    );
+    setTimeout(() => setAiSuccessMessage(null), 6000);
   };
 
   const onSubmit = async (data: NewJobFormValues) => {
@@ -257,38 +202,16 @@ export function NewJobPage() {
               </p>
             </div>
 
-            {/* AI Preset Quick Selector */}
-            <div className="shrink-0 flex items-center gap-2 bg-slate-50 p-1.5 rounded-2xl border border-slate-200">
-              <span className="text-[11px] font-bold text-slate-500 px-2">Gợi ý AI:</span>
+            {/* AI Studio Trigger Button */}
+            <div className="shrink-0">
               <button
                 type="button"
-                onClick={() => {
-                  setValue("title", "Senior Frontend Engineer (React/TypeScript)", { shouldValidate: true });
-                  handleAIGenerateJD("frontend");
-                }}
-                className="px-2.5 py-1 rounded-xl text-[11px] font-bold bg-white text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 border border-slate-200/80 transition-all cursor-pointer"
+                onClick={() => setIsAiModalOpen(true)}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-sm hover:shadow-md transition-all cursor-pointer"
               >
-                Frontend
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setValue("title", "Senior Backend Architect (Golang / Python)", { shouldValidate: true });
-                  handleAIGenerateJD("backend");
-                }}
-                className="px-2.5 py-1 rounded-xl text-[11px] font-bold bg-white text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 border border-slate-200/80 transition-all cursor-pointer"
-              >
-                Backend
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setValue("title", "AI / LLM Research Engineer", { shouldValidate: true });
-                  handleAIGenerateJD("ai");
-                }}
-                className="px-2.5 py-1 rounded-xl text-[11px] font-bold bg-white text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 border border-slate-200/80 transition-all cursor-pointer"
-              >
-                AI / ML
+                <Wand2 size={15} />
+                <span>AI JD Copilot Studio Đa Ngành</span>
+                <Sparkles size={13} className="text-emerald-200" />
               </button>
             </div>
           </div>
@@ -338,16 +261,11 @@ export function NewJobPage() {
                 </label>
                 <button
                   type="button"
-                  onClick={() => handleAIGenerateJD()}
-                  disabled={isGeneratingAI || !currentTitle || currentTitle.length < 3}
-                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-700 border border-emerald-200 hover:from-emerald-100 hover:to-teal-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shadow-2xs"
+                  onClick={() => setIsAiModalOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-700 border border-emerald-200 hover:from-emerald-100 hover:to-teal-100 transition-all cursor-pointer shadow-2xs"
                 >
-                  {isGeneratingAI ? (
-                    <Loader2 size={13} className="animate-spin" />
-                  ) : (
-                    <Wand2 size={13} className="text-[#00B86B]" />
-                  )}
-                  <span>AI Soạn Thảo JD Toàn Diện (1-Click)</span>
+                  <Wand2 size={13} className="text-[#00B86B]" />
+                  <span>AI Soạn Thảo JD Đa Ngành (1-Click)</span>
                 </button>
               </div>
               <Input
@@ -518,6 +436,13 @@ export function NewJobPage() {
           </form>
         </Card>
       </main>
+
+        <AIJDGeneratorModal
+          isOpen={isAiModalOpen}
+          onClose={() => setIsAiModalOpen(false)}
+          initialTitle={currentTitle}
+          onApplyJD={handleApplyJD}
+        />
     </div>
   );
 }

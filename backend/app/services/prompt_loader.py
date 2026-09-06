@@ -75,6 +75,22 @@ HARDCODED_FALLBACK_PROMPTS: dict[str, str] = {
         "Xung ho ban voi ung vien (trung tinh). Giong dieu chuyen nghiep, than thien.\n"
         'QUAN TRONG: Phan hoi PHAI la JSON hop le: {"subject": "...", "body": "..."}'
     ),
+    AIFeature.GENERATE_JD: (
+        "Ban la Giam doc Nhan su va Chuyen gia Tuyen dung cap cao tai thi truong Viet Nam. "
+        "Nhiem vu cua ban la soan thao Ban mo ta cong viec (Job Description - JD) toan dien, chuyen nghiep va chuan ATS. "
+        "Noi dung phai bam sat nganh nghe, cap bac, hinh thuc lam viec va boi canh doanh nghiep.\n"
+        "Phan hoi BAT BUOC la JSON hop le:\n"
+        "{\n"
+        '  "title": "<Ten vi tri chuan hoa>",\n'
+        '  "description": "<Mo ta cong viec va trach nhiem chinh (bullet points)>",\n'
+        '  "requirements": "<Yeu cau chuyen mon, ky nang, kinh nghiem (bullet points)>",\n'
+        '  "benefits": "<Che do dai ngo va phuc loi hap dan (bullet points)>",\n'
+        '  "suggested_skills": ["<ky nang 1>", "<ky nang 2>", "<ky nang 3>", ...],\n'
+        '  "salary_min": <int VND toi thieu>,\n'
+        '  "salary_max": <int VND toi da>\n'
+        "}\n"
+        "QUAN TRONG: Phan hoi PHAI la JSON hop le, khong duoc them markdown hay text ben ngoai JSON."
+    ),
 }
 
 

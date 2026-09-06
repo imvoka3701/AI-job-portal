@@ -163,3 +163,29 @@ class JobRecommendationResponse(BaseModel):
     total_matched: int
     recommendations: list[RecommendedJob]
 
+
+class GenerateJDRequest(BaseModel):
+    """Payload for requesting AI-assisted multi-industry Job Description generation."""
+    job_title: str
+    industry: str | None = None
+    category_id: int | None = None
+    experience_level: str = "middle"  # fresher, junior, middle, senior, lead
+    job_type: str = "full_time"  # full_time, part_time, remote, internship, freelance
+    tone: str = "professional"  # professional, modern_startup, corporate_formal
+    key_notes: str | None = None
+    location: str | None = None
+
+
+class GenerateJDResponse(BaseModel):
+    """Structured response containing AI-drafted JD sections, suggested skills, and salary."""
+    title: str
+    description: str
+    requirements: str
+    benefits: str
+    suggested_skills: list[str] = []
+    salary_min: int | None = None
+    salary_max: int | None = None
+    job_type: str
+    experience_level: str
+    suggested_category_id: int | None = None
+

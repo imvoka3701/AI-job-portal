@@ -37,6 +37,8 @@ from app.schemas.ai import (
     CvSummarySuggestionResponse,
     GenerateEmailRequest,
     GenerateEmailResponse,
+    GenerateJDRequest,
+    GenerateJDResponse,
     InterviewQuestionsRequest,
     InterviewQuestionsResponse,
     JobRecommendationResponse,
@@ -57,6 +59,7 @@ from app.services.cv_suggestions import cv_suggestion_service
 from app.services.cv_summarizer import cv_summarizer_service
 from app.services.email_generator import email_generator_service
 from app.services.interview_questions import interview_questions_service
+from app.services.jd_generator import jd_generator_service
 from app.services.roadmap_suggest import roadmap_suggest_service
 
 logger = logging.getLogger(__name__)
@@ -668,6 +671,73 @@ async def generate_email(
             endpoint="generate_email",
             model=settings.LLM_MODEL,
             input_summary=f"application_id={data.application_id}, type={data.email_type}",
+            exc=exc,
+            started_at=started,
+        )
+        raise ai_http_exception(exc)
+
+
+@router.post(
+    "/generate-jd",
+    response_model=GenerateJDResponse,
+    summary="AI multi-industry Job Description generation",
+    dependencies=[Depends(rate_limit("ai_expensive"))],
+)
+async def generate_job_description(
+    data: GenerateJDRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> GenerateJDResponse:
+    """Generate a structured, ATS-ready Job Description tailored to any industry and company profile.
+
+    Requires EMPLOYER role with JOB_MANAGE permission.
+    Extracts company tenancy context automatically to personalize the JD.
+    """
+    if current_user.role != UserRole.EMPLOYER:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Chỉ nhà tuyển dụng (Employer) mới có quyền sử dụng tính năng tạo JD bằng AI.",
+        )
+
+    context = build_company_context(db, current_user)
+    if not context.has(CompanyPermission.JOB_MANAGE):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Bạn không có quyền quản lý tin tuyển dụng trong doanh nghiệp.",
+        )
+
+    if not data.job_title or len(data.job_title.strip()) < 2:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Chức danh công việc phải có ít nhất 2 ký tự.",
+        )
+
+    started = time.monotonic()
+    try:
+        result = await jd_generator_service.generate_jd(
+            db,
+            request=data,
+            company=context.company,
+            user_id=current_user.id,
+        )
+        ai_audit.log_success(
+            user_id=current_user.id,
+            user_role=current_user.role.value,
+            endpoint="generate_jd",
+            model=settings.LLM_MODEL,
+            input_summary=f"title={data.job_title}, industry={data.industry}, level={data.experience_level}",
+            output_summary=f"title={result.title}, skills_count={len(result.suggested_skills)}, salary={result.salary_min}-{result.salary_max}",
+            started_at=started,
+        )
+        return result
+    except Exception as exc:
+        logger.exception("AI JD generation failed for title '%s'", data.job_title)
+        ai_audit.log_failure(
+            user_id=current_user.id,
+            user_role=current_user.role.value,
+            endpoint="generate_jd",
+            model=settings.LLM_MODEL,
+            input_summary=f"title={data.job_title}, industry={data.industry}",
             exc=exc,
             started_at=started,
         )
