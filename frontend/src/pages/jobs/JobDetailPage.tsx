@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { applyJob, getJobById, getJobs } from "@/lib/api/jobs";
 import { getMyResumes } from "@/lib/api/resumes";
@@ -46,6 +46,74 @@ import type { Resume } from "@/types/resume";
 import type { CvDocument } from "@/types/cvDocument";
 import type { AIMatchResult } from "@/types/api";
 
+const KNOWN_TECH_KEYWORDS = [
+  // Frontend
+  "React", "React Native", "Next.js", "Vue", "Vue.js", "Angular", "TypeScript", "JavaScript", "HTML5", "CSS3", "Tailwind CSS", "Redux", "Zustand", "Vite",
+  // Backend
+  "Python", "FastAPI", "Django", "Flask", "Node.js", "Express", "NestJS", "Java", "Spring Boot", "Go", "Golang", "C#", ".NET", "PHP", "Laravel", "Rust",
+  // Database & Cache
+  "PostgreSQL", "MySQL", "MongoDB", "Redis", "Elasticsearch", "SQL Server", "pgvector", "Cassandra", "DynamoDB",
+  // Cloud & DevOps
+  "AWS", "GCP", "Azure", "Docker", "Kubernetes", "CI/CD", "Terraform", "Linux", "Git", "GitHub Actions",
+  // AI & Data
+  "Machine Learning", "Deep Learning", "NLP", "LLM", "OpenAI", "PyTorch", "TensorFlow", "Pandas", "Scikit-Learn", "Computer Vision",
+  // Design & Product
+  "Figma", "UI/UX", "Adobe XD", "Wireframing", "Prototyping", "Product Management", "Scrum", "Agile",
+  // QA / Testing
+  "Automation Testing", "Selenium", "Cypress", "Jest", "Playwright", "Unit Test",
+  // General Skills
+  "RESTful API", "GraphQL", "Microservices", "System Design", "Security", "SEO", "Data Analysis",
+];
+
+function extractTechStackFromJob(job: Job | null): string[] {
+  if (!job) return [];
+  const combinedText = `${job.title} ${job.requirements || ""} ${job.description || ""}`;
+  const lowerText = combinedText.toLowerCase();
+
+  const matched = KNOWN_TECH_KEYWORDS.filter((tech) => {
+    const lowerTech = tech.toLowerCase();
+    const regex = new RegExp(`(^|[^a-zA-Z0-9#+])${lowerTech.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}([^a-zA-Z0-9#+]|$)`, "i");
+    return regex.test(lowerText);
+  });
+
+  if (matched.length > 0) {
+    return Array.from(new Set(matched)).slice(0, 8);
+  }
+
+  if (job.requirements) {
+    const lines = job.requirements
+      .split(/[\n,;•-]+/)
+      .map((s) => s.trim())
+      .filter((s) => s.length >= 3 && s.length <= 25);
+    if (lines.length > 0) {
+      return lines.slice(0, 6);
+    }
+  }
+
+  return [job.title, "Teamwork", "Problem Solving", "Communication", "Critical Thinking"];
+}
+
+function generateInterviewQuestions(job: Job | null, skills: string[]): { question: string; hint: string }[] {
+  if (!job) return [];
+  const topSkill = skills[0] || job.title;
+  const secondSkill = skills[1] || "công nghệ cốt lõi";
+
+  return [
+    {
+      question: `Bạn áp dụng ${topSkill} như thế nào để giải quyết các bài toán thực tế trong vai trò ${job.title}?`,
+      hint: `Tập trung trình bày kinh nghiệm thực chiến với ${topSkill}, cách tối ưu hiệu năng, cấu trúc dự án và quy trình làm việc.`,
+    },
+    {
+      question: `Khi gặp sự cố kỹ thuật hoặc lỗi phức tạp liên quan đến ${secondSkill}, bạn tiến hành điều tra (troubleshoot) và xử lý ra sao?`,
+      hint: "Nêu rõ phương pháp phân tích nguyên nhân gốc rễ (Root Cause Analysis), cách debug, giám sát logs và biện pháp phòng ngừa tái diễn.",
+    },
+    {
+      question: `Bạn tổ chức công việc và phối hợp với các thành viên khác trong đội ngũ phát triển dự án ${job.title} như thế nào?`,
+      hint: "Thể hiện tinh thần làm việc nhóm (Agile/Scrum), khả năng giao tiếp kỹ thuật, quy trình Code Review và cam kết chất lượng sản phẩm.",
+    },
+  ];
+}
+
 export const JobDetailPage = () => {
   const { id } = useParams();
   const jobId = Number(id);
@@ -79,6 +147,16 @@ export const JobDetailPage = () => {
   const [matchingError, setMatchingError] = useState<string | null>(null);
   const [cvLoadError, setCvLoadError] = useState<string | null>(null);
   const [openInterviewFaqIndex, setOpenInterviewFaqIndex] = useState<number | null>(0);
+
+  // Dynamic Tech Stacks extracted from actual requirements & description
+  const techStackList = useMemo(() => {
+    return extractTechStackFromJob(job);
+  }, [job]);
+
+  // Contextual Interview Questions tailored to job title and extracted skills
+  const interviewQuestionsList = useMemo(() => {
+    return generateInterviewQuestions(job, techStackList);
+  }, [job, techStackList]);
 
   // Utility State
   const [isSaved, setIsSaved] = useState(false);
@@ -444,33 +522,6 @@ export const JobDetailPage = () => {
       ? "🌟 Mức thu nhập trên trung vị thị trường"
       : "✓ Mức thu nhập chuẩn dải thị trường"
     : "Thoả thuận theo năng lực";
-
-  // Tech Stacks Mock Data based on title
-  const techStackList = [
-    "TypeScript",
-    "React 19 / Next.js",
-    "FastAPI / Python",
-    "PostgreSQL (pgvector)",
-    "Docker & CI/CD",
-    "AWS Cloud",
-    "Tailwind CSS",
-  ];
-
-  // Interview Questions Mock Data
-  const interviewQuestionsList = [
-    {
-      question: `Bạn tối ưu hiệu năng và xử lý dữ liệu lớn trong các ứng dụng ${job.title} như thế nào?`,
-      hint: "Tập trung giải thích về Virtual DOM, Caching (Redis), Query Indexing và quy trình Profiling bằng DevTools.",
-    },
-    {
-      question: "Kinh nghiệm của bạn trong việc thiết kế kiến trúc phân tầng (Clean Architecture) và Microservices?",
-      hint: "Nêu rõ cách chia Domain, Dependency Inversion, cách giao tiếp qua REST/gRPC/Kafka và chiến lược xử lý lỗi (Graceful degradation).",
-    },
-    {
-      question: "Bạn giải quyết xung đột ý kiến kỹ thuật (Technical Disagreements) trong đội ngũ Tech Lead ra sao?",
-      hint: "Thể hiện tư duy dựa trên số liệu (Data-driven), PoC (Proof of Concept) và tinh thần đồng lòng vì mục tiêu chung của sản phẩm.",
-    },
-  ];
 
   return (
     <div className="min-h-screen bg-[#F8FAFB] font-sans text-slate-900 selection:bg-emerald-500 selection:text-white">

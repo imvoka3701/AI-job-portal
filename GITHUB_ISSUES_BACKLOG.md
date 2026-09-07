@@ -164,10 +164,10 @@ Tài liệu này được định dạng chuẩn **GitHub Markdown**. Bạn có 
 - `frontend/src/pages/jobs/components/FilterSidebar.tsx:327, 330`
 
 ### 3. Checklist Thực Hiện
-- [ ] **Backend:** Xóa file mồ côi `backend/app/services/assessment_scorer.py`.
-- [ ] **Frontend:** Rà soát và xóa các component mồ côi không dùng đến hoặc tích hợp vào landing page nếu phù hợp.
-- [ ] **Frontend:** Tự động trích xuất các từ khóa công nghệ thật từ `job.requirements` hoặc `suggested_skills` thay cho mảng IT cứng `techStackList`.
-- [ ] **Frontend:** Động hóa tỷ lệ hoàn thiện hồ sơ ứng viên trên `FilterSidebar` dựa trên trạng thái thực tế của tài khoản.
+- [x] **Backend:** Xóa file mồ côi `backend/app/services/assessment_scorer.py`.
+- [x] **Frontend:** Rà soát và xóa các component mồ côi không dùng đến hoặc tích hợp vào landing page nếu phù hợp.
+- [x] **Frontend:** Tự động trích xuất các từ khóa công nghệ thật từ `job.requirements` hoặc `suggested_skills` thay cho mảng IT cứng `techStackList`.
+- [x] **Frontend:** Động hóa tỷ lệ hoàn thiện hồ sơ ứng viên trên `FilterSidebar` dựa trên trạng thái thực tế của tài khoản.
 
 ---
 

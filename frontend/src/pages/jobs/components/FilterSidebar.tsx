@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { ChevronDown, ChevronUp, Lightbulb, ArrowRight, SlidersHorizontal, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useJobStore } from "@/stores/jobStore";
+import { useUser } from "@/stores/authStore";
 import { JOB_LOCATION_OPTIONS } from "@/lib/locations";
 
 // ─── Filter option maps ───────────────────────────────────────────────────────
@@ -100,9 +101,24 @@ function CheckOption({
 }
 
 export function FilterSidebar() {
+  const user = useUser();
   const filters = useJobStore((s) => s.filters);
   const setFilters = useJobStore((s) => s.setFilters);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+
+  const profileCompletion = useMemo(() => {
+    if (!user) return { percentage: 0, label: "0%", isComplete: false };
+    let points = 0;
+    if (user.email) points += 25;
+    if (user.full_name && user.full_name.trim().length > 0) points += 25;
+    if (user.phone && user.phone.trim().length > 0) points += 25;
+    if (user.avatar_url && user.avatar_url.trim().length > 0) points += 25;
+    return {
+      percentage: points,
+      label: `${points}%`,
+      isComplete: points === 100,
+    };
+  }, [user]);
 
   const handleLocation = (value: string, checked: boolean) => {
     const current = filters.locations ?? [];
@@ -316,7 +332,11 @@ export function FilterSidebar() {
             <div>
               <h3 className="font-bold text-[#0F172A] text-sm">💡 Mẹo tìm việc</h3>
               <p className="text-xs text-[#64748B] mt-0.5 leading-relaxed">
-                Hoàn thiện hồ sơ giúp tăng gấp 3 lần cơ hội được nhà tuyển dụng hàng đầu liên hệ.
+                {user
+                  ? profileCompletion.isComplete
+                    ? "Hồ sơ của bạn đã đạt 100%, sẵn sàng đón nhận cơ hội việc làm tốt nhất!"
+                    : "Hoàn thiện hồ sơ giúp tăng gấp 3 lần cơ hội được nhà tuyển dụng hàng đầu liên hệ."
+                  : "Đăng nhập và hoàn thiện hồ sơ để nhà tuyển dụng chủ động kết nối với bạn."}
               </p>
             </div>
           </div>
@@ -324,19 +344,32 @@ export function FilterSidebar() {
           <div className="mb-3.5">
             <div className="flex justify-between text-xs font-semibold text-[#0F172A] mb-1">
               <span>Hoàn thiện hồ sơ</span>
-              <span className="text-[#00B86B]">75%</span>
+              <span className="text-[#00B86B] font-bold">{profileCompletion.label}</span>
             </div>
             <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-              <div className="h-full bg-[#00B86B] rounded-full w-[75%]" />
+              <div
+                className="h-full bg-[#00B86B] rounded-full transition-all duration-500"
+                style={{ width: `${profileCompletion.percentage}%` }}
+              />
             </div>
           </div>
 
-          <Link
-            to="/dashboard"
-            className="inline-flex items-center gap-1.5 text-xs font-bold text-[#00995C] hover:text-[#00B86B] hover:underline"
-          >
-            Hoàn thiện ngay <ArrowRight className="w-3.5 h-3.5" />
-          </Link>
+          {user ? (
+            <Link
+              to={user.role === "candidate" ? "/dashboard" : "/employer/dashboard"}
+              className="inline-flex items-center gap-1.5 text-xs font-bold text-[#00995C] hover:text-[#00B86B] hover:underline"
+            >
+              {profileCompletion.isComplete ? "Xem hồ sơ của bạn" : "Hoàn thiện ngay"}{" "}
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          ) : (
+            <Link
+              to="/login"
+              className="inline-flex items-center gap-1.5 text-xs font-bold text-[#00995C] hover:text-[#00B86B] hover:underline"
+            >
+              Đăng nhập ngay <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          )}
         </div>
       </div>
     </>
