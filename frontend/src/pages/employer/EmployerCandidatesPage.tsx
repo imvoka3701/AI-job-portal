@@ -443,7 +443,7 @@ export function EmployerCandidatesPage() {
                     </span>
                     <span className="inline-flex items-center gap-1.5 text-gray-700 font-medium bg-white border border-gray-200 px-2.5 py-1 rounded-lg shadow-2xs">
                       <span className="w-2 h-2 rounded-full bg-blue-500" />
-                      <strong>{applications.length || (stats?.total_applications ?? 8)}</strong> ứng viên trong phễu
+                      <strong>{applications.length || (stats?.total_applications ?? 0)}</strong> ứng viên trong phễu
                     </span>
                     <span className="inline-flex items-center gap-1.5 text-emerald-700 font-medium bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg">
                       <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
@@ -649,20 +649,28 @@ export function EmployerCandidatesPage() {
                       </div>
                       <div className="space-y-3 pt-1">
                         {Object.entries(evalResult.skill_analysis).map(([skill, value]) => {
-                          const numScore = typeof value === "number" ? value : Number(value) || 7.5;
-                          const pct = Math.min(100, Math.max(0, numScore * 10));
+                          const rawScore = typeof value === "number" ? value : Number(value);
+                          const hasScore = typeof rawScore === "number" && !isNaN(rawScore) && rawScore > 0;
+                          const numScore = hasScore ? rawScore : 0;
+                          const pct = hasScore ? Math.min(100, Math.max(0, numScore * 10)) : 0;
                           return (
                             <div key={skill} className="space-y-1">
                               <div className="flex items-center justify-between text-xs">
                                 <span className="font-semibold text-gray-800 capitalize">
                                   {skill.replace(/_/g, " ")}
                                 </span>
-                                <span className="font-bold text-blue-600">{numScore}/10</span>
+                                {hasScore ? (
+                                  <span className="font-bold text-blue-600">{numScore}/10</span>
+                                ) : (
+                                  <span className="font-medium text-gray-400 italic">Chưa chấm</span>
+                                )}
                               </div>
                               <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
                                 <div
                                   className={`h-2 rounded-full transition-all duration-500 ${
-                                    numScore >= 8.5
+                                    !hasScore
+                                      ? "bg-gray-200"
+                                      : numScore >= 8.5
                                       ? "bg-emerald-500"
                                       : numScore >= 7
                                       ? "bg-blue-500"

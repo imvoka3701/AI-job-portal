@@ -62,10 +62,10 @@ Tài liệu này được định dạng chuẩn **GitHub Markdown**. Bạn có 
 - `frontend/src/pages/employer/components/EmployerStatsWidget.tsx:68-73, 79-122, 242` (Mock funnel & sparklines)
 
 ### 3. Checklist Thực Hiện
-- [ ] **AdminDashboard:** Thay công thức nhân cố định bằng dữ liệu funnel thật từ API `getAdminStats()`. Nếu hệ thống chưa có dữ liệu vòng tuyển dụng, hiển thị `EmptyState` thay vì vẽ số liệu ảo; gỡ bỏ nhãn "Live Data" giả.
-- [ ] **AdminDashboard:** Xóa bỏ mảng fallback chứa ngày tháng tháng 8/2026. Biểu đồ chỉ render các mốc thời gian thực tế nhận từ API (nếu rỗng thì hiển thị placeholder thông báo chưa có dữ liệu).
-- [ ] **EmployerCandidatesPage:** Bỏ fallback `|| 8` ở dòng 446 (hiển thị đúng `0 ứng viên`). Sửa dòng 652 để hiển thị `Chưa chấm` nếu điểm bằng 0/null thay vì tự biến thành `7.5/10`.
-- [ ] **EmployerStatsWidget:** Xóa bỏ mảng fallback 12-6-3-2 và 4 mảng sparkline cố định; hiển thị thống kê thực tế hoặc trạng thái rỗng chuẩn mực.
+- [x] **AdminDashboard:** Thay công thức nhân cố định bằng dữ liệu funnel thật từ API `getAdminStats()`. Nếu hệ thống chưa có dữ liệu vòng tuyển dụng, hiển thị `EmptyState` thay vì vẽ số liệu ảo; gỡ bỏ nhãn "Live Data" giả.
+- [x] **AdminDashboard:** Xóa bỏ mảng fallback chứa ngày tháng tháng 8/2026. Biểu đồ chỉ render các mốc thời gian thực tế nhận từ API (nếu rỗng thì hiển thị placeholder thông báo chưa có dữ liệu).
+- [x] **EmployerCandidatesPage:** Bỏ fallback `|| 8` ở dòng 446 (hiển thị đúng `0 ứng viên`). Sửa dòng 652 để hiển thị `Chưa chấm` nếu điểm bằng 0/null thay vì tự biến thành `7.5/10`.
+- [x] **EmployerStatsWidget:** Xóa bỏ mảng fallback 12-6-3-2 và 4 mảng sparkline cố định; hiển thị thống kê thực tế hoặc trạng thái rỗng chuẩn mực.
 
 ---
 

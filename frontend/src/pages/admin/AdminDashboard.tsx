@@ -3,11 +3,11 @@ import { Link } from "react-router-dom";
 import { getAdminStats, getAdminAlerts, type AdminStats, type AdminAlertsSummary } from "@/lib/api/admin";
 import { useUser, useAuthStore } from "@/stores/authStore";
 import { tokenStorage } from "@/lib/axios";
-import { Button, Skeleton } from "@/components/ui";
+import { Button, Skeleton, EmptyState } from "@/components/ui";
 import {
   Users, Building2, Briefcase, FileCheck, TrendingUp, Shield,
   Clock, Target, UserCheck, Activity, CheckCircle2, ArrowRight,
-  Sparkles, AlertTriangle, Zap, RefreshCw, Brain,
+  Sparkles, AlertTriangle, Zap, RefreshCw, Brain, Layers,
 } from "lucide-react";
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -350,45 +350,51 @@ export function AdminDashboard() {
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-4 border-b border-slate-100">
                       <div>
                         <h2 className="text-sm font-bold text-slate-900">Pipeline Tuyển Dụng Toàn Hệ Thống</h2>
-                        <p className="text-[11px] text-slate-500 mt-0.5">Tỷ lệ chuyển đổi qua 4 giai đoạn phỏng vấn</p>
+                        <p className="text-[11px] text-slate-500 mt-0.5">Tỷ lệ chuyển đổi qua các giai đoạn phỏng vấn</p>
                       </div>
-                      <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-[#ECFDF5] border border-emerald-200 rounded-full text-[#00B86B] text-[11px] font-bold">
-                        <Activity className="w-3 h-3" />Live Data
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 border border-slate-200 rounded-full text-slate-600 text-[11px] font-bold">
+                        <Layers className="w-3 h-3 text-slate-500" />Toàn hệ thống
                       </span>
                     </div>
                     <div className="p-5">
-                      {(() => {
-                        const total = stats.total_applications || 8;
-                        const s2 = Math.max(1, Math.round(total * 0.88));
-                        const s3 = Math.max(1, Math.round(total * 0.50));
-                        const s4 = Math.max(1, Math.round(total * 0.25));
-                        const fd = [
-                          { name: "1. Sàng lọc CV", in: total, out: s2, rate: Math.round((s2 / Math.max(1, total)) * 100), g: "from-emerald-400 to-emerald-600", b: "bg-emerald-50 border-emerald-200 text-emerald-700" },
-                          { name: "2. PV Kỹ thuật", in: s2, out: s3, rate: Math.round((s3 / Math.max(1, s2)) * 100), g: "from-blue-400 to-blue-600", b: "bg-blue-50 border-blue-200 text-blue-700" },
-                          { name: "3. PV Văn hóa & HR", in: s3, out: Math.min(s3, s4 + 1), rate: Math.round((Math.min(s3, s4 + 1) / Math.max(1, s3)) * 100), g: "from-violet-400 to-violet-600", b: "bg-violet-50 border-violet-200 text-violet-700" },
-                          { name: "4. Offer & Trúng tuyển", in: Math.min(s3, s4 + 1), out: s4, rate: Math.round((s4 / Math.max(1, Math.min(s3, s4 + 1))) * 100), g: "from-amber-400 to-orange-500", b: "bg-amber-50 border-amber-200 text-amber-700" },
-                        ];
-                        return (
-                          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                            {fd.map((f, idx) => (
-                              <motion.div key={f.name} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.1 }}
+                      {stats.funnel && stats.funnel.length > 0 ? (
+                        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                          {stats.funnel.map((f, idx) => {
+                            const colors = [
+                              { g: "from-emerald-400 to-emerald-600", b: "bg-emerald-50 border-emerald-200 text-emerald-700" },
+                              { g: "from-blue-400 to-blue-600", b: "bg-blue-50 border-blue-200 text-blue-700" },
+                              { g: "from-violet-400 to-violet-600", b: "bg-violet-50 border-violet-200 text-violet-700" },
+                              { g: "from-amber-400 to-orange-500", b: "bg-amber-50 border-amber-200 text-amber-700" },
+                              { g: "from-rose-400 to-rose-600", b: "bg-rose-50 border-rose-200 text-rose-700" },
+                            ];
+                            const c = colors[idx % colors.length];
+                            return (
+                              <motion.div key={f.round_type || f.round_name} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.1 }}
                                 className="border border-slate-200/80 rounded-xl p-4 bg-slate-50/50">
                                 <div className="flex justify-between items-start mb-3">
-                                  <span className="text-xs font-bold text-slate-700 leading-tight">{f.name}</span>
-                                  <span className={`text-[10px] font-extrabold border rounded-full px-2 py-0.5 flex-shrink-0 ml-2 ${f.b}`}>{f.rate}%</span>
+                                  <span className="text-xs font-bold text-slate-700 leading-tight">{f.round_name}</span>
+                                  <span className={`text-[10px] font-extrabold border rounded-full px-2 py-0.5 flex-shrink-0 ml-2 ${c.b}`}>{f.pass_rate}%</span>
                                 </div>
                                 <div className="flex items-baseline gap-1.5 mb-3">
-                                  <span className="text-2xl font-extrabold text-slate-900 tabular-nums">{f.out}</span>
-                                  <span className="text-[11px] text-slate-400 font-medium">/ {f.in}</span>
+                                  <span className="text-2xl font-extrabold text-slate-900 tabular-nums">{f.passed}</span>
+                                  <span className="text-[11px] text-slate-400 font-medium">/ {f.entered}</span>
                                 </div>
                                 <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
-                                  <motion.div className={`h-2 rounded-full bg-gradient-to-r ${f.g}`} initial={{ width: 0 }} animate={{ width: `${Math.min(f.rate, 100)}%` }} transition={{ duration: 0.8, delay: idx * 0.15 }} />
+                                  <motion.div className={`h-2 rounded-full bg-gradient-to-r ${c.g}`} initial={{ width: 0 }} animate={{ width: `${Math.min(f.pass_rate, 100)}%` }} transition={{ duration: 0.8, delay: idx * 0.15 }} />
                                 </div>
                               </motion.div>
-                            ))}
-                          </div>
-                        );
-                      })()}
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="py-6">
+                          <EmptyState
+                            title="Chưa có dữ liệu vòng phỏng vấn"
+                            description="Hệ thống chưa ghi nhận ứng viên tham gia các vòng phỏng vấn tuyển dụng."
+                            className="py-6 border-none bg-transparent"
+                          />
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -407,9 +413,21 @@ export function AdminDashboard() {
                       <div className="p-5">
                         {(() => {
                           const raw = stats.new_users_last_30d ?? [];
-                          const data = raw.length >= 4
-                            ? raw.map((d: { date: string; count: number }) => ({ date: d.date.split("-").slice(1).join("/"), count: Number(d.count) }))
-                            : [{ date: "08/04", count: 1 }, { date: "08/06", count: 2 }, { date: "08/08", count: 2 }, { date: "08/10", count: 3 }, { date: "08/12", count: 2 }, { date: "08/14", count: 4 }, { date: "08/16", count: 3 }, { date: "08/17", count: raw[0]?.count ?? 4 }];
+                          const data = raw.map((d: { date: string; count: number }) => ({
+                            date: d.date.split("-").slice(1).join("/"),
+                            count: Number(d.count),
+                          }));
+                          if (data.length === 0) {
+                            return (
+                              <div className="h-[220px] flex items-center justify-center">
+                                <EmptyState
+                                  title="Chưa có người dùng mới"
+                                  description="Chưa có tài khoản mới nào đăng ký trong 30 ngày qua."
+                                  className="py-4 border-none bg-transparent"
+                                />
+                              </div>
+                            );
+                          }
                           return (
                             <div className="h-[220px] w-full">
                               <ResponsiveContainer width="100%" height="100%">
@@ -423,7 +441,7 @@ export function AdminDashboard() {
                                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                                   <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "#94a3b8" }} dy={5} />
                                   <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "#94a3b8" }} allowDecimals={false} />
-                                  <Tooltip contentStyle={{ borderRadius: "12px", border: "1px solid #e2e8f0", boxShadow: "0 4px 16px rgba(0,0,0,0.08)", fontSize: "12px" }} formatter={(v: any) => [`${v} người dùng`, "Đăng ký mới"]} />
+                                  <Tooltip contentStyle={{ borderRadius: "12px", border: "1px solid #e2e8f0", boxShadow: "0 4px 16px rgba(0,0,0,0.08)", fontSize: "12px" }} formatter={(v: unknown) => [`${v} người dùng`, "Đăng ký mới"]} />
                                   <Area type="monotone" dataKey="count" stroke="#00B86B" strokeWidth={2.5} fill="url(#gusr)" />
                                 </AreaChart>
                               </ResponsiveContainer>
@@ -446,9 +464,21 @@ export function AdminDashboard() {
                       <div className="p-5">
                         {(() => {
                           const raw = stats.new_applications_last_30d ?? [];
-                          const data = raw.length >= 4
-                            ? raw.map((d: { date: string; count: number }) => ({ date: d.date.split("-").slice(1).join("/"), count: Number(d.count) }))
-                            : [{ date: "08/04", count: 1 }, { date: "08/06", count: 2 }, { date: "08/08", count: 1 }, { date: "08/10", count: 3 }, { date: "08/12", count: 2 }, { date: "08/14", count: 3 }, { date: "08/16", count: 2 }, { date: "08/17", count: raw[0]?.count ?? 2 }];
+                          const data = raw.map((d: { date: string; count: number }) => ({
+                            date: d.date.split("-").slice(1).join("/"),
+                            count: Number(d.count),
+                          }));
+                          if (data.length === 0) {
+                            return (
+                              <div className="h-[220px] flex items-center justify-center">
+                                <EmptyState
+                                  title="Chưa có lượt ứng tuyển mới"
+                                  description="Chưa có hồ sơ nào được nộp trong 30 ngày qua."
+                                  className="py-4 border-none bg-transparent"
+                                />
+                              </div>
+                            );
+                          }
                           return (
                             <div className="h-[220px] w-full">
                               <ResponsiveContainer width="100%" height="100%">
@@ -462,7 +492,7 @@ export function AdminDashboard() {
                                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                                   <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "#94a3b8" }} dy={5} />
                                   <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "#94a3b8" }} allowDecimals={false} />
-                                  <Tooltip contentStyle={{ borderRadius: "12px", border: "1px solid #e2e8f0", boxShadow: "0 4px 16px rgba(0,0,0,0.08)", fontSize: "12px" }} formatter={(v: any) => [`${v} hồ sơ`, "Lượt ứng tuyển"]} />
+                                  <Tooltip contentStyle={{ borderRadius: "12px", border: "1px solid #e2e8f0", boxShadow: "0 4px 16px rgba(0,0,0,0.08)", fontSize: "12px" }} formatter={(v: unknown) => [`${v} hồ sơ`, "Lượt ứng tuyển"]} />
                                   <Area type="monotone" dataKey="count" stroke="#3b82f6" strokeWidth={2.5} fill="url(#gapp)" />
                                 </AreaChart>
                               </ResponsiveContainer>

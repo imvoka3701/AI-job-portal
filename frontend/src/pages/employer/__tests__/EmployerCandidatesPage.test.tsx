@@ -219,4 +219,78 @@ describe("EmployerCandidatesPage - AI Modal Logic", () => {
     expect(screen.getByText("Bạn đã tối ưu hóa hiệu năng pgvector như thế nào?")).toBeInTheDocument();
     expect(screen.getByText("Trình bày cách xử lý concurrency trong FastAPI.")).toBeInTheDocument();
   });
+
+  it("renders 0 candidates in funnel when applications is empty without falling back to 8", async () => {
+    const { getEmployerApplications } = await import("@/lib/api/ai");
+    const { getEmployerStats } = await import("@/lib/api/employer");
+    (getEmployerApplications as any).mockResolvedValue([]);
+    (getEmployerStats as any).mockResolvedValue({ total_applications: 0 });
+
+    render(
+      <MemoryRouter>
+        <EmployerCandidatesPage />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("0")).toBeInTheDocument();
+    });
+
+    expect(screen.getByText(/ứng viên trong phễu/i)).toBeInTheDocument();
+    expect(screen.queryByText(/8 ứng viên trong phễu/i)).not.toBeInTheDocument();
+  });
+
+  it("displays 'Chưa chấm' when skill score is 0 or null instead of fake 7.5/10", async () => {
+    const { getEmployerApplications, evaluateCV } = await import("@/lib/api/ai");
+    (getEmployerApplications as any).mockResolvedValue([
+      {
+        id: 1,
+        job_id: 1,
+        resume_id: 101,
+        candidate: { full_name: "Unscored Skill Candidate", email: "unscored@example.com" },
+        ai_matching_score: 80,
+        status: "applied",
+        cv_document: {},
+        created_at: new Date().toISOString(),
+      }
+    ]);
+    (evaluateCV as any).mockResolvedValue({
+      overall_score: 6.0,
+      skill_analysis: {
+        "TypeScript": 0,
+        "FastAPI": 8.5,
+      },
+      summary: "Evaluated CV",
+      suggestions: []
+    });
+
+    const user = userEvent.setup();
+
+    render(
+      <MemoryRouter>
+        <EmployerCandidatesPage />
+      </MemoryRouter>
+    );
+
+    const candidateRow = await screen.findByText("Unscored Skill Candidate");
+    await user.click(candidateRow);
+
+    const evaluateButton = await screen.findByRole("button", { name: /đánh giá cv/i });
+    await user.click(evaluateButton);
+
+    await waitFor(() => {
+      expect(screen.getByText("Bảng điểm kỹ năng chi tiết")).toBeInTheDocument();
+    });
+
+    // 1. TypeScript with score 0 must display "Chưa chấm"
+    expect(screen.getByText("TypeScript")).toBeInTheDocument();
+    expect(screen.getByText("Chưa chấm")).toBeInTheDocument();
+
+    // 2. FastAPI with score 8.5 must display "8.5/10"
+    expect(screen.getByText("FastAPI")).toBeInTheDocument();
+    expect(screen.getByText("8.5/10")).toBeInTheDocument();
+
+    // 3. Must not display fabricated "7.5/10"
+    expect(screen.queryByText("7.5/10")).not.toBeInTheDocument();
+  });
 });
