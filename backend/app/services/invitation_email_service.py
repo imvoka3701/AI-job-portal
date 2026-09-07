@@ -69,7 +69,12 @@ class InvitationEmailService:
                 if settings.SMTP_USE_TLS and not settings.SMTP_USE_SSL:
                     smtp.starttls()
                 if settings.SMTP_USERNAME:
-                    smtp.login(settings.SMTP_USERNAME, settings.SMTP_PASSWORD)
+                    clean_password = (
+                        settings.SMTP_PASSWORD.replace(" ", "")
+                        if "gmail" in settings.SMTP_HOST.lower()
+                        else settings.SMTP_PASSWORD
+                    )
+                    smtp.login(settings.SMTP_USERNAME, clean_password)
                 rejected = smtp.send_message(message)
                 if invitation.email in rejected:
                     raise smtplib.SMTPRecipientsRefused(rejected)
