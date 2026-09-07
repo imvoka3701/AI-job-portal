@@ -74,6 +74,7 @@ async def create_application(
 ) -> ApplicationRead:
     """Submit a job application. Notifies the employer."""
     resume = None
+    cv_document = None
     if data.resume_id:
         resume = crud_resume.get_by_id(db, resume_id=data.resume_id)
         if not resume or resume.user_id != current_user.id:
@@ -95,19 +96,24 @@ async def create_application(
     if job and job.embedding is not None:
         try:
             match_score = None
+            feedback_text = None
             if resume:
                 match_res = await ai_matching_service.compute_match(
                     db, resume=resume, job_embedding=list(job.embedding)
                 )
                 match_score = match_res.score
+                feedback_text = getattr(match_res, "explanation", None)
             elif cv_document:
                 match_res = await ai_matching_service.compute_match_for_cv_document(
                     db, cv_document=cv_document, job_embedding=list(job.embedding)
                 )
                 match_score = match_res.score
+                feedback_text = getattr(match_res, "explanation", None)
 
             if match_score is not None:
                 application.ai_matching_score = match_score
+                if feedback_text:
+                    application.ai_feedback = feedback_text
                 db.commit()
                 db.refresh(application)
         except Exception:
@@ -365,22 +371,32 @@ async def get_applications_for_employer_job(
 
     applications = crud_application.get_by_job_with_candidates(db, job_id=job_id)
 
-    # Compute AI match scores on-the-fly for each application with a resume
+    # Compute AI match scores on-the-fly for each application with a resume or cv_document
     results: list[EmployerApplicationRead] = []
     for app in applications:
-        score: float | None = None
-        if (
-            job.embedding is not None
-            and app.resume is not None
-            and app.resume.embedding is not None
-        ):
+        score: float | None = app.ai_matching_score
+        feedback: str | None = app.ai_feedback
+        if score is None and job.embedding is not None:
             try:
-                match = await ai_matching_service.compute_match(
-                    db,
-                    resume=app.resume,
-                    job_embedding=job.embedding,  # type: ignore[arg-type]
-                )
-                score = match.score
+                match_res = None
+                if app.resume is not None and app.resume.embedding is not None:
+                    match_res = await ai_matching_service.compute_match(
+                        db,
+                        resume=app.resume,
+                        job_embedding=job.embedding,  # type: ignore[arg-type]
+                    )
+                elif app.cv_document is not None and app.cv_document.embedding is not None:
+                    match_res = await ai_matching_service.compute_match_for_cv_document(
+                        db,
+                        cv_document=app.cv_document,
+                        job_embedding=job.embedding,  # type: ignore[arg-type]
+                    )
+                if match_res is not None:
+                    score = match_res.score
+                    feedback = match_res.explanation
+                    app.ai_matching_score = score
+                    app.ai_feedback = feedback
+                    db.commit()
             except Exception:
                 logger.exception("Failed to compute AI match for application %s", app.id)
                 score = None

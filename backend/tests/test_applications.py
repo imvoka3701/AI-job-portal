@@ -323,3 +323,5 @@ class TestApplicationAIMatchingScoreSync:
         app_db = db_session.get(Application, data["id"])
         assert app_db is not None
         assert app_db.ai_matching_score == 100.0
+        assert app_db.ai_feedback is not None
+        assert len(app_db.ai_feedback) > 0

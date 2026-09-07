@@ -298,6 +298,32 @@ class TestRoundCRUD:
         r1 = db_session.get(InterviewRound, round1_id)
         assert r1.status == RoundStatus.PASSED.value
 
+    def test_update_round_feedback_syncs_to_application_ai_feedback(
+        self, client: TestClient, db_session: Session
+    ):
+        """PATCH /rounds/{id} with feedback syncs into Application.ai_feedback."""
+        cand = _register_and_login(client, db_session, "rf_c@t.com", "p", "RFC")
+        emp = _register_and_login(client, db_session, "rf_e@t.com", "p", "RFE", "employer", "RFC")
+        job_id = _create_job(client, emp)
+
+        app_id = client.post("/applications", json={"job_id": job_id}, headers=cand).json()["id"]
+
+        rounds_resp = client.get(f"/applications/{app_id}/rounds", headers=emp)
+        round1_id = rounds_resp.json()[0]["id"]
+
+        # Update round feedback
+        resp = client.patch(
+            f"/applications/rounds/{round1_id}",
+            json={"feedback": "Ứng viên có kiến thức tốt về FastAPI và Docker."},
+            headers=emp,
+        )
+        assert resp.status_code == 200, resp.text
+
+        app = db_session.get(Application, app_id)
+        assert app.ai_feedback is not None
+        assert "Ứng viên có kiến thức tốt về FastAPI và Docker." in app.ai_feedback
+        assert "Vòng 1" in app.ai_feedback
+
 
 class TestEmployerInterviewsEndpoint:
     def test_employer_sees_interviews_sorted_soonest_first(

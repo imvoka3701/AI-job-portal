@@ -469,8 +469,13 @@ def delete_resume(
             ):
                 try:
                     os.remove(file_candidate)
-                except OSError:
-                    pass
+                except OSError as exc:
+                    logger.warning(
+                        "Không thể xoá file vật lý %s cho CV ID %s: %s",
+                        file_candidate,
+                        resume_id,
+                        exc,
+                    )
     except IntegrityError:
         db.rollback()
         raise HTTPException(

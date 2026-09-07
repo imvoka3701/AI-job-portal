@@ -347,6 +347,16 @@ class TestCallLogs:
         r = client.get("/admin/ai/logs", headers=headers)
         assert r.status_code == 403
 
+    def test_filter_by_invalid_status_returns_400(self, client, db_session):
+        admin = _create_user(
+            db_session, email="admin-invalid-log@ai-test.example.com", role=UserRole.ADMIN
+        )
+        headers = _login(client, admin.email)
+        r = client.get("/admin/ai/logs?status=invalid_xyz", headers=headers)
+        assert r.status_code == 400
+        msg = r.json().get("detail") or r.json().get("error", {}).get("message", "")
+        assert "không hợp lệ" in msg
+
 
 class TestStats:
     def test_empty_stats_returns_zeros(self, client, db_session):

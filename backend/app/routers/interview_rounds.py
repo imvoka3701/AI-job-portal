@@ -107,4 +107,15 @@ def update_round(
         db_obj=round_obj,
         data=data.model_dump(exclude_unset=True),
     )
+    if data.feedback and round_obj.application:
+        feedback_str = data.feedback.strip()
+        round_name = round_obj.round_name or f"Vòng {round_obj.round_number}"
+        note_entry = f"[{round_name}] {feedback_str}"
+        current_feedback = round_obj.application.ai_feedback or ""
+        if note_entry not in current_feedback:
+            if current_feedback:
+                round_obj.application.ai_feedback = f"{current_feedback}\n\n{note_entry}"
+            else:
+                round_obj.application.ai_feedback = note_entry
+            db.commit()
     return RoundRead.model_validate(updated)

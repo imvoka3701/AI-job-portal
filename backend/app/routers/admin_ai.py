@@ -312,7 +312,11 @@ def list_logs(
         try:
             q = q.filter(AICallLog.status == AICallStatus(log_status))
         except ValueError:
-            pass
+            valid_statuses = [s.value for s in AICallStatus]
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Trạng thái log '{log_status}' không hợp lệ. Các trạng thái được hỗ trợ: {', '.join(valid_statuses)}",
+            )
     if from_date:
         q = q.filter(AICallLog.created_at >= from_date)
     if to_date:

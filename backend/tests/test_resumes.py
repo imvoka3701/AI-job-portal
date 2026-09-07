@@ -6,6 +6,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from app.crud.resume import crud_resume
+from app.schemas.resume import ResumeCreate
 
 # ─── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -215,6 +216,36 @@ class TestResumeCRUD:
         assert resp.status_code in (403, 404), (
             f"Should not allow delete by other user, got {resp.status_code}"
         )
+
+    def test_delete_resume_logs_warning_on_os_error(
+        self, client: TestClient, db_session: Session, monkeypatch, caplog
+    ):
+        h1 = _register_and_login(client, db_session, "del_warn@t.com", "p", "U1")
+        me1 = client.get("/users/me", headers=h1).json()
+        resume = crud_resume.create(
+            db_session,
+            obj_in=ResumeCreate(
+                title="mine.pdf",
+                file_url="uploads/mine.pdf",
+                raw_text="Skills...",
+                embedding=[0.05] * 384,
+            ),
+            user_id=me1["id"],
+        )
+
+        import os
+        monkeypatch.setattr(os.path, "exists", lambda p: True)
+        monkeypatch.setattr(os.path, "isfile", lambda p: True)
+
+        def mock_remove(_path):
+            raise OSError("Permission denied test")
+
+        monkeypatch.setattr(os, "remove", mock_remove)
+
+        with caplog.at_level("WARNING"):
+            resp = client.delete(f"/resumes/{resume.id}", headers=h1)
+            assert resp.status_code == 204
+            assert any("Không thể xoá file vật lý" in rec.message for rec in caplog.records)
 
 
 class TestResumeEmbedding:

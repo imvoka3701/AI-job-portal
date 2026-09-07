@@ -88,10 +88,10 @@ Tài liệu này được định dạng chuẩn **GitHub Markdown**. Bạn có 
 - `backend/app/routers/admin_ai.py:312-315`
 
 ### 3. Checklist Thực Hiện
-- [ ] **Backend:** Tái cấu trúc hàm `validate_is_cv` trả về tuple `(is_valid: bool, reason: str)` trực tiếp cho router, xóa bỏ hoàn toàn thuộc tính trạng thái `self._last_reject_reason` trên singleton.
-- [ ] **Backend:** Cập nhật router `applications.py` khi tự động chấm điểm matching hoặc khi nhà tuyển dụng đánh giá vòng phỏng vấn thì ghi tóm tắt nhận xét vào cột `application.ai_feedback`.
-- [ ] **Backend:** Bổ sung validation trả về `HTTPException(400)` khi `log_status` không hợp lệ trong `admin_ai.py`.
-- [ ] **Backend:** Bổ sung `logger.warning` khi `os.remove()` gặp `OSError` trong `resumes.py`.
+- [x] **Backend:** Tái cấu trúc hàm `validate_is_cv` trả về tuple `(is_valid: bool, reason: str)` trực tiếp cho router, xóa bỏ hoàn toàn thuộc tính trạng thái `self._last_reject_reason` trên singleton.
+- [x] **Backend:** Cập nhật router `applications.py` khi tự động chấm điểm matching hoặc khi nhà tuyển dụng đánh giá vòng phỏng vấn thì ghi tóm tắt nhận xét vào cột `application.ai_feedback`.
+- [x] **Backend:** Bổ sung validation trả về `HTTPException(400)` khi `log_status` không hợp lệ trong `admin_ai.py`.
+- [x] **Backend:** Bổ sung `logger.warning` khi `os.remove()` gặp `OSError` trong `resumes.py`.
 
 ---
 
