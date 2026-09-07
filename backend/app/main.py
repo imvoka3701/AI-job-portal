@@ -12,7 +12,7 @@ from pathlib import Path
 from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
@@ -204,10 +204,39 @@ app.include_router(admin.router)
 app.include_router(admin_ai.router)
 app.include_router(assessments.router)
 
-# --- Mount Static Files ---
-Path("uploads").mkdir(exist_ok=True)
-app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
-app.mount("/api/uploads", StaticFiles(directory="uploads"), name="api_uploads")
+# --- Mount Static Files (Public Avatars only) ---
+Path("uploads/avatars").mkdir(parents=True, exist_ok=True)
+Path("uploads/resumes").mkdir(parents=True, exist_ok=True)
+app.mount("/uploads/avatars", StaticFiles(directory="uploads/avatars"), name="avatars")
+app.mount("/api/uploads/avatars", StaticFiles(directory="uploads/avatars"), name="api_avatars")
+
+
+@app.get("/uploads/{user_id}/{filename}", tags=["Uploads"])
+@app.get("/api/uploads/{user_id}/{filename}", tags=["Uploads"])
+async def get_legacy_avatar(user_id: int, filename: str):
+    """Serve legacy avatar images only. Strictly blocks any non-image or resume files."""
+    if not filename.startswith("avatar_"):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Tài nguyên không tồn tại hoặc không thể truy cập công khai.",
+        )
+    candidate_paths = [
+        Path("uploads") / str(user_id) / filename,
+        Path("uploads/avatars") / str(user_id) / filename,
+        Path("uploads/avatars") / filename,
+    ]
+    for p in candidate_paths:
+        if p.is_file():
+            ext = p.suffix.lower()
+            media_type = (
+                "image/png"
+                if ext == ".png"
+                else "image/jpeg"
+                if ext in [".jpg", ".jpeg"]
+                else "image/webp"
+            )
+            return FileResponse(p, media_type=media_type)
+    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Ảnh đại diện không tồn tại.")
 
 
 @app.get("/", tags=["Health"])

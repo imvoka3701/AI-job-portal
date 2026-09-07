@@ -49,16 +49,19 @@ def _register_and_login(
     password: str,
     full_name: str = "Test",
     role: str = "candidate",
+    company_name: str | None = None,
 ) -> dict[str, str]:
-    resp = client.post(
-        "/auth/register",
-        json={
-            "email": email,
-            "password": password,
-            "full_name": full_name,
-            "role": role,
-        },
-    )
+    reg_role = "candidate" if role == "admin" else role
+    payload: dict = {
+        "email": email,
+        "password": password,
+        "full_name": full_name,
+        "role": reg_role,
+    }
+    if company_name:
+        payload["company_name"] = company_name
+
+    resp = client.post("/auth/register", json=payload)
     assert resp.status_code in (200, 201), resp.text
     if role == "employer":
         from app.models.user import User
@@ -66,6 +69,13 @@ def _register_and_login(
         user = db_session.query(User).filter(User.email == email).first()
         if user and not user.is_active:
             user.is_active = True
+            db_session.commit()
+    elif role == "admin":
+        from app.models.user import User, UserRole
+
+        user = db_session.query(User).filter(User.email == email).first()
+        if user:
+            user.role = UserRole.ADMIN
             db_session.commit()
 
     login_resp = client.post("/auth/login", json={"email": email, "password": password})
@@ -271,4 +281,105 @@ class TestResumeRoleAuthorization:
         assert resp.status_code == 403, (
             f"Expected 403 Forbidden, got {resp.status_code}: {resp.text}"
         )
+
+
+class TestResumeAccessControl:
+    """Security tests for resume content preview and download access control (Issue #9)."""
+
+    def test_direct_static_cv_access_blocked(self, client: TestClient):
+        """Direct access to /uploads/1/resume.pdf must return 404 since CVs are not statically mounted."""
+        resp = client.get("/uploads/1/secret_resume.pdf")
+        assert resp.status_code == 404
+
+    def test_legacy_avatar_access_allowed(self, client: TestClient):
+        """Legacy avatar path allows files starting with avatar_ only."""
+        # Non-avatar file
+        resp = client.get("/uploads/1/my_document.pdf")
+        assert resp.status_code == 404
+
+    def test_candidate_and_employer_rbac(
+        self, client: TestClient, db_session: Session, monkeypatch
+    ):
+        from app.services.cv_evaluator import cv_evaluator_service
+
+        async def valid_cv(_text, **kwargs):
+            return True, ""
+
+        monkeypatch.setattr(cv_evaluator_service, "validate_is_cv", valid_cv)
+
+        cand1_headers = _register_and_login(
+            client, db_session, "cand1_preview@t.com", "p", role="candidate"
+        )
+        pdf = _make_minimal_pdf(
+            "Nguyen Van A. Email: cand1@test.com. Phone: 0912345678. "
+            "Kinh nghiem lam viec: Python developer 3 nam tai Cong ty ABC. "
+            "Hoc van: Dai hoc Bach Khoa Ha Noi. Ky nang: Python, FastAPI."
+        )
+        up_resp = client.post(
+            "/resumes/upload",
+            files={"file": ("cv.pdf", io.BytesIO(pdf), "application/pdf")},
+            headers=cand1_headers,
+        )
+        assert up_resp.status_code == 201
+        resume_id = up_resp.json()["id"]
+
+        # Owner can view
+        resp = client.get(f"/resumes/{resume_id}/content", headers=cand1_headers)
+        assert resp.status_code == 200
+        assert resp.headers["content-type"] == "application/pdf"
+
+        # Other candidate blocked
+        cand2_headers = _register_and_login(
+            client, db_session, "cand2_preview@t.com", "p", role="candidate"
+        )
+        resp2 = client.get(f"/resumes/{resume_id}/content", headers=cand2_headers)
+        assert resp2.status_code == 403
+
+        # Unrelated employer blocked
+        emp_unrelated_headers = _register_and_login(
+            client, db_session, "emp_unrelated@t.com", "p", role="employer", company_name="Corp X"
+        )
+        resp_emp_unrelated = client.get(f"/resumes/{resume_id}/content", headers=emp_unrelated_headers)
+        assert resp_emp_unrelated.status_code == 403
+
+        # Employer with application allowed
+        emp_hiring_headers = _register_and_login(
+            client, db_session, "emp_hiring@t.com", "p", role="employer", company_name="Hiring Corp"
+        )
+        job_resp = client.post(
+            "/jobs",
+            json={
+                "title": "Backend Python Engineer",
+                "description": "Developing high-performance microservices with FastAPI and Postgres.",
+                "requirements": "Python, FastAPI, Docker",
+                "benefits": "Competitive salary, 13th month bonus",
+                "job_type": "full_time",
+                "experience_level": "middle",
+                "location": "Hanoi",
+            },
+            headers=emp_hiring_headers,
+        )
+        assert job_resp.status_code == 201
+        job_id = job_resp.json()["id"]
+
+        # Candidate applies to this job
+        app_resp = client.post(
+            "/applications",
+            json={"job_id": job_id, "resume_id": resume_id, "cover_letter": "I want to join."},
+            headers=cand1_headers,
+        )
+        assert app_resp.status_code == 201
+
+        # Now hiring employer can access resume
+        resp_emp_hiring = client.get(f"/resumes/{resume_id}/content", headers=emp_hiring_headers)
+        assert resp_emp_hiring.status_code == 200
+        assert resp_emp_hiring.headers["content-type"] == "application/pdf"
+
+        # Admin can access resume
+        admin_headers = _register_and_login(
+            client, db_session, "admin_preview@t.com", "p", role="admin"
+        )
+        resp_admin = client.get(f"/resumes/{resume_id}/content", headers=admin_headers)
+        assert resp_admin.status_code == 200
+
 

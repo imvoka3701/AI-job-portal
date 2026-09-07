@@ -875,10 +875,10 @@ export function EmployerApplicationList({
                                 variant="outline"
                                 size="sm"
                                 onClick={() => {
-                                  if (selectedApplication.resume?.file_url) onPreviewResume(selectedApplication.resume.file_url);
+                                  if (selectedApplication.resume_id && selectedApplication.resume?.file_url) onPreviewResume(`/resumes/${selectedApplication.resume_id}/content`);
                                   else if (selectedApplication.cv_document) onPreviewBuilder(selectedApplication);
                                 }}
-                                disabled={!selectedApplication.resume?.file_url && !selectedApplication.cv_document}
+                                disabled={(!selectedApplication.resume_id || !selectedApplication.resume?.file_url) && !selectedApplication.cv_document}
                               >
                                 Xem CV
                               </Button>

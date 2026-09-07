@@ -257,12 +257,12 @@ export function EmployerKanbanBoard({
                         {/* Footer: CV actions & Quick Stage advance */}
                         <div className="flex items-center justify-between gap-2 pt-2.5 border-t border-slate-100">
                           {/* CV preview link */}
-                          {app.resume?.file_url ? (
+                          {app.resume_id && app.resume?.file_url ? (
                             <button
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                onPreviewResume(app.resume!.file_url!);
+                                onPreviewResume(`/resumes/${app.resume_id}/content`);
                               }}
                               className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-600 hover:text-emerald-600 transition-colors cursor-pointer"
                               title="Xem file PDF CV"

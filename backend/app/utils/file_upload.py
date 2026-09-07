@@ -100,19 +100,19 @@ def validate_file_extension(filename: str) -> bool:
 
 
 def generate_upload_path(filename: str) -> Path:
-    """Generate a unique file path for the uploaded file."""
+    """Generate a unique file path for the uploaded resume file."""
     ext = os.path.splitext(filename)[1].lower()
     unique_name = f"{uuid.uuid4().hex}{ext}"
-    upload_path = UPLOAD_DIR / unique_name
+    upload_path = UPLOAD_DIR / "resumes" / unique_name
     upload_path.parent.mkdir(parents=True, exist_ok=True)
     return upload_path
 
 
 def generate_user_upload_path(filename: str, user_id: int) -> Path:
-    """Generate a unique file path under a user-specific folder."""
+    """Generate a unique file path under a user-specific folder for private resumes."""
     ext = os.path.splitext(filename)[1].lower()
     unique_name = f"{uuid.uuid4().hex}{ext}"
-    upload_path = UPLOAD_DIR / str(user_id) / unique_name
+    upload_path = UPLOAD_DIR / "resumes" / str(user_id) / unique_name
     upload_path.parent.mkdir(parents=True, exist_ok=True)
     return upload_path
 
@@ -192,10 +192,10 @@ async def save_avatar_upload(file, user_id: int) -> str:
     _verify_image_magic(file_content)
 
     unique_name = f"avatar_{uuid.uuid4().hex}{ext}"
-    upload_path = UPLOAD_DIR / str(user_id) / unique_name
+    upload_path = UPLOAD_DIR / "avatars" / str(user_id) / unique_name
     upload_path.parent.mkdir(parents=True, exist_ok=True)
 
     upload_path.write_bytes(file_content)
     file.file.seek(0)
 
-    return f"/uploads/{user_id}/{unique_name}"
+    return f"/uploads/avatars/{user_id}/{unique_name}"

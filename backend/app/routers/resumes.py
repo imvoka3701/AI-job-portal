@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from app.core.dependencies import get_current_user, require_role
 from app.crud.resume import crud_resume
 from app.database import get_db
+from app.models.resume import Resume
 from app.models.user import User, UserRole
 from app.schemas.resume import ResumeCreate, ResumeRead
 from app.services.ai_errors import ai_http_exception
@@ -284,21 +285,89 @@ def _resolve_resume_file_path(file_url: str | None) -> str | None:
     if not file_url:
         return None
 
-    # Try multiple path normalization strategies (handles /uploads/... vs uploads/...)
+    clean = file_url.replace("/api/", "/").lstrip("/")
     candidate_paths = [
         file_url,
         file_url.lstrip("/"),
-        file_url.replace("/api/", "/").lstrip("/"),
+        clean,
     ]
-    # Also try prefixing with "uploads" if the stored path doesn't include it
-    clean = file_url.replace("/api/", "/").lstrip("/")
     if not clean.startswith("uploads"):
+        candidate_paths.append(os.path.join("uploads", "resumes", clean))
         candidate_paths.append(os.path.join("uploads", clean))
+    elif not clean.startswith("uploads/resumes") and not clean.startswith("uploads\\resumes"):
+        sub = (
+            clean[len("uploads/") :]
+            if clean.startswith("uploads/")
+            else clean[len("uploads\\") :]
+        )
+        candidate_paths.append(os.path.join("uploads", "resumes", sub))
 
     for p in candidate_paths:
         if p and os.path.exists(p) and os.path.isfile(p):
             return p
     return None
+
+
+def _check_resume_access(db: Session, resume: Resume, current_user: User) -> None:
+    """Validate that current_user has authorization to view/download this resume.
+
+    Access is permitted to:
+    1. The resume owner (Candidate).
+    2. Any Admin.
+    3. An Employer whose job (or company job) has received an application with this resume.
+    """
+    # 1. Candidate owner
+    if resume.user_id == current_user.id:
+        return
+
+    # 2. Admin
+    role_val = (
+        current_user.role.value
+        if hasattr(current_user.role, "value")
+        else str(current_user.role)
+    )
+    if role_val == "admin":
+        return
+
+    # 3. Employer
+    if role_val == "employer":
+        from sqlalchemy import or_
+
+        from app.models.application import Application
+        from app.models.company import CompanyMembership, MembershipStatus
+        from app.models.job import Job
+
+        membership = (
+            db.query(CompanyMembership)
+            .filter(
+                CompanyMembership.user_id == current_user.id,
+                CompanyMembership.status == MembershipStatus.ACTIVE,
+            )
+            .first()
+        )
+        company_id = membership.company_id if membership else None
+
+        employer_filters = [Job.employer_id == current_user.id]
+        if company_id is not None:
+            employer_filters.append(Job.company_id == company_id)
+
+        has_access = (
+            db.query(Application.id)
+            .join(Job, Application.job_id == Job.id)
+            .filter(
+                Application.resume_id == resume.id,
+                or_(*employer_filters),
+            )
+            .first()
+        ) is not None
+
+        if has_access:
+            return
+
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Bạn không có quyền truy cập CV này.",
+    )
 
 
 @router.get("/{resume_id}/content", summary="Get resume raw file content for preview")
@@ -315,8 +384,7 @@ def get_resume_content(
     resume = crud_resume.get_by_id(db, resume_id=resume_id)
     if not resume:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume not found")
-    if resume.user_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not your resume")
+    _check_resume_access(db, resume, current_user)
 
     resolved_path = _resolve_resume_file_path(resume.file_url)
     if not resolved_path:
@@ -346,8 +414,7 @@ def download_resume(
     resume = crud_resume.get_by_id(db, resume_id=resume_id)
     if not resume:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume not found")
-    if resume.user_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not your resume")
+    _check_resume_access(db, resume, current_user)
 
     resolved_path = _resolve_resume_file_path(resume.file_url)
     if not resolved_path:
