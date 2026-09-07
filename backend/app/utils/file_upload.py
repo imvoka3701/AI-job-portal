@@ -34,8 +34,14 @@ def _enforce_max_size(content: bytes, max_mb: int, label: str = "File") -> None:
 
 
 def _verify_pdf_magic(content: bytes) -> None:
-    """Verify the content really starts with the PDF signature."""
-    if not content.startswith(PDF_MAGIC):
+    """Verify the content really starts with the PDF signature.
+
+    Per PDF specification (ISO 32000-1 §7.5.2), leading whitespace or newlines
+    within the first 1024 bytes (commonly emitted by web generators like TopCV: '\\n%PDF-')
+    are valid and must be accepted.
+    """
+    header = content[:1024].lstrip(b"\r\n\t \x00")
+    if not header.startswith(PDF_MAGIC):
         raise ValueError(
             "Nội dung file không phải PDF hợp lệ (chữ ký file không khớp). "
             "Vui lòng tải lên đúng file PDF."

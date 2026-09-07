@@ -79,15 +79,19 @@ async def upload_resume(
 
     # ── 4. Validate with AI (Standard CV format check) ───────────────────────
     try:
-        is_valid_cv = await cv_evaluator_service.validate_is_cv(raw_text)
-        reject_reason = getattr(cv_evaluator_service, "_last_reject_reason", "")
+        res = await cv_evaluator_service.validate_is_cv(raw_text)
+        if isinstance(res, tuple):
+            is_valid_cv, reject_reason = res
+        else:
+            is_valid_cv, reject_reason = bool(res), ""
     except Exception as exc:
         logger.exception("CV validation failed for user %s", current_user.id)
         raise ai_http_exception(exc)
     if not is_valid_cv:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=reject_reason or "Hồ sơ tải lên không đúng định dạng CV tiêu chuẩn thị trường (thiếu thông tin cá nhân, kinh nghiệm hoặc học vấn). Vui lòng tải lên file CV hợp lệ.",
+            detail=reject_reason
+            or "Hồ sơ tải lên không đúng định dạng CV tiêu chuẩn thị trường. Vui lòng tải lên file CV hợp lệ.",
         )
 
     # ── 4.5. Parse CV metadata (industry, skills, experience level) ──────────
@@ -138,7 +142,9 @@ async def upload_resume(
         desired_role=cv_metadata.desired_role if cv_metadata else None,
         desired_location=cv_metadata.desired_location if cv_metadata else None,
         parsed_experience_level=cv_metadata.experience_level if cv_metadata else None,
-        parsed_key_skills=_json.dumps(cv_metadata.key_skills, ensure_ascii=False) if cv_metadata and cv_metadata.key_skills else None,
+        parsed_key_skills=_json.dumps(cv_metadata.key_skills, ensure_ascii=False)
+        if cv_metadata and cv_metadata.key_skills
+        else None,
         industry_category_id=category_id,
     )
     resume = crud_resume.create(db, obj_in=resume_in, user_id=current_user.id)
@@ -177,8 +183,11 @@ async def create_resume(
                 detail="Nội dung CV quá ngắn. Vui lòng cung cấp CV đầy đủ.",
             )
         try:
-            is_valid_cv = await cv_evaluator_service.validate_is_cv(data.raw_text)
-            reject_reason = getattr(cv_evaluator_service, "_last_reject_reason", "")
+            res = await cv_evaluator_service.validate_is_cv(data.raw_text)
+            if isinstance(res, tuple):
+                is_valid_cv, reject_reason = res
+            else:
+                is_valid_cv, reject_reason = bool(res), ""
         except Exception as exc:
             logger.exception("CV validation failed for user %s", current_user.id)
             raise ai_http_exception(exc)
@@ -195,7 +204,10 @@ async def create_resume(
             try:
                 data.embedding = generate_embedding(data.raw_text)
             except Exception:
-                logger.warning("Could not pre-generate embedding during create_resume for user %s", current_user.id)
+                logger.warning(
+                    "Could not pre-generate embedding during create_resume for user %s",
+                    current_user.id,
+                )
 
     resume = crud_resume.create(db, obj_in=data, user_id=current_user.id)
     return ResumeRead.model_validate(resume)
@@ -238,6 +250,11 @@ async def evaluate_resume(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume not found")
     if resume.user_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not your resume")
+    if not resume.is_validated:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="CV chưa được xác thực. Vui lòng tải lên lại CV hợp lệ trước khi đánh giá.",
+        )
     if not resume.raw_text:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Resume has no text content"
@@ -340,7 +357,9 @@ def download_resume(
         )
 
     # Use the original filename if available, otherwise generate a safe name
-    download_name = resume.title if resume.title and resume.title.endswith(".pdf") else f"CV_{resume_id}.pdf"
+    download_name = (
+        resume.title if resume.title and resume.title.endswith(".pdf") else f"CV_{resume_id}.pdf"
+    )
 
     return FileResponse(
         path=resolved_path,

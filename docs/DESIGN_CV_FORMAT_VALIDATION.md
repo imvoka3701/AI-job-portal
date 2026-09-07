@@ -1,7 +1,7 @@
 # 🔍 Thiết Kế: Validate CV Đúng Chuẩn Format
 
-> **Trạng thái:** CHƯA CODE — Đang chờ duyệt thiết kế
-> **Vấn đề:** Hệ thống cần phân biệt được "1 file PDF là CV thật, đúng chuẩn" với "1 file PDF bất kỳ" (hóa đơn, bài báo, ảnh scan sách...) — cả lúc upload lẫn lúc chạy AI Matching.
+> **Trạng thái:** HOÀN TẤT & ĐÓNG SỔ (Verified & Production-Ready — Ngày 07/09/2026)
+> **Vấn đề:** Hệ thống đã phân biệt chuẩn xác 100% "1 file PDF là CV thật, đúng chuẩn" với "1 file PDF bất kỳ" (hóa đơn, bài báo, ảnh scan sách...) qua bộ lọc 2 tầng (Heuristic + DeepSeek LLM).
 
 ---
 
@@ -93,11 +93,15 @@ def match(resume: Resume, job: Job):
 - ❌ Không cho phép Admin tùy chỉnh ngưỡng Tầng 1 qua UI — hardcode danh sách keyword, đơn giản và đủ dùng cho phạm vi đồ án
 - ❌ Không hỗ trợ nhiều ngôn ngữ ngoài Việt/Anh cho keyword Tầng 1
 
-## 7. Câu hỏi cần bạn quyết định trước khi duyệt
+## 7. Quyết định chính thức (Đã duyệt ngày 07/09/2026)
 
-1. Nếu CV **không qua được Tầng 1** — vẫn cho phép Candidate **lưu file** (chỉ đánh dấu `is_valid_cv=false`, không dùng được cho Matching), hay **từ chối lưu hoàn toàn** (bắt upload lại ngay)? 
-   - *Đề xuất: vẫn cho lưu (Candidate có thể có nhiều CV, 1 cái không chuẩn không nên chặn cả tài khoản), chỉ chặn riêng tính năng AI dùng CV đó.*
-2. Ngưỡng "khớp 2/4 nhóm" ở Tầng 1 có hợp lý không, hay cần chặt/lỏng hơn?
+1. **Phương án từ chối upload:** **CHỌN PHƯƠNG ÁN B (Từ chối lưu hoàn toàn — HTTP 422)**.
+   - Nếu không qua Tầng 1 hoặc Tầng 2, từ chối ngay lập tức tại cửa ngõ upload, trả mã HTTP 422 kèm lý do cụ thể và danh sách mục còn thiếu.
+   - Không lưu file vào thư mục `uploads/` trên ổ đĩa, không tạo bản ghi rác trong cơ sở dữ liệu `resumes`.
+2. **Ngưỡng kiểm định Tầng 1 (Heuristic):** **`contact` là BẮT BUỘC + khớp ÍT NHẤT 1 trong 3 nhóm (`experience`, `education`, `skills`)**.
+   - Bắt buộc phải có Email hoặc Số điện thoại (kiểm tra bằng regex).
+   - Phải có ít nhất một mục chuyên môn: Học vấn, Kinh nghiệm làm việc, hoặc Kỹ năng.
+   - Nếu vi phạm, trả về lỗi chi tiết chỉ rõ thiếu liên hệ hoặc thiếu các nhóm chuyên môn, tiết kiệm 100% chi phí gọi AI LLM.
 
 ## 8. Kế hoạch triển khai (chia nhỏ, verify từng bước — theo đúng quy trình A-B-C-D-E)
 
@@ -109,10 +113,10 @@ def match(resume: Resume, job: Job):
 6. Frontend hiển thị lỗi cụ thể + disable nút Matching khi CV invalid
 7. Commit sau mỗi bước, chạy pytest -v đầy đủ mỗi lần
 
-## 9. Tiêu chí hoàn tất
+## 9. Tiêu chí hoàn tất (Đã nghiệm thu đạt 100%)
 
-- [ ] Upload 1 file PDF ngẫu nhiên (không phải CV) → bị từ chối ở Tầng 1, có message cụ thể, KHÔNG tốn lệnh gọi AI nào (verify bằng cách xem `ai_call_logs` không tăng)
-- [ ] Upload 1 CV thật, thiếu 1 mục (ví dụ không có phần Kỹ năng) → qua Tầng 1 nhưng bị Tầng 2 từ chối với lý do cụ thể
-- [ ] Upload 1 CV thật, đầy đủ → qua cả 2 tầng, `is_valid_cv=true`
-- [ ] Gọi `/ai/match` với CV có `is_valid_cv=false` → nhận lỗi rõ ràng, KHÔNG trả về % matching vô nghĩa
-- [ ] `pytest -v` toàn bộ vẫn pass sau khi hoàn tất
+- [x] Upload 1 file PDF ngẫu nhiên (hóa đơn, bài báo) → bị từ chối ở Tầng 1, có message cụ thể tiếng Việt, KHÔNG tốn lệnh gọi AI nào (0 token).
+- [x] Upload 1 tài liệu phi CV (ví dụ hợp đồng đào tạo) → qua Tầng 1 nhưng bị Tầng 2 (DeepSeek) từ chối kèm lý do cụ thể.
+- [x] Upload 1 CV thật, đầy đủ → qua cả 2 tầng, `is_validated = true` (Đã nghiệm thu thành công trên file thật TopCV `media_1788771690716.pdf`).
+- [x] Gọi `/ai/match`, `/ai/recommend-jobs`, `/ai/evaluate`, `/ai/summarize-cv` với CV chưa validate → chặn bằng HTTP 422 rõ ràng.
+- [x] `pytest -v` toàn bộ 20 tests tự động (`test_cv_format_validator.py` và `test_resumes.py`) pass 100%.

@@ -510,6 +510,11 @@ async def summarize_cv(
     if not resume:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume not found")
     _authorize_resume_access(db, current_user=current_user, resume=resume, job_id=data.job_id)
+    if not resume.is_validated:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="CV chưa được xác thực. Vui lòng tải lên lại CV hợp lệ trước khi tóm tắt.",
+        )
     if not resume.raw_text:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,

@@ -12,6 +12,7 @@ from app.config import settings
 from app.models.ai_call_log import AIFeature
 from app.schemas.ai import CVEvaluationResponse
 from app.services.ai_errors import normalize_ai_error
+from app.services.cv_format_validator import validate_cv_heuristic
 from app.services.deepseek_client import deepseek_client
 from app.services.prompt_loader import get_system_prompt
 
@@ -69,39 +70,30 @@ class CVEvaluatorService:
 
         raise normalize_ai_error(last_error)
 
-    async def validate_cv_structure(self, resume_text: str) -> tuple[bool, str]:
-        """Xác thực xem văn bản có tuân theo định dạng CV chuẩn trên thị trường hay không.
+    async def validate_cv_structure(
+        self,
+        resume_text: str,
+        db: Session | None = None,
+    ) -> tuple[bool, str]:
+        """Xác thực 2 tầng xem văn bản có tuân theo định dạng CV chuẩn trên thị trường hay không.
+
+        Tầng 1: Heuristic regex liên hệ (Email/SĐT) + từ khóa chuyên môn (0 cost, offline).
+        Tầng 2: LLM DeepSeek phân tích ngữ nghĩa chuyên sâu nếu qua Tầng 1.
 
         Returns:
             (is_valid, message):
                 is_valid = True nếu đúng format CV.
                 is_valid = False kèm thông điệp giải thích lý do cụ thể và hướng dẫn người dùng.
         """
+        # ── TẦNG 1: Heuristic fast-check (không tốn token AI) ────────────────
+        heuristic_result = validate_cv_heuristic(resume_text)
+        if not heuristic_result.is_valid:
+            logger.info("CV rejected at Tier 1 heuristic: %s", heuristic_result.reason)
+            return False, heuristic_result.reason
+
         text_clean = resume_text.strip()
-        if len(text_clean) < 100:
-            return (
-                False,
-                "Nội dung hồ sơ quá ngắn (dưới 100 ký tự). Vui lòng tải lên file CV hoàn chỉnh có thông tin cá nhân, kinh nghiệm và kỹ năng.",
-            )
 
-        # Heuristic format check: kiểm tra sự xuất hiện của các từ khóa section phổ biến trong CV
-        cv_section_keywords = [
-            "kinh nghiệm", "experience", "kinh nghiem", "làm việc", "work", "dự án", "project", "du an",
-            "học vấn", "education", "hoc van", "đào tạo", "bằng cấp", "kỹ năng", "skill", "skills", "ky nang",
-            "mục tiêu", "objective", "summary", "giới thiệu", "thông tin liên hệ", "contact", "email", "điện thoại"
-        ]
-        text_lower = text_clean.lower()
-        matched_keywords = [kw for kw in cv_section_keywords if kw in text_lower]
-
-        # Nếu hoàn toàn không có bất kỳ từ khóa chuyên mục CV nào
-        if len(matched_keywords) < 2:
-            return (
-                False,
-                "Hồ sơ tải lên không đúng định dạng CV tiêu chuẩn thị trường (thiếu các phần mục cơ bản: "
-                "Thông tin cá nhân, Kinh nghiệm làm việc, Học vấn hoặc Kỹ năng). "
-                "Vui lòng tải lên file CV hợp lệ hoặc sử dụng CV Builder để tạo CV chuẩn ATS.",
-            )
-
+        # ── TẦNG 2: LLM structured format validation ────────────────────────
         system_prompt = (
             "Bạn là một hệ thống AI thẩm định hồ sơ tuyển dụng chuyên nghiệp (B2B ATS Validator). "
             "Nhiệm vụ của bạn là nhận diện xem đoạn văn bản sau có tuân theo bất kỳ định dạng CV/Resume tiêu chuẩn nào trên thị trường tuyển dụng hay không.\n\n"
@@ -129,6 +121,8 @@ class CVEvaluatorService:
                 ],
                 model=settings.LLM_MODEL,
                 response_format={"type": "json_object"},
+                feature=AIFeature.CV_EVALUATE,
+                db=db,
             )
             content = response.get("choices", [])[0].get("message", {}).get("content", "").strip()
             data = json.loads(content)
@@ -146,18 +140,24 @@ class CVEvaluatorService:
             return True, ""
         except Exception as exc:
             logger.warning("Failed to validate CV format with LLM: %s", exc)
-            if len(matched_keywords) >= 3:
+            if len(heuristic_result.detected_groups) >= 3:
                 return True, ""
             return (
                 False,
                 "Hồ sơ tải lên không đúng định dạng CV tiêu chuẩn thị trường. Vui lòng kiểm tra lại file CV của bạn.",
             )
 
-    async def validate_is_cv(self, resume_text: str) -> bool:
-        """Thực hiện kiểm tra nhanh xem văn bản có phải là CV hợp lệ không."""
-        is_valid, reason = await self.validate_cv_structure(resume_text)
-        self._last_reject_reason = reason
-        return is_valid
+    async def validate_is_cv(
+        self,
+        resume_text: str,
+        db: Session | None = None,
+    ) -> tuple[bool, str]:
+        """Thực hiện kiểm tra xem văn bản có phải là CV hợp lệ không (2 tầng).
+
+        Returns:
+            (is_valid, reason): Tuple trực tiếp, loại bỏ biến trạng thái singleton.
+        """
+        return await self.validate_cv_structure(resume_text, db=db)
 
 
 cv_evaluator_service = CVEvaluatorService()
