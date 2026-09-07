@@ -1,19 +1,41 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Send, CheckCircle2, ArrowRight, ShieldCheck, Clock, Gift, Sparkles, Building, PhoneCall } from "lucide-react";
+import { Send, CheckCircle2, ArrowRight, ShieldCheck, Clock, Gift, Sparkles, Building, PhoneCall, AlertCircle } from "lucide-react";
+import { contactApi } from "@/lib/api/contact";
+import { getApiErrorMessage } from "@/lib/axios";
 
 export function ContactFormSection() {
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [selectedService, setSelectedService] = useState("pro");
+  const [formData, setFormData] = useState({
+    fullName: "",
+    email: "",
+    phone: "",
+    companyName: "",
+    location: "hanoi",
+  });
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
+    setErrorMessage(null);
+    try {
+      await contactApi.submitLead({
+        full_name: formData.fullName,
+        email: formData.email,
+        phone: formData.phone,
+        company_name: formData.companyName,
+        location: formData.location,
+        service_package: selectedService,
+      });
       setSubmitted(true);
-    }, 600);
+    } catch (err) {
+      setErrorMessage(getApiErrorMessage(err));
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -153,7 +175,17 @@ export function ContactFormSection() {
                       Cảm ơn bạn. Chuyên viên tư vấn AI Job Portal sẽ liên hệ lại qua điện thoại / email trong vòng 15 phút.
                     </p>
                     <button
-                      onClick={() => setSubmitted(false)}
+                      onClick={() => {
+                        setSubmitted(false);
+                        setFormData({
+                          fullName: "",
+                          email: "",
+                          phone: "",
+                          companyName: "",
+                          location: "hanoi",
+                        });
+                        setErrorMessage(null);
+                      }}
                       className="px-6 py-2.5 rounded-xl border border-emerald-500/60 text-emerald-300 text-xs font-bold hover:bg-emerald-950/60 transition-colors cursor-pointer"
                     >
                       Gửi yêu cầu khác
@@ -161,6 +193,13 @@ export function ContactFormSection() {
                   </div>
                 ) : (
                   <form onSubmit={handleSubmit} className="space-y-4">
+                    {errorMessage && (
+                      <div className="p-3 bg-red-900/50 border border-red-500/50 rounded-xl text-xs text-red-200 flex items-center gap-2">
+                        <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
+                        <span>{errorMessage}</span>
+                      </div>
+                    )}
+
                     {/* Full Name */}
                     <div>
                       <label className="block text-xs font-bold text-gray-300 uppercase tracking-wide mb-1.5">
@@ -169,6 +208,8 @@ export function ContactFormSection() {
                       <input
                         type="text"
                         required
+                        value={formData.fullName}
+                        onChange={(e) => setFormData((prev) => ({ ...prev, fullName: e.target.value }))}
                         placeholder="Ví dụ: Nguyễn Văn Hoàng"
                         className="w-full h-11 px-4 rounded-xl border border-gray-700 bg-gray-800/80 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all font-medium"
                       />
@@ -183,6 +224,8 @@ export function ContactFormSection() {
                         <input
                           type="email"
                           required
+                          value={formData.email}
+                          onChange={(e) => setFormData((prev) => ({ ...prev, email: e.target.value }))}
                           placeholder="hr@company.com"
                           className="w-full h-11 px-4 rounded-xl border border-gray-700 bg-gray-800/80 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all font-medium"
                         />
@@ -195,6 +238,8 @@ export function ContactFormSection() {
                         <input
                           type="tel"
                           required
+                          value={formData.phone}
+                          onChange={(e) => setFormData((prev) => ({ ...prev, phone: e.target.value }))}
                           placeholder="0988 123 456"
                           className="w-full h-11 px-4 rounded-xl border border-gray-700 bg-gray-800/80 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all font-medium"
                         />
@@ -210,6 +255,8 @@ export function ContactFormSection() {
                         <input
                           type="text"
                           required
+                          value={formData.companyName}
+                          onChange={(e) => setFormData((prev) => ({ ...prev, companyName: e.target.value }))}
                           placeholder="Ví dụ: Công ty Cổ phần ABC"
                           className="w-full h-11 px-4 rounded-xl border border-gray-700 bg-gray-800/80 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all font-medium"
                         />
@@ -221,6 +268,8 @@ export function ContactFormSection() {
                         </label>
                         <select
                           required
+                          value={formData.location}
+                          onChange={(e) => setFormData((prev) => ({ ...prev, location: e.target.value }))}
                           className="w-full h-11 px-4 rounded-xl border border-gray-700 bg-gray-800/80 text-sm text-white focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all font-medium"
                         >
                           <option value="" className="bg-gray-900 text-gray-400">Chọn Tỉnh / Thành phố</option>

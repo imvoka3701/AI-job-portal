@@ -10,6 +10,7 @@ from app.models.company import (  # noqa: F401
     Department,
     JobAssignment,
 )
+from app.models.contact_lead import ContactLead  # noqa: F401
 from app.models.criteria_score import CriteriaScore  # noqa: F401
 from app.models.cv_document import CvDocument, CvDocumentStatus  # noqa: F401
 from app.models.interview_round import InterviewRound  # noqa: F401

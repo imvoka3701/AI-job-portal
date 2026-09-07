@@ -7,6 +7,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { Input } from "@/components/ui";
 import { Eye, EyeOff, ArrowRight, Facebook, Linkedin, Bot, CheckCircle2 } from "lucide-react";
 import { motion } from "framer-motion";
+import { toast } from "sonner";
 
 const loginSchema = z.object({
   email: z.string().min(1, "Email không được để trống").email("Email không hợp lệ"),
@@ -107,16 +108,16 @@ export function LoginPage() {
             <div className="grid grid-cols-2 gap-3">
               <button 
                 type="button" 
-                onClick={() => console.log("Sắp ra mắt")} 
-                className="w-full h-[52px] flex items-center justify-center border border-[#E2E8F0] bg-white text-[#334155] font-semibold rounded-[10px] hover:bg-[#F8FAFC] hover:border-gray-300 transition-all shadow-sm"
+                onClick={() => toast.info("Đăng nhập bằng Facebook đang được hoàn thiện. Vui lòng sử dụng Google hoặc Email.")} 
+                className="w-full h-[52px] flex items-center justify-center border border-[#E2E8F0] bg-white text-[#334155] font-semibold rounded-[10px] hover:bg-[#F8FAFC] hover:border-gray-300 transition-all shadow-sm cursor-pointer"
               >
                 <Facebook className="text-[#1877f2] w-5 h-5" />
                 <span className="ml-2">Facebook</span>
               </button>
               <button 
                 type="button" 
-                onClick={() => console.log("Sắp ra mắt")} 
-                className="w-full h-[52px] flex items-center justify-center border border-[#E2E8F0] bg-white text-[#334155] font-semibold rounded-[10px] hover:bg-[#F8FAFC] hover:border-gray-300 transition-all shadow-sm"
+                onClick={() => toast.info("Đăng nhập bằng LinkedIn đang được hoàn thiện. Vui lòng sử dụng Google hoặc Email.")} 
+                className="w-full h-[52px] flex items-center justify-center border border-[#E2E8F0] bg-white text-[#334155] font-semibold rounded-[10px] hover:bg-[#F8FAFC] hover:border-gray-300 transition-all shadow-sm cursor-pointer"
               >
                 <Linkedin className="text-[#0a66c2] w-5 h-5" />
                 <span className="ml-2">LinkedIn</span>

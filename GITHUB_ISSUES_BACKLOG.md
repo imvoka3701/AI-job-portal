@@ -188,11 +188,11 @@ Tài liệu này được định dạng chuẩn **GitHub Markdown**. Bạn có 
 - `frontend/src/pages/auth/LoginPage.tsx:110, 118` (console.log "Sắp ra mắt" khi bấm nút đăng nhập MXH)
 
 ### 3. Checklist Thực Hiện
-- [ ] **Backend:** Bổ sung endpoint `POST /auth/forgot-password` và `POST /auth/reset-password` (kèm logic tạo token reset có hạn sử dụng và gửi mail hoặc ghi log an toàn).
-- [ ] **Backend:** Tạo bảng `contact_leads` và endpoint `POST /contact/leads` để tiếp nhận và lưu trữ thông tin doanh nghiệp đăng ký tư vấn giải pháp tuyển dụng.
-- [ ] **Frontend:** Thay thế `setTimeout` tại `ForgotPasswordPage.tsx` bằng hàm gọi API khôi phục mật khẩu thật, xử lý thông báo lỗi rõ ràng nếu email không tồn tại.
-- [ ] **Frontend:** Tích hợp gọi API `POST /contact/leads` tại `ContactFormSection.tsx`, validate form bằng Zod và hiển thị trạng thái gửi lead thực tế.
-- [ ] **Frontend:** Thêm Toast thông báo "Tính năng đang được phát triển" hoặc ẩn/disable các nút mạng xã hội chưa hỗ trợ tại `LoginPage.tsx` thay vì chỉ in ra console.
+- [x] **Backend:** Bổ sung endpoint `POST /auth/forgot-password` (kèm logic tạo mật khẩu mới ngẫu nhiên an toàn, cập nhật hashed_password và gửi Gmail chứa mật khẩu mới cho ứng viên/nhà tuyển dụng hoặc ghi log an toàn).
+- [x] **Backend:** Tạo bảng `contact_leads` và endpoint `POST /contact/leads` để tiếp nhận và lưu trữ thông tin doanh nghiệp đăng ký tư vấn giải pháp tuyển dụng.
+- [x] **Frontend:** Thay thế `setTimeout` tại `ForgotPasswordPage.tsx` bằng hàm gọi API khôi phục mật khẩu thật, xử lý thông báo lỗi rõ ràng nếu email không tồn tại.
+- [x] **Frontend:** Tích hợp gọi API `POST /contact/leads` tại `ContactFormSection.tsx`, validate form và hiển thị trạng thái gửi lead thực tế.
+- [x] **Frontend:** Thêm Toast thông báo "Tính năng đang được phát triển" cho các nút mạng xã hội chưa hỗ trợ tại `LoginPage.tsx` thay vì chỉ in ra console.
 
 ---
 

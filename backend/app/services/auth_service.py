@@ -78,5 +78,29 @@ class AuthService:
         except JWTError:
             raise
 
+    def forgot_password(self, db: Session, *, email: str) -> str:
+        """Issue a new temporary password, hash and save it to DB, and send it to user's email."""
+        from app.services.password_reset_service import (
+            generate_temporary_password,
+            password_reset_service,
+        )
+
+        user = crud_user.get_by_email(db, email=email)
+        if not user:
+            raise ValueError("Không tìm thấy tài khoản tương ứng với email này trong hệ thống.")
+
+        new_password = generate_temporary_password(length=10)
+        user.hashed_password = hash_password(new_password)
+        db.commit()
+        db.refresh(user)
+
+        password_reset_service.send_new_password(
+            email=user.email,
+            full_name=user.full_name,
+            new_password=new_password,
+        )
+        return "Mật khẩu mới đã được gửi đến email của bạn. Vui lòng kiểm tra hộp thư để đăng nhập."
+
 
 auth_service = AuthService()
+

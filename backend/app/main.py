@@ -36,6 +36,7 @@ from app.routers import (
     assessments,
     auth,
     company_team,
+    contact,
     criteria_scores,
     cv_documents,
     email_webhooks,
@@ -203,6 +204,7 @@ app.include_router(notifications.router)
 app.include_router(admin.router)
 app.include_router(admin_ai.router)
 app.include_router(assessments.router)
+app.include_router(contact.router)
 
 # --- Mount Static Files (Public Avatars only) ---
 Path("uploads/avatars").mkdir(parents=True, exist_ok=True)

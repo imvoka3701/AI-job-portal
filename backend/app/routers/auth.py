@@ -6,7 +6,13 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.database import get_db
-from app.schemas.auth import LoginRequest, RegisterRequest, Token
+from app.schemas.auth import (
+    ForgotPasswordRequest,
+    ForgotPasswordResponse,
+    LoginRequest,
+    RegisterRequest,
+    Token,
+)
 from app.schemas.user import UserRead
 from app.services.auth_service import auth_service
 from app.services.oauth_service import oauth_service, sign_oauth_state, verify_oauth_state
@@ -40,6 +46,24 @@ def login(data: LoginRequest, db: Session = Depends(get_db)) -> Token:
         return auth_service.login(db, data=data)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
+
+
+@router.post(
+    "/forgot-password",
+    response_model=ForgotPasswordResponse,
+    summary="Request a new temporary password sent via email",
+)
+def forgot_password(
+    data: ForgotPasswordRequest,
+    db: Session = Depends(get_db),
+) -> ForgotPasswordResponse:
+    """Generate a secure new password, update DB, and deliver to user's email via SMTP."""
+    try:
+        msg = auth_service.forgot_password(db, email=data.email)
+        return ForgotPasswordResponse(message=msg, email=data.email)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
 
 
 # ── Google OAuth ─────────────────────────────────────────────────────────────

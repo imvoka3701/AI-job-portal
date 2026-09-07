@@ -34,3 +34,12 @@ class RegisterRequest(BaseModel):
             raise ValueError("Không thể tự đăng ký tài khoản Quản trị viên (Admin).")
         return v
 
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ForgotPasswordResponse(BaseModel):
+    message: str
+    email: EmailStr
+
