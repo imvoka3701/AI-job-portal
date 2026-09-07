@@ -37,10 +37,10 @@ Tài liệu này được định dạng chuẩn **GitHub Markdown**. Bạn có 
 - `frontend/src/pages/jobs/components/JobResults/JobUIHelpers.tsx:75-88` (Hardcoded AIMatchBadge popover)
 
 ### 3. Checklist Thực Hiện
-- [ ] **Backend:** Tạo endpoint `POST /ai/cover-letter` nhận `job_id`, `resume_id` hoặc `cv_document_id`, sử dụng `DeepseekClient` sinh thư xin việc chuyên nghiệp bằng tiếng Việt.
-- [ ] **Frontend:** Viết hàm API `generateCoverLetter` trong `frontend/src/lib/api/ai.ts` và thay thế hoàn toàn `setTimeout` tại `JobDetailPage.tsx:230`.
-- [ ] **Frontend:** Cập nhật `computeMatching` tại `JobDetailPage.tsx` để hỗ trợ cả định dạng `builder:id` (gọi endpoint matching dành cho CV Document đã có sẵn trên backend).
-- [ ] **Frontend:** Động hóa nội dung popover `AIMatchBadge` hiển thị điểm theo breakdown thực tế (hoặc liên kết mở modal phân tích chi tiết) thay vì text cứng.
+- [x] **Backend:** Tạo endpoint `POST /ai/cover-letter` nhận `job_id`, `resume_id` hoặc `cv_document_id`, sử dụng `DeepseekClient` sinh thư xin việc chuyên nghiệp bằng tiếng Việt.
+- [x] **Frontend:** Viết hàm API `generateCoverLetter` trong `frontend/src/lib/api/ai.ts` và thay thế hoàn toàn `setTimeout` tại `JobDetailPage.tsx:230`.
+- [x] **Frontend:** Cập nhật `computeMatching` tại `JobDetailPage.tsx` để hỗ trợ cả định dạng `builder:id` (gọi endpoint matching dành cho CV Document đã có sẵn trên backend).
+- [x] **Frontend:** Động hóa nội dung popover `AIMatchBadge` hiển thị điểm theo breakdown thực tế (hoặc liên kết mở modal phân tích chi tiết) thay vì text cứng.
 
 ---
 

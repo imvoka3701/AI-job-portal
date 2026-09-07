@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import { applyJob, getJobById, getJobs } from "@/lib/api/jobs";
 import { getMyResumes } from "@/lib/api/resumes";
 import { getCvDocuments } from "@/lib/api/cvDocuments";
-import { getAiMatch } from "@/lib/api/ai";
+import { generateCoverLetter, getAiMatch } from "@/lib/api/ai";
 import { useUser, useAuthStore } from "@/stores/authStore";
 import { tokenStorage } from "@/lib/axios";
 import { Button, Card, Badge, Modal } from "@/components/ui";
@@ -203,11 +203,15 @@ export const JobDetailPage = () => {
 
     const computeMatching = async () => {
       let resumeId: number | null = null;
+      let cvDocumentId: number | null = null;
+
       if (selectedDocument.startsWith("resume:")) {
         resumeId = Number(selectedDocument.split(":")[1]);
+      } else if (selectedDocument.startsWith("builder:")) {
+        cvDocumentId = Number(selectedDocument.split(":")[1]);
       }
 
-      if (!resumeId) {
+      if (!resumeId && !cvDocumentId) {
         setAiMatchResult(null);
         setIsMatchingLoading(false);
         return;
@@ -215,7 +219,11 @@ export const JobDetailPage = () => {
 
       setIsMatchingLoading(true);
       try {
-        const matchData = await getAiMatch(resumeId, job.id);
+        const matchData = await getAiMatch({
+          job_id: job.id,
+          ...(resumeId ? { resume_id: resumeId } : {}),
+          ...(cvDocumentId ? { cv_document_id: cvDocumentId } : {}),
+        });
         setAiMatchResult(matchData);
       } catch {
         setAiMatchResult(null);
@@ -228,29 +236,48 @@ export const JobDetailPage = () => {
   }, [job, selectedDocument, isCompanyInternal]);
 
   // Generate AI Cover Letter
-  const handleGenerateCoverLetter = () => {
+  const handleGenerateCoverLetter = async () => {
     if (!job) return;
+
+    let resumeId: number | undefined;
+    let cvDocumentId: number | undefined;
+
+    if (selectedDocument.startsWith("resume:")) {
+      resumeId = Number(selectedDocument.split(":")[1]);
+    } else if (selectedDocument.startsWith("builder:")) {
+      cvDocumentId = Number(selectedDocument.split(":")[1]);
+    }
+
+    if (!resumeId && !cvDocumentId) {
+      if (resumes.length > 0) resumeId = resumes[0].id;
+      else if (cvDocuments.length > 0) cvDocumentId = cvDocuments[0].id;
+    }
+
+    if (!resumeId && !cvDocumentId) {
+      setApplyMessage({
+        type: "error",
+        text: "Vui lòng chọn hoặc tạo một hồ sơ (CV) trước khi tạo Cover Letter.",
+      });
+      return;
+    }
+
     setIsGeneratingCoverLetter(true);
-    const companyName = job.employer?.company_name || job.employer?.full_name || "Quý Công ty";
-    const candidateName = user?.full_name || "Ứng viên";
-
-    setTimeout(() => {
-      const generated = `Kính gửi Bộ phận Tuyển dụng ${companyName},
-
-Tôi tên là ${candidateName}. Tôi viết thư này để bày tỏ sự quan tâm sâu sắc đối với vị trí ${job.title} mà Quý Công ty đang tuyển dụng.
-
-Qua tìm hiểu về ${companyName} và các yêu cầu chi tiết trong bản mô tả công việc, tôi nhận thấy định hướng phát triển cũng như các thách thức kỹ thuật của vị trí này hoàn toàn trùng khớp với thế mạnh chuyên môn và niềm đam mê của tôi. Với kinh nghiệm thực chiến trong việc xây dựng hệ thống phần mềm hiệu năng cao, tôi tự tin có thể đóng góp giá trị ngay từ những ngày đầu gia nhập đội ngũ.
-
-Tôi đã đính kèm hồ sơ CV chi tiết để Quý Công ty tiện xem xét. Tôi rất mong có cơ hội được trao đổi trực tiếp trong một buổi phỏng vấn để làm rõ hơn về mức độ phù hợp và cách tôi có thể hỗ trợ ${companyName} đạt được các mục tiêu công nghệ sắp tới.
-
-Xin chân thành cảm ơn Quý Công ty đã dành thời gian xem xét hồ sơ!
-
-Trân trọng,
-${candidateName}`;
-
-      setCoverLetterText(generated);
+    try {
+      const res = await generateCoverLetter({
+        job_id: job.id,
+        resume_id: resumeId,
+        cv_document_id: cvDocumentId,
+        tone: "professional",
+      });
+      setCoverLetterText(res.cover_letter);
+    } catch {
+      setApplyMessage({
+        type: "error",
+        text: "Không thể tạo Cover Letter lúc này. Vui lòng thử lại sau.",
+      });
+    } finally {
       setIsGeneratingCoverLetter(false);
-    }, 600);
+    }
   };
 
   // Submit Application

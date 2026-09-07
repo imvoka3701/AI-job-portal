@@ -2,12 +2,19 @@
 
 from typing import Any
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, model_validator
 
 
 class AIMatchRequest(BaseModel):
-    resume_id: int
     job_id: int
+    resume_id: int | None = None
+    cv_document_id: int | None = None
+
+    @model_validator(mode="after")
+    def check_cv_source(self) -> "AIMatchRequest":
+        if self.resume_id is None and self.cv_document_id is None:
+            raise ValueError("Cần cung cấp ít nhất resume_id hoặc cv_document_id.")
+        return self
 
 
 class MatchBreakdown(BaseModel):
@@ -147,6 +154,7 @@ class CvSkillsSuggestionResponse(BaseModel):
 
 class RecommendedJob(BaseModel):
     """A single job recommendation with match score and reason."""
+
     job_id: int
     title: str
     company_name: str | None = None
@@ -158,6 +166,7 @@ class RecommendedJob(BaseModel):
 
 class JobRecommendationResponse(BaseModel):
     """Response for GET /ai/recommend-jobs endpoint."""
+
     resume_id: int
     industry_detected: str
     total_matched: int
@@ -166,6 +175,7 @@ class JobRecommendationResponse(BaseModel):
 
 class GenerateJDRequest(BaseModel):
     """Payload for requesting AI-assisted multi-industry Job Description generation."""
+
     job_title: str
     industry: str | None = None
     category_id: int | None = None
@@ -178,6 +188,7 @@ class GenerateJDRequest(BaseModel):
 
 class GenerateJDResponse(BaseModel):
     """Structured response containing AI-drafted JD sections, suggested skills, and salary."""
+
     title: str
     description: str
     requirements: str
@@ -189,3 +200,20 @@ class GenerateJDResponse(BaseModel):
     experience_level: str
     suggested_category_id: int | None = None
 
+
+class CoverLetterRequest(BaseModel):
+    job_id: int
+    resume_id: int | None = None
+    cv_document_id: int | None = None
+    tone: str = "professional"  # professional, confident, enthusiastic, concise
+    custom_notes: str | None = None
+
+    @model_validator(mode="after")
+    def check_cv_source(self) -> "CoverLetterRequest":
+        if self.resume_id is None and self.cv_document_id is None:
+            raise ValueError("Cần cung cấp ít nhất resume_id hoặc cv_document_id.")
+        return self
+
+
+class CoverLetterResponse(BaseModel):
+    cover_letter: str

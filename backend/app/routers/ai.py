@@ -21,10 +21,13 @@ from app.crud.cv_document import crud_cv_document
 from app.crud.job import crud_job
 from app.crud.resume import crud_resume
 from app.database import get_db
+from app.models.cv_document import CvDocument
 from app.models.user import User, UserRole
 from app.schemas.ai import (
     AIMatchRequest,
     AIMatchResponse,
+    CoverLetterRequest,
+    CoverLetterResponse,
     CVEvaluationRequest,
     CVEvaluationResponse,
     CvExperienceSuggestionRequest,
@@ -52,8 +55,9 @@ from app.schemas.assistant import (
 )
 from app.services.ai_audit import ai_audit
 from app.services.ai_errors import ai_http_exception
-from app.services.ai_matching import ai_matching_service
+from app.services.ai_matching import ai_matching_service, extract_cv_document_text
 from app.services.assistant_service import assistant_service
+from app.services.cover_letter import cover_letter_service
 from app.services.cv_evaluator import cv_evaluator_service
 from app.services.cv_suggestions import cv_suggestion_service
 from app.services.cv_summarizer import cv_summarizer_service
@@ -127,6 +131,67 @@ def _authorize_resume_access(
     for application in applications:
         try:
             # This verifies the employer has access to the specific department associated with the application's job
+            require_application_scope(db, context=context, application=application)
+            has_valid_scope = True
+            break
+        except HTTPException:
+            continue
+
+    if not has_valid_scope:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="CV nằm ngoài phạm vi phòng ban hoặc dữ liệu tuyển dụng được phân công của bạn.",
+        )
+
+
+def _authorize_cv_document_access(
+    db: Session,
+    *,
+    current_user: User,
+    cv_document: CvDocument,
+    job_id: int | None = None,
+) -> None:
+    # 1. Candidate Validation: Verify ownership
+    if current_user.role == UserRole.CANDIDATE:
+        if cv_document.user_id != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, detail="Bạn không có quyền truy cập CV này."
+            )
+        return
+
+    # 2. Employer Validation: Role & AI Permission
+    if current_user.role != UserRole.EMPLOYER:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Bạn không có quyền truy cập CV này."
+        )
+
+    context = build_company_context(db, current_user)
+    if not context.has(CompanyPermission.AI_RECRUITMENT):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Bạn không có quyền sử dụng tính năng AI tuyển dụng. Vui lòng liên hệ Admin.",
+        )
+
+    # 3. Target Job Verification (if specific job_id is provided)
+    if job_id is not None:
+        target_job = crud_job.get_by_id(db, job_id=job_id)
+        if not target_job:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Công việc yêu cầu không tồn tại."
+            )
+        require_job_scope(db, context=context, job=target_job)
+
+    # 4. Tenant Isolation & Department Scope for the CV Document
+    applications = crud_application.get_by_cv_document(db, cv_document_id=cv_document.id)
+    if not applications:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="CV này chưa được nộp cho công việc nào thuộc công ty của bạn.",
+        )
+
+    has_valid_scope = False
+    for application in applications:
+        try:
             require_application_scope(db, context=context, application=application)
             has_valid_scope = True
             break
@@ -273,18 +338,7 @@ async def match_resume_to_job(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> AIMatchResponse:
-    """Compute cosine similarity between resume and job embeddings."""
-    resume = crud_resume.get_by_id(db, resume_id=data.resume_id)
-    if not resume:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume not found")
-    _authorize_resume_access(db, current_user=current_user, resume=resume, job_id=data.job_id)
-
-    if not resume.is_validated:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="CV chưa được xác thực. Vui lòng tải lên lại CV hợp lệ trước khi sử dụng AI Matching.",
-        )
-
+    """Compute cosine similarity between resume or CV builder document and job embeddings."""
     job = crud_job.get_by_id(db, job_id=data.job_id)
     if not job:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
@@ -296,13 +350,102 @@ async def match_resume_to_job(
         )
 
     job_embedding: list[float] = job.embedding  # type: ignore[assignment]
-    return await ai_matching_service.compute_match(
-        db,
-        resume=resume,
-        job_embedding=job_embedding,
-        job=job,
-        deep_analysis=True,
+
+    if data.cv_document_id is not None:
+        cv_document = crud_cv_document.get_by_id(db, document_id=data.cv_document_id)
+        if not cv_document:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="CV Builder document not found"
+            )
+        _authorize_cv_document_access(
+            db, current_user=current_user, cv_document=cv_document, job_id=data.job_id
+        )
+        return await ai_matching_service.compute_match_for_cv_document(
+            db,
+            cv_document=cv_document,
+            job_embedding=job_embedding,
+            job=job,
+            deep_analysis=True,
+        )
+
+    if data.resume_id is not None:
+        resume = crud_resume.get_by_id(db, resume_id=data.resume_id)
+        if not resume:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume not found")
+        _authorize_resume_access(db, current_user=current_user, resume=resume, job_id=data.job_id)
+
+        if not resume.is_validated:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="CV chưa được xác thực. Vui lòng tải lên lại CV hợp lệ trước khi sử dụng AI Matching.",
+            )
+
+        return await ai_matching_service.compute_match(
+            db,
+            resume=resume,
+            job_embedding=job_embedding,
+            job=job,
+            deep_analysis=True,
+        )
+
+    raise HTTPException(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        detail="Cần cung cấp ít nhất resume_id hoặc cv_document_id.",
     )
+
+
+@router.post(
+    "/cover-letter",
+    response_model=CoverLetterResponse,
+    summary="Generate AI Cover Letter",
+    dependencies=[Depends(rate_limit("ai_interactive"))],
+)
+async def generate_cover_letter(
+    data: CoverLetterRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> CoverLetterResponse:
+    """Generate a tailored cover letter using candidate qualifications and job description."""
+    job = crud_job.get_by_id(db, job_id=data.job_id)
+    if not job:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
+
+    cv_text = ""
+    if data.cv_document_id is not None:
+        cv_document = crud_cv_document.get_by_id(db, document_id=data.cv_document_id)
+        if not cv_document:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="CV Builder document not found"
+            )
+        _authorize_cv_document_access(
+            db, current_user=current_user, cv_document=cv_document, job_id=data.job_id
+        )
+        cv_text = extract_cv_document_text(cv_document)
+    elif data.resume_id is not None:
+        resume = crud_resume.get_by_id(db, resume_id=data.resume_id)
+        if not resume:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume not found")
+        _authorize_resume_access(db, current_user=current_user, resume=resume, job_id=data.job_id)
+        cv_text = resume.raw_text or ""
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Cần cung cấp ít nhất resume_id hoặc cv_document_id.",
+        )
+
+    try:
+        return await cover_letter_service.generate(
+            db,
+            request=data,
+            candidate=current_user,
+            job=job,
+            cv_text=cv_text,
+        )
+    except Exception as exc:
+        logger.exception(
+            "Cover letter generation failed for user %s, job %s", current_user.id, data.job_id
+        )
+        raise ai_http_exception(exc)
 
 
 @router.get(

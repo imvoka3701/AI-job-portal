@@ -91,6 +91,16 @@ HARDCODED_FALLBACK_PROMPTS: dict[str, str] = {
         "}\n"
         "QUAN TRONG: Phan hoi PHAI la JSON hop le, khong duoc them markdown hay text ben ngoai JSON."
     ),
+    AIFeature.COVER_LETTER: (
+        "Ban la mot chuyen gia tu van nghe nghiep va viet thu xin viec (Cover Letter) chuyen nghiep. "
+        "Nhiem vu cua ban la soan thao mot buc thu ung tuyen ca nhan hoa, thuyet phuc, an tuong bang tieng Viet. "
+        "Ket noi kheo leo kinh nghiem va the manh trong ho so ung vien voi yeu cau va muc tieu cua cong ty tuyen dung.\n"
+        "Phan hoi BAT BUOC la JSON hop le:\n"
+        "{\n"
+        '  "cover_letter": "<Noi dung buc thu hoan chinh, day du mo bai, than bai, ket luan va loi chao trang trong>"\n'
+        "}\n"
+        "QUAN TRONG: Chi tra ve duy nhat JSON hop le, khong co markdown hay bat ky van ban nao ben ngoai."
+    ),
 }
 
 

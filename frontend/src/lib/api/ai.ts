@@ -87,18 +87,52 @@ export async function suggestCvSkills(
   return data;
 }
 
+export interface CoverLetterPayload {
+  job_id: number;
+  resume_id?: number;
+  cv_document_id?: number;
+  tone?: "professional" | "confident" | "enthusiastic" | "concise";
+  custom_notes?: string;
+}
+
+export interface CoverLetterResponse {
+  cover_letter: string;
+}
+
 /**
- * Compute AI matching score between a resume and a job.
+ * Generate a personalized cover letter using AI.
+ * POST /ai/cover-letter
+ */
+export async function generateCoverLetter(
+  payload: CoverLetterPayload,
+): Promise<CoverLetterResponse> {
+  const { data } = await apiClient.post<CoverLetterResponse>(
+    "/ai/cover-letter",
+    payload,
+    { timeout: CV_AI_TIMEOUT_MS },
+  );
+  return data;
+}
+
+export interface AIMatchPayload {
+  job_id: number;
+  resume_id?: number;
+  cv_document_id?: number;
+}
+
+/**
+ * Compute AI matching score between a resume / CV Builder document and a job.
  * POST /ai/match
  */
 export async function getAiMatch(
-  resumeId: number,
-  jobId: number,
+  paramsOrResumeId: number | AIMatchPayload,
+  jobId?: number,
 ): Promise<AIMatchResult> {
-  const { data } = await apiClient.post<AIMatchResult>("/ai/match", {
-    resume_id: resumeId,
-    job_id: jobId,
-  });
+  const payload: AIMatchPayload =
+    typeof paramsOrResumeId === "number"
+      ? { resume_id: paramsOrResumeId, job_id: jobId! }
+      : paramsOrResumeId;
+  const { data } = await apiClient.post<AIMatchResult>("/ai/match", payload);
   return data;
 }
 

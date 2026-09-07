@@ -46,6 +46,14 @@ class CRUDApplication:
         )
         return list(db.execute(stmt).scalars().unique().all())
 
+    def get_by_cv_document(self, db: Session, *, cv_document_id: int) -> list[Application]:
+        stmt = (
+            select(Application)
+            .where(Application.cv_document_id == cv_document_id)
+            .options(joinedload(Application.job))
+        )
+        return list(db.execute(stmt).scalars().unique().all())
+
     def get_by_resume_and_job(
         self, db: Session, *, resume_id: int, job_id: int
     ) -> Application | None:

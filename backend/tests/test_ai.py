@@ -122,7 +122,9 @@ class TestAIEndpoints:
         )
         assert response.status_code == 401
 
-    def test_roadmap_passes_parsed_skills_from_resume(self, client: TestClient, db_session: Session, monkeypatch):
+    def test_roadmap_passes_parsed_skills_from_resume(
+        self, client: TestClient, db_session: Session, monkeypatch
+    ):
         """Verify that /ai/roadmap correctly extracts parsed_skills from resume and passes to suggest service."""
         from unittest.mock import AsyncMock
 
@@ -135,12 +137,22 @@ class TestAIEndpoints:
         me = client.get("/users/me", headers=headers)
         cand_id = me.json()["id"]
 
-        mock_suggest = AsyncMock(return_value=RoadmapResponse(
-            target_role="AI Engineer",
-            current_level="Mid",
-            estimated_months=6,
-            steps=[RoadmapStep(order=1, title="Learn PyTorch", description="Basics", skills_to_learn=["PyTorch"], resources=[])],
-        ))
+        mock_suggest = AsyncMock(
+            return_value=RoadmapResponse(
+                target_role="AI Engineer",
+                current_level="Mid",
+                estimated_months=6,
+                steps=[
+                    RoadmapStep(
+                        order=1,
+                        title="Learn PyTorch",
+                        description="Basics",
+                        skills_to_learn=["PyTorch"],
+                        resources=[],
+                    )
+                ],
+            )
+        )
         monkeypatch.setattr(ai_router.roadmap_suggest_service, "suggest", mock_suggest)
 
         resume_in = ResumeCreate(
@@ -1227,3 +1239,249 @@ class TestAssistantSecurity:
         details_str = str(data["error"]["details"])
         assert "user" in details_str and "assistant" in details_str
 
+
+class TestAICoverLetterAndCvDocMatching:
+    """Tests for Cover Letter generation and CV Builder document AI matching."""
+
+    def test_cover_letter_with_resume(self, client: TestClient, db_session: Session, monkeypatch):
+        from app.services.deepseek_client import deepseek_client
+
+        async def mock_chat(*args, **kwargs):
+            return {
+                "choices": [
+                    {
+                        "message": {
+                            "content": json.dumps(
+                                {
+                                    "cover_letter": "Kính gửi Nhà tuyển dụng, Tôi là Nguyễn Văn An, rất mong được ứng tuyển vào vị trí Senior Python Developer."
+                                }
+                            )
+                        }
+                    }
+                ]
+            }
+
+        monkeypatch.setattr(deepseek_client, "create_chat_completion", mock_chat)
+
+        employer_headers = _register_and_login(
+            client, "cl-emp1@example.com", "pass", "Employer 1", role="employer", db=db_session
+        )
+        cand_headers = _register_and_login(
+            client, "cl-cand1@example.com", "pass", "Nguyen Van An", role="candidate", db=db_session
+        )
+
+        from app.models.user import User
+
+        cand_user = db_session.query(User).filter(User.email == "cl-cand1@example.com").first()
+        emp_user = db_session.query(User).filter(User.email == "cl-emp1@example.com").first()
+
+        job_id = _create_job_with_embedding(db_session, emp_user.id, _make_vector(1.0, 0.0))
+        resume_id = _create_resume_with_embedding(
+            db_session, cand_user.id, _make_vector(1.0, 0.0), "NguyenVanAn_CV.pdf"
+        )
+
+        resp = client.post(
+            "/ai/cover-letter",
+            json={
+                "job_id": job_id,
+                "resume_id": resume_id,
+                "tone": "confident",
+                "custom_notes": "Sẵn sàng nhận việc ngay",
+            },
+            headers=cand_headers,
+        )
+        assert resp.status_code == 200, resp.text
+        data = resp.json()
+        assert "cover_letter" in data
+        assert "Nguyễn Văn An" in data["cover_letter"] or "Nguyen Van An" in data["cover_letter"]
+
+    def test_cover_letter_with_cv_document(
+        self, client: TestClient, db_session: Session, monkeypatch
+    ):
+        from app.services.deepseek_client import deepseek_client
+
+        async def mock_fail(*args, **kwargs):
+            raise RuntimeError("API timeout")
+
+        monkeypatch.setattr(deepseek_client, "create_chat_completion", mock_fail)
+
+        employer_headers = _register_and_login(
+            client, "cl-emp2@example.com", "pass", "Tech Corp", role="employer", db=db_session
+        )
+        cand_headers = _register_and_login(
+            client, "cl-cand2@example.com", "pass", "Tran Thi Binh", role="candidate", db=db_session
+        )
+
+        from app.models.user import User
+
+        emp_user = db_session.query(User).filter(User.email == "cl-emp2@example.com").first()
+        job_id = _create_job_with_embedding(db_session, emp_user.id, _make_vector(0.8, 0.6))
+
+        # Create CV Builder document
+        doc_resp = client.post(
+            "/cv-documents",
+            json={
+                "title": "React Frontend CV",
+                "template_key": "modern-two-column",
+                "content_json": {
+                    "personal": {"full_name": "Tran Thi Binh", "email": "cl-cand2@example.com"},
+                    "summary": "Senior React Developer with 5 years experience.",
+                    "skills": [{"name": "React"}, {"name": "TypeScript"}],
+                    "experience": [{"company": "Alpha Lab", "role": "Frontend Lead"}],
+                },
+            },
+            headers=cand_headers,
+        )
+        assert doc_resp.status_code == 201, doc_resp.text
+        doc_id = doc_resp.json()["id"]
+
+        resp = client.post(
+            "/ai/cover-letter",
+            json={
+                "job_id": job_id,
+                "cv_document_id": doc_id,
+                "tone": "enthusiastic",
+            },
+            headers=cand_headers,
+        )
+        assert resp.status_code == 200, resp.text
+        data = resp.json()
+        assert "cover_letter" in data
+        assert len(data["cover_letter"]) > 50
+        assert "Tran Thi Binh" in data["cover_letter"]
+
+    def test_cover_letter_validation_error_when_no_cv_provided(
+        self, client: TestClient, db_session: Session
+    ):
+        cand_headers = _register_and_login(
+            client, "cl-cand3@example.com", "pass", "Le Van C", role="candidate", db=db_session
+        )
+        resp = client.post(
+            "/ai/cover-letter",
+            json={"job_id": 1},
+            headers=cand_headers,
+        )
+        assert resp.status_code == 422
+
+    def test_cover_letter_forbidden_access_to_other_candidate_cv(
+        self, client: TestClient, db_session: Session
+    ):
+        _register_and_login(
+            client, "cl-owner@example.com", "pass", "Owner", role="candidate", db=db_session
+        )
+        other_headers = _register_and_login(
+            client, "cl-other@example.com", "pass", "Other", role="candidate", db=db_session
+        )
+
+        from app.models.user import User
+
+        owner_user = db_session.query(User).filter(User.email == "cl-owner@example.com").first()
+        emp_user = _register_and_login(
+            client, "cl-emp-temp@example.com", "pass", "Emp", role="employer", db=db_session
+        )
+        emp_user_obj = (
+            db_session.query(User).filter(User.email == "cl-emp-temp@example.com").first()
+        )
+        job_id = _create_job_with_embedding(db_session, emp_user_obj.id, _make_vector(1.0, 0.0))
+        owner_resume_id = _create_resume_with_embedding(
+            db_session, owner_user.id, _make_vector(1.0, 0.0), "owner.pdf"
+        )
+
+        resp = client.post(
+            "/ai/cover-letter",
+            json={"job_id": job_id, "resume_id": owner_resume_id},
+            headers=other_headers,
+        )
+        assert resp.status_code == 403
+
+    def test_match_with_cv_document(self, client: TestClient, db_session: Session, monkeypatch):
+        cand_headers = _register_and_login(
+            client, "match-cand@example.com", "pass", "Hoang D", role="candidate", db=db_session
+        )
+        emp_headers = _register_and_login(
+            client, "match-emp@example.com", "pass", "Emp D", role="employer", db=db_session
+        )
+
+        from app.models.user import User
+
+        emp_user = db_session.query(User).filter(User.email == "match-emp@example.com").first()
+        job_id = _create_job_with_embedding(db_session, emp_user.id, _make_vector(1.0, 0.0))
+
+        doc_resp = client.post(
+            "/cv-documents",
+            json={
+                "title": "Fullstack CV",
+                "template_key": "modern-two-column",
+                "content_json": {
+                    "personal": {"full_name": "Hoang D", "email": "match-cand@example.com"},
+                    "summary": "Backend Python specialist",
+                    "skills": [{"name": "FastAPI"}, {"name": "PostgreSQL"}],
+                    "experience": [{"company": "VNG", "role": "Senior Engineer"}],
+                },
+            },
+            headers=cand_headers,
+        )
+        assert doc_resp.status_code == 201
+        doc_id = doc_resp.json()["id"]
+
+        # Mock embedding generator so it returns a valid vector
+        import app.services.embedding_service
+
+        monkeypatch.setattr(
+            app.services.embedding_service,
+            "generate_embedding",
+            lambda text: _make_vector(1.0, 0.0),
+        )
+
+        resp = client.post(
+            "/ai/match",
+            json={"job_id": job_id, "cv_document_id": doc_id},
+            headers=cand_headers,
+        )
+        assert resp.status_code == 200, resp.text
+        data = resp.json()
+        assert "score" in data
+        assert data["score"] > 0.0
+        assert "explanation" in data
+
+    def test_match_with_cv_document_forbidden_for_another_candidate(
+        self, client: TestClient, db_session: Session
+    ):
+        cand1_headers = _register_and_login(
+            client, "cvowner1@example.com", "pass", "Owner 1", role="candidate", db=db_session
+        )
+        cand2_headers = _register_and_login(
+            client, "cvattacker@example.com", "pass", "Attacker", role="candidate", db=db_session
+        )
+        emp_user = _register_and_login(
+            client,
+            "emp-match-guard@example.com",
+            "pass",
+            "Emp Guard",
+            role="employer",
+            db=db_session,
+        )
+
+        from app.models.user import User
+
+        emp_obj = db_session.query(User).filter(User.email == "emp-match-guard@example.com").first()
+        job_id = _create_job_with_embedding(db_session, emp_obj.id, _make_vector(1.0, 0.0))
+
+        doc_resp = client.post(
+            "/cv-documents",
+            json={
+                "title": "Private CV",
+                "template_key": "modern-two-column",
+                "content_json": {"summary": "Private data"},
+            },
+            headers=cand1_headers,
+        )
+        assert doc_resp.status_code == 201
+        doc_id = doc_resp.json()["id"]
+
+        resp = client.post(
+            "/ai/match",
+            json={"job_id": job_id, "cv_document_id": doc_id},
+            headers=cand2_headers,
+        )
+        assert resp.status_code == 403

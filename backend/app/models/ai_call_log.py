@@ -16,6 +16,7 @@ class AIFeature(str, enum.Enum):
     INTERVIEW_QUESTIONS = "interview_questions"
     GENERATE_EMAIL = "generate_email"
     GENERATE_JD = "generate_jd"
+    COVER_LETTER = "cover_letter"
 
 
 class AICallStatus(str, enum.Enum):

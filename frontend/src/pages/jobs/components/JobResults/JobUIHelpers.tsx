@@ -3,8 +3,26 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Check, Loader2, AlertCircle, Sparkles, SearchX, Info, X } from "lucide-react";
 import { useJobStore, useApplyStatus } from "@/stores/jobStore";
 
+export interface AIMatchBadgeProps {
+  score: number;
+  breakdown?: {
+    skills_score?: number;
+    experience_score?: number;
+    domain_score?: number;
+  };
+  explanation?: string;
+  strengths?: string[];
+  gaps?: string[];
+}
+
 /** Renders the AI Match badge & popover tooltip based on score tier */
-export function AIMatchBadge({ score }: { score: number }) {
+export function AIMatchBadge({
+  score,
+  breakdown,
+  explanation,
+  strengths,
+  gaps,
+}: AIMatchBadgeProps) {
   const [isOpen, setIsOpen] = useState(false);
 
   // Match score level label
@@ -57,38 +75,105 @@ export function AIMatchBadge({ score }: { score: number }) {
             exit={{ opacity: 0, scale: 0.95, y: 6 }}
             transition={{ duration: 0.15 }}
             onClick={(e) => e.stopPropagation()}
-            className="absolute left-0 bottom-full mb-2.5 z-40 w-64 p-4 bg-white/95 backdrop-blur-md rounded-2xl border border-emerald-200/80 shadow-xl shadow-slate-900/10 text-xs text-[#0F172A]"
+            className="absolute left-0 bottom-full mb-2.5 z-40 w-72 p-4 bg-white/95 backdrop-blur-md rounded-2xl border border-emerald-200/80 shadow-xl shadow-slate-900/10 text-xs text-[#0F172A]"
           >
             <div className="flex items-center justify-between font-bold border-b border-slate-100 pb-2 mb-2 text-sm">
               <span className="flex items-center gap-1.5 text-[#00B86B]">
-                <Sparkles className="w-4 h-4" /> AI Match Explanation
+                <Sparkles className="w-4 h-4" /> Chi tiết AI Matching
               </span>
               <button
                 type="button"
                 onClick={() => setIsOpen(false)}
-                className="text-slate-400 hover:text-slate-700"
+                className="text-slate-400 hover:text-slate-700 cursor-pointer"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
             </div>
 
-            <div className="space-y-1.5 mb-3">
-              <div className="flex items-center justify-between text-emerald-700">
-                <span>✓ Kỹ năng chính</span>
-                <span className="font-semibold">Khớp tốt</span>
-              </div>
-              <div className="flex items-center justify-between text-emerald-700">
-                <span>✓ Kinh nghiệm</span>
-                <span className="font-semibold">Đạt yêu cầu</span>
-              </div>
-              <div className="flex items-center justify-between text-amber-600">
-                <span>△ Địa điểm / Loại hình</span>
-                <span className="font-semibold">Phù hợp</span>
-              </div>
+            <div className="space-y-2 mb-3">
+              {breakdown ? (
+                <div className="space-y-2">
+                  <div className="space-y-0.5">
+                    <div className="flex items-center justify-between text-[11px] text-slate-600">
+                      <span>Kỹ năng chuyên môn</span>
+                      <span className="font-bold text-emerald-600">{breakdown.skills_score ?? score}%</span>
+                    </div>
+                    <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-emerald-500 rounded-full"
+                        style={{ width: `${breakdown.skills_score ?? score}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-0.5">
+                    <div className="flex items-center justify-between text-[11px] text-slate-600">
+                      <span>Kinh nghiệm thực tế</span>
+                      <span className="font-bold text-teal-600">{breakdown.experience_score ?? score}%</span>
+                    </div>
+                    <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-teal-500 rounded-full"
+                        style={{ width: `${breakdown.experience_score ?? score}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-0.5">
+                    <div className="flex items-center justify-between text-[11px] text-slate-600">
+                      <span>Độ hiểu ngành (Domain)</span>
+                      <span className="font-bold text-cyan-600">{breakdown.domain_score ?? score}%</span>
+                    </div>
+                    <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-cyan-500 rounded-full"
+                        style={{ width: `${breakdown.domain_score ?? score}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-emerald-700">
+                    <span>✓ Kỹ năng chính</span>
+                    <span className="font-semibold">
+                      {score >= 80 ? "Khớp xuất sắc" : score >= 60 ? "Khớp tốt" : "Tiềm năng"}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-emerald-700">
+                    <span>✓ Kinh nghiệm</span>
+                    <span className="font-semibold">
+                      {score >= 70 ? "Đạt yêu cầu" : "Cần bổ sung"}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-amber-600">
+                    <span>△ Độ tương thích</span>
+                    <span className="font-semibold">{getScoreLabel(score)}</span>
+                  </div>
+                </div>
+              )}
+
+              {explanation && (
+                <p className="text-[11px] text-slate-600 italic pt-1.5 border-t border-slate-100 line-clamp-2">
+                  {explanation}
+                </p>
+              )}
+
+              {strengths && strengths.length > 0 && (
+                <div className="pt-1 text-[11px] text-emerald-700">
+                  <span className="font-bold">Thế mạnh:</span> {strengths.slice(0, 2).join(", ")}
+                </div>
+              )}
+
+              {gaps && gaps.length > 0 && (
+                <div className="pt-0.5 text-[11px] text-amber-700">
+                  <span className="font-bold">Cần cải thiện:</span> {gaps.slice(0, 2).join(", ")}
+                </div>
+              )}
             </div>
 
             <div className="pt-2 border-t border-slate-100 flex items-center justify-between font-bold text-slate-700">
-              <span>Mức độ phù hợp:</span>
+              <span>Độ tương thích:</span>
               <span className="px-2 py-0.5 rounded-full bg-[#ECFDF5] text-[#00995C] text-[11px]">
                 {getScoreLabel(score)} ({score.toFixed(0)}%)
               </span>
