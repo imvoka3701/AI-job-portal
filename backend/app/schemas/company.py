@@ -21,6 +21,7 @@ class CompanyRead(BaseModel):
     description: str | None = None
     logo_url: str | None = None
     is_active: bool
+    is_verified: bool = False
 
 
 class DepartmentCreate(BaseModel):

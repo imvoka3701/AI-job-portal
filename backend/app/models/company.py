@@ -64,6 +64,7 @@ class Company(Base):
     contact_person_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
     contact_person_phone: Mapped[str | None] = mapped_column(String(50), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    is_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     created_by_user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id"), nullable=False, index=True
     )

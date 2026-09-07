@@ -390,10 +390,50 @@ export const JobDetailPage = () => {
       ? `Lên tới ${(job.salary_max / 1000000).toLocaleString()} triệu VNĐ`
       : "Thoả thuận cạnh tranh";
 
+  // Compute Company Verification Status
+  const isCompanyVerified = Boolean(
+    job.company?.is_verified ||
+    (job.employer?.is_active && Boolean(job.employer?.company_name))
+  );
+
   // Compute Salary Market Benchmark
   const expLevel = job.experience_level || "middle";
-  const medianSalary = expLevel === "senior" ? 55 : expLevel === "lead" ? 85 : 32;
-  const isHighSalary = (job.salary_max || job.salary_min || 0) >= medianSalary * 1000000;
+  const marketScaleByLevel: Record<string, { min: number; median: number; max: number; label: string }> = {
+    fresher: { min: 8, median: 14, max: 25, label: "Fresher / Thực tập" },
+    junior: { min: 12, median: 22, max: 35, label: "Junior" },
+    middle: { min: 22, median: 35, max: 55, label: "Middle" },
+    senior: { min: 38, median: 58, max: 90, label: "Senior" },
+    lead: { min: 55, median: 85, max: 130, label: "Lead / Manager" },
+  };
+  const marketBenchmark = marketScaleByLevel[expLevel] || marketScaleByLevel.middle;
+  const hasSalary = Boolean(job.salary_min || job.salary_max);
+  const salaryMinM = job.salary_min ? Math.round(job.salary_min / 1000000) : null;
+  const salaryMaxM = job.salary_max ? Math.round(job.salary_max / 1000000) : null;
+  const scaleMin = Math.min(marketBenchmark.min, salaryMinM ?? marketBenchmark.min);
+  const scaleMax = Math.max(marketBenchmark.max, salaryMaxM ?? marketBenchmark.max);
+  const rangeSpan = Math.max(1, scaleMax - scaleMin);
+
+  let leftPct = 0;
+  let widthPct = 0;
+  if (salaryMinM !== null && salaryMaxM !== null) {
+    leftPct = Math.max(0, Math.min(100, ((salaryMinM - scaleMin) / rangeSpan) * 100));
+    const rightPct = Math.max(0, Math.min(100, ((salaryMaxM - scaleMin) / rangeSpan) * 100));
+    widthPct = Math.max(8, rightPct - leftPct);
+  } else if (salaryMinM !== null) {
+    leftPct = Math.max(0, Math.min(100, ((salaryMinM - scaleMin) / rangeSpan) * 100));
+    widthPct = Math.max(15, 100 - leftPct);
+  } else if (salaryMaxM !== null) {
+    leftPct = 0;
+    widthPct = Math.max(15, Math.min(100, ((salaryMaxM - scaleMin) / rangeSpan) * 100));
+  }
+
+  const effectiveMax = salaryMaxM ?? salaryMinM ?? 0;
+  const isAboveMedian = effectiveMax >= marketBenchmark.median;
+  const comparisonLabel = hasSalary
+    ? isAboveMedian
+      ? "🌟 Mức thu nhập trên trung vị thị trường"
+      : "✓ Mức thu nhập chuẩn dải thị trường"
+    : "Thoả thuận theo năng lực";
 
   // Tech Stacks Mock Data based on title
   const techStackList = [
@@ -479,10 +519,17 @@ export const JobDetailPage = () => {
                     <Building2 className="w-4 h-4 text-emerald-600" />
                     {companyName}
                   </span>
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
-                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                    Doanh nghiệp đã xác thực
-                  </span>
+                  {isCompanyVerified ? (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                      Doanh nghiệp đã xác thực
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-slate-100 text-slate-600 border border-slate-200">
+                      <Building2 className="w-3.5 h-3.5 text-slate-500" />
+                      Doanh nghiệp đối tác
+                    </span>
+                  )}
                   {job.is_active ? (
                     <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
                       <span className="w-1.5 h-1.5 rounded-full bg-[#00B86B] animate-pulse" />
@@ -761,28 +808,57 @@ export const JobDetailPage = () => {
                 </Link>
               </div>
 
-              <div className="space-y-3">
-                <div className="flex items-center justify-between text-xs font-bold text-slate-700">
-                  <span>Trung vị thị trường ({expLevel}): <strong>{medianSalary} Triệu VNĐ</strong></span>
-                  <span className="text-emerald-700 font-black">
-                    {isHighSalary ? "🌟 Thuộc Top 15% cạnh tranh nhất" : "✓ Mức thu nhập chuẩn thị trường"}
-                  </span>
-                </div>
+              {hasSalary ? (
+                <div className="space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs font-bold text-slate-700">
+                    <span>
+                      Dải lương tin đăng: <strong className="text-emerald-800 font-black">{formattedSalary}</strong>
+                    </span>
+                    <span className="text-emerald-700 font-black">{comparisonLabel}</span>
+                  </div>
 
-                {/* Progress Visual Bar */}
-                <div className="w-full h-3.5 bg-slate-100 rounded-full overflow-hidden p-0.5 border border-slate-200 flex">
-                  <div
-                    className="h-full rounded-full bg-gradient-to-r from-emerald-400 via-[#00B86B] to-teal-600 transition-all duration-1000 shadow-xs"
-                    style={{ width: isHighSalary ? "88%" : "72%" }}
-                  />
-                </div>
+                  {/* Visual Market Position Bar */}
+                  <div className="relative w-full h-4 bg-slate-100 rounded-full overflow-hidden p-0.5 border border-slate-200">
+                    {/* Median indicator marker */}
+                    <div
+                      className="absolute top-0 bottom-0 w-0.5 bg-slate-400 z-10"
+                      style={{ left: `${Math.max(0, Math.min(100, ((marketBenchmark.median - scaleMin) / rangeSpan) * 100))}%` }}
+                      title={`Trung vị thị trường (${marketBenchmark.label}): ${marketBenchmark.median}M`}
+                    />
+                    {/* Salary Range Highlight */}
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-emerald-400 via-[#00B86B] to-teal-600 transition-all duration-700 shadow-xs"
+                      style={{
+                        marginLeft: `${leftPct}%`,
+                        width: `${widthPct}%`,
+                      }}
+                    />
+                  </div>
 
-                <div className="flex justify-between text-[11px] text-slate-400 font-semibold">
-                  <span>Khởi điểm: 15M</span>
-                  <span>Trung vị: {medianSalary}M</span>
-                  <span>Cao cấp: 80M+</span>
+                  <div className="flex justify-between text-[11px] text-slate-400 font-semibold">
+                    <span>Mốc thấp: {scaleMin}M</span>
+                    <span className="text-slate-600 font-bold">
+                      Trung vị ({marketBenchmark.label}): {marketBenchmark.median}M
+                    </span>
+                    <span>Mốc cao: {scaleMax}M+</span>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs font-bold text-slate-700">
+                    <span className="flex items-center gap-1.5 text-slate-800">
+                      <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+                      Mức thu nhập thoả thuận theo năng lực
+                    </span>
+                    <span className="text-slate-500">
+                      Tham khảo trung vị ({marketBenchmark.label}): <strong>~{marketBenchmark.median}M VNĐ</strong>
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 leading-relaxed font-normal">
+                    Nhà tuyển dụng sẽ trao đổi trực tiếp gói đãi ngộ linh hoạt tương xứng với năng lực chuyên môn và kinh nghiệm thực chiến của bạn.
+                  </p>
+                </div>
+              )}
             </section>
 
             {/* ── 4. DETAILED JOB DESCRIPTION & REQUIREMENTS ───────────── */}
@@ -1036,9 +1112,15 @@ export const JobDetailPage = () => {
                 </div>
                 <div>
                   <h3 className="font-black text-sm text-slate-900">{companyName}</h3>
-                  <span className="text-[11px] text-emerald-700 font-bold flex items-center gap-1">
-                    <ShieldCheck size={13} /> Doanh nghiệp đối tác uy tín
-                  </span>
+                  {isCompanyVerified ? (
+                    <span className="text-[11px] text-emerald-700 font-bold flex items-center gap-1">
+                      <ShieldCheck size={13} /> Doanh nghiệp đã xác thực
+                    </span>
+                  ) : (
+                    <span className="text-[11px] text-slate-500 font-medium flex items-center gap-1">
+                      <Building2 size={13} /> Doanh nghiệp đối tác
+                    </span>
+                  )}
                 </div>
               </div>
 

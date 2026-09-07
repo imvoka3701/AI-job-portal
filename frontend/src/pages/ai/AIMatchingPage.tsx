@@ -77,7 +77,7 @@ const ARTICLES = [
     category: "Thuật toán & Kỹ thuật",
     readTime: "5 phút đọc",
     author: "AI Tech Lead Team",
-    excerpt: "Cách hệ thống biến CV và JD thành các vector 1536 chiều để tìm độ tương đồng ngữ nghĩa bằng Cosine Similarity thay vì lọc từ khóa đơn thuần.",
+    excerpt: "Cách hệ thống biến CV và JD thành các vector 384 chiều (paraphrase-multilingual-MiniLM) để tìm độ tương đồng ngữ nghĩa bằng Cosine Similarity thay vì lọc từ khóa đơn thuần.",
   },
   {
     id: "beat-ats-with-google-xyz",
@@ -101,7 +101,7 @@ const ARTICLES = [
 const FAQS = [
   {
     q: "Điểm AI Matching được tính toán dựa trên những yếu tố nào?",
-    a: "Điểm số được tính toán dựa trên thuật toán pgvector Cosine Similarity 1536 chiều, so khớp đa chiều giữa hồ sơ ứng viên và JD gồm: Kỹ năng cốt lõi (Tech Stack Fit), Chiều sâu kinh nghiệm dự án (STAR / Google XYZ), Cấp bậc chuyên môn và Mức lương kỳ vọng.",
+    a: "Điểm số được tính toán dựa trên thuật toán pgvector Cosine Similarity 384 chiều (paraphrase-multilingual-MiniLM), so khớp đa chiều giữa hồ sơ ứng viên và JD gồm: Kỹ năng cốt lõi (Tech Stack Fit), Chiều sâu kinh nghiệm dự án (STAR / Google XYZ), Cấp bậc chuyên môn và Mức lương kỳ vọng.",
   },
   {
     q: "Hệ thống có nhận diện được cả CV tạo bằng CV Studio và file PDF tải lên không?",
@@ -326,7 +326,7 @@ export function AIMatchingPage() {
     <div className="min-h-screen bg-[#F8FAFB] font-sans text-slate-900 selection:bg-emerald-500 selection:text-white">
       <SEOMeta
         title="AI Matching Hub 2026 – So Khớp Việc Làm Chuẩn pgvector | AI Job Portal"
-        description="Khám phá các việc làm có độ tương thích cao nhất với hồ sơ của bạn bằng thuật toán Vector Embedding và Cosine Similarity 1536 chiều."
+        description="Khám phá các việc làm có độ tương thích cao nhất với hồ sơ của bạn bằng thuật toán Vector Embedding và Cosine Similarity 384 chiều."
       />
       <Header />
 
@@ -341,7 +341,7 @@ export function AIMatchingPage() {
             <div className="space-y-4">
               <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-bold">
                 <Sparkles size={14} className="text-[#00B86B] animate-pulse" />
-                <span>pgvector Cosine Similarity 1536-D Engine • Live 2026</span>
+                <span>pgvector Cosine Similarity 384-D Engine (MiniLM-L12) • Live 2026</span>
               </div>
 
               <h1 className="text-2xl sm:text-4xl font-black tracking-tight text-white leading-tight">

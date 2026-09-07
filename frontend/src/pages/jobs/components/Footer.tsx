@@ -350,7 +350,7 @@ export function Footer({ showTopCTA = true }: { showTopCTA?: boolean }) {
               Điểm AI Matching được tính toán như thế nào?
             </h4>
             <p className="text-slate-600 text-xs">
-              Hệ thống sử dụng mô hình Vector Embedding 1536 chiều kết hợp thuật toán Cosine Distance trong pgvector để đối soát ngữ nghĩa chuyên sâu giữa CV và JD công việc trong chưa đầy 50ms.
+              Hệ thống sử dụng mô hình Vector Embedding 384 chiều (paraphrase-multilingual-MiniLM) kết hợp thuật toán Cosine Distance trong pgvector để đối soát ngữ nghĩa chuyên sâu giữa CV và JD công việc trong chưa đầy 50ms.
             </p>
           </div>
 

@@ -112,9 +112,9 @@ Tài liệu này được định dạng chuẩn **GitHub Markdown**. Bạn có 
 - `frontend/src/pages/jobs/JobDetailPage.tsx:367-370, 740-758`
 
 ### 3. Checklist Thực Hiện
-- [ ] **Frontend:** Sửa toàn bộ văn bản marketing và chú giải công nghệ từ "1536 chiều" thành **"384 chiều (paraphrase-multilingual-MiniLM)"** chuẩn xác theo kiến trúc hệ thống.
-- [ ] **Backend & Frontend:** Bổ sung cột `is_verified: bool = False` vào model `Company` hoặc chỉ hiển thị badge xác thực khi công ty đã được Admin duyệt giấy phép kinh doanh/MST hợp lệ.
-- [ ] **Frontend:** Điều chỉnh thanh hiển thị mức lương trên `JobDetailPage` dựa trên khoảng lương thực tế của JD (`salary_min` đến `salary_max`), thay thế nhãn gán cứng bằng mô tả trực quan thực tế.
+- [x] **Frontend:** Sửa toàn bộ văn bản marketing và chú giải công nghệ từ "1536 chiều" thành **"384 chiều (paraphrase-multilingual-MiniLM)"** chuẩn xác theo kiến trúc hệ thống.
+- [x] **Backend & Frontend:** Bổ sung cột `is_verified: bool = False` vào model `Company` hoặc chỉ hiển thị badge xác thực khi công ty đã được Admin duyệt giấy phép kinh doanh/MST hợp lệ.
+- [x] **Frontend:** Điều chỉnh thanh hiển thị mức lương trên `JobDetailPage` dựa trên khoảng lương thực tế của JD (`salary_min` đến `salary_max`), thay thế nhãn gán cứng bằng mô tả trực quan thực tế.
 
 ---
 

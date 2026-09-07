@@ -1,3 +1,4 @@
+import type { Company } from "./company";
 import type { User } from "./user";
 
 /** Job type enum */
@@ -21,6 +22,7 @@ export interface Job {
   is_active: boolean;
   employer_id: number;
   company_id: number | null;
+  company?: Company | null;
   department_id: number | null;
   employer: User | null;
   category_id: number | null;

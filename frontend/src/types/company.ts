@@ -9,6 +9,7 @@ export interface Company {
   description: string | null;
   logo_url: string | null;
   is_active: boolean;
+  is_verified?: boolean;
 }
 
 export interface Department {

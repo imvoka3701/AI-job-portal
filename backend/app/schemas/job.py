@@ -5,6 +5,7 @@ from datetime import datetime
 from pydantic import BaseModel
 
 from app.models.job import ExperienceLevel, JobType
+from app.schemas.company import CompanyRead
 from app.schemas.user import UserRead
 
 
@@ -46,6 +47,7 @@ class JobRead(JobBase):
     is_active: bool
     employer_id: int
     company_id: int | None = None
+    company: CompanyRead | None = None
     employer: UserRead | None = None
     created_at: datetime
     updated_at: datetime
