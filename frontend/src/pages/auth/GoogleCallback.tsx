@@ -18,8 +18,15 @@ export function GoogleCallback() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const token = searchParams.get("token");
-    const redirect = searchParams.get("redirect") || "/dashboard";
+    // Read from URL fragment (#token=...&redirect=...) first, fallback to query string (?token=...)
+    const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+    const token = hashParams.get("token") || searchParams.get("token");
+    const redirect = hashParams.get("redirect") || searchParams.get("redirect") || "/dashboard";
+
+    // Clean hash from browser address bar immediately to prevent token exposure
+    if (window.location.hash) {
+      window.history.replaceState(null, "", window.location.pathname);
+    }
 
     if (!token) {
       setError("Đăng nhập Google thất bại — không nhận được token.");

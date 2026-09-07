@@ -249,17 +249,17 @@ Tài liệu này được định dạng chuẩn **GitHub Markdown**. Bạn có 
 - `backend/app/config.py:41` (SECRET_KEY mặc định)
 
 ### 3. Checklist Thực Hiện
-- [ ] **Backend (Bảo vệ CV PII):**
-  - Tách bạch thư mục lưu trữ: `uploads/avatars/` (công khai) và `storage/resumes/` (riêng tư, cấm truy cập tĩnh).
-  - Gỡ bỏ `app.mount("/uploads", ...)` đối với các tệp hồ sơ cá nhân.
+- [x] **Backend (Bảo vệ CV PII):**
+  - Tách bạch thư mục lưu trữ: `uploads/avatars/` (công khai) và `uploads/resumes/` (riêng tư, cấm truy cập tĩnh).
+  - Gỡ bỏ `app.mount("/uploads", ...)` đối với các tệp hồ sơ cá nhân, chặn truy cập trực tiếp file tĩnh CV.
   - Cập nhật `/resumes/{resume_id}/content` và `/resumes/{resume_id}/download` để cho phép cả ứng viên sở hữu CV VÀ nhà tuyển dụng có đơn ứng tuyển hợp lệ được tải/xem CV.
-- [ ] **Backend (Google OAuth CSRF):**
-  - Sinh `state` token ngẫu nhiên mã hóa an toàn và lưu vào Session/Cookie/Cache có thời hạn khi người dùng bắt đầu đăng nhập Google.
+- [x] **Backend (Google OAuth CSRF):**
+  - Sinh `state` token ngẫu nhiên mã hóa HMAC-SHA256 kèm timestamp và lưu vào Cookie HttpOnly có thời hạn 5 phút khi người dùng bắt đầu đăng nhập Google.
   - Bắt buộc kiểm tra `state` hợp lệ tại `GET /auth/google/callback` trước khi tiến hành đổi `code` lấy token.
-- [ ] **Backend & Frontend (Bảo vệ JWT Token):**
-  - Không truyền token trên URL query string `?token=...`. Chuyển sang sử dụng URL Fragment (`#token=...`) hoặc Cookie `HttpOnly; Secure; SameSite=Lax`.
-- [ ] **Backend (Chống Prompt Injection):**
-  - Cập nhật `ChatMessage` schema chỉ chấp nhận `role: Literal["user", "assistant"]` (chặn tuyệt đối quyền gửi `system` từ client).
+- [x] **Backend & Frontend (Bảo vệ JWT Token):**
+  - Không truyền token trên URL query string `?token=...`. Chuyển sang sử dụng URL Fragment (`#token=...`) và dọn dẹp sạch sẽ History/URL bar ngay lập tức khi nhận token phía Frontend.
+- [x] **Backend (Chống Prompt Injection):**
+  - Cập nhật `ChatMessage` schema chỉ chấp nhận `role: Literal["user", "assistant"]` (chặn tuyệt đối quyền gửi `system` từ client với HTTP 422).
 - [ ] **Backend (Rate Limiting & Auth Hardening):**
   - Bổ sung preset rate limit cho `/auth/login` (5 lần/phút/IP) và `/auth/register` (3 lần/phút/IP).
   - Thêm cơ chế dọn dẹp (cleanup/eviction) cho `SlidingWindowRateLimiter` khi deque rỗng để chống cạn kiệt RAM.

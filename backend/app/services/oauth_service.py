@@ -8,7 +8,10 @@ Flow:
   5. Issue JWT token → redirect to frontend with token in query string.
 """
 
+import hashlib
+import hmac
 import logging
+import time
 from datetime import datetime, timedelta, timezone
 
 from authlib.integrations.httpx_client import AsyncOAuth2Client
@@ -29,20 +32,64 @@ GOOGLE_AUTHORIZE_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
 GOOGLE_USERINFO_URL = "https://openidconnect.googleapis.com/v1/userinfo"
 
+STATE_EXPIRATION_SECONDS = 300  # 5 minutes
+
+
+def sign_oauth_state(raw_state: str) -> str:
+    """Sign state parameter with timestamp and HMAC-SHA256 for CSRF defense."""
+    ts = str(int(time.time()))
+    payload = f"{raw_state}:{ts}"
+    sig = hmac.new(
+        settings.SECRET_KEY.encode(),
+        payload.encode(),
+        hashlib.sha256,
+    ).hexdigest()
+    return f"{raw_state}:{ts}:{sig}"
+
+
+def verify_oauth_state(cookie_state: str | None, query_state: str | None) -> bool:
+    """Verify HMAC signature, timestamp expiration, and match with Google query state."""
+    if not cookie_state or not query_state:
+        return False
+    parts = cookie_state.split(":")
+    if len(parts) != 3:
+        return False
+    raw_state, ts_str, sig = parts
+    try:
+        ts = int(ts_str)
+    except ValueError:
+        return False
+
+    now = time.time()
+    if now - ts > STATE_EXPIRATION_SECONDS or now < ts - 10:
+        return False
+
+    expected_payload = f"{raw_state}:{ts}"
+    expected_sig = hmac.new(
+        settings.SECRET_KEY.encode(),
+        expected_payload.encode(),
+        hashlib.sha256,
+    ).hexdigest()
+
+    if not hmac.compare_digest(sig, expected_sig):
+        return False
+
+    return hmac.compare_digest(raw_state, query_state)
+
 
 class OAuthService:
     """Handles the Google OAuth2 authorization-code flow."""
 
-    def get_authorization_url(self) -> str:
-        """Build the Google OAuth consent URL the frontend redirects to."""
+    def get_authorization_url(self) -> tuple[str, str]:
+        """Build the Google OAuth consent URL and generated state token."""
         client = AsyncOAuth2Client(
             client_id=settings.GOOGLE_CLIENT_ID,
             client_secret=settings.GOOGLE_CLIENT_SECRET,
             redirect_uri=settings.GOOGLE_REDIRECT_URI,
             scope="openid email profile",
         )
-        url, _state = client.create_authorization_url(GOOGLE_AUTHORIZE_URL)
-        return url
+        url, state = client.create_authorization_url(GOOGLE_AUTHORIZE_URL)
+        return url, state
 
     async def handle_callback(self, db: Session, *, code: str) -> tuple[str, str]:
         """Process the OAuth callback, return (jwt_token, redirect_url).
@@ -123,10 +170,10 @@ class OAuthService:
         # 4. Issue JWT
         jwt_token = self._create_access_token(TokenPayload(sub=user.id, role=user.role))
 
-        # 5. Frontend redirect URL
+        # 5. Frontend redirect URL (using URL fragment to prevent token leak in HTTP logs/Referer)
         role_path = "/employer/dashboard" if user.role == UserRole.EMPLOYER else "/dashboard"
         frontend_url = (
-            f"{settings.FRONTEND_URL}/auth/google/callback?token={jwt_token}&redirect={role_path}"
+            f"{settings.FRONTEND_URL}/auth/google/callback#token={jwt_token}&redirect={role_path}"
         )
 
         return jwt_token, frontend_url
