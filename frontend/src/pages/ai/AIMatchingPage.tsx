@@ -20,6 +20,7 @@ import {
   Send,
   HelpCircle,
   AlertTriangle,
+  RefreshCw,
 } from "lucide-react";
 import { getMyResumes } from "@/lib/api/resumes";
 import { getCvDocuments } from "@/lib/api/cvDocuments";
@@ -131,7 +132,8 @@ export function AIMatchingPage() {
   // Jobs feed
   const [jobs, setJobs] = useState<Job[]>([]);
   const [jobsLoading, setJobsLoading] = useState(true);
-  const [, setJobsError] = useState<string | null>(null);
+  const [jobsError, setJobsError] = useState<string | null>(null);
+  const [cvLoadError, setCvLoadError] = useState<string | null>(null);
 
   // Filters
   const [searchQuery, setSearchQuery] = useState("");
@@ -157,6 +159,7 @@ export function AIMatchingPage() {
   const fetchUserCVs = useCallback(async () => {
     if (!user) return;
     setIsCvLoading(true);
+    setCvLoadError(null);
     try {
       const [resumesData, docsData] = await Promise.allSettled([
         getMyResumes(),
@@ -165,6 +168,10 @@ export function AIMatchingPage() {
 
       const loadedResumes = resumesData.status === "fulfilled" ? resumesData.value : [];
       const loadedDocs = docsData.status === "fulfilled" ? docsData.value : [];
+
+      if (resumesData.status === "rejected" && docsData.status === "rejected") {
+        setCvLoadError("Không thể tải danh sách hồ sơ CV. Vui lòng kiểm tra lại kết nối.");
+      }
 
       setResumes(loadedResumes);
       setCvDocs(loadedDocs);
@@ -175,8 +182,8 @@ export function AIMatchingPage() {
       } else if (loadedResumes.length > 0) {
         setSelectedCvSource({ type: "resume", id: loadedResumes[0].id });
       }
-    } catch {
-      // Ignored fallback
+    } catch (err) {
+      setCvLoadError(getApiErrorMessage(err));
     } finally {
       setIsCvLoading(false);
     }
@@ -187,24 +194,25 @@ export function AIMatchingPage() {
   }, [fetchUserCVs]);
 
   // Load Jobs
-  useEffect(() => {
-    const loadJobs = async () => {
-      setJobsLoading(true);
-      setJobsError(null);
-      try {
-        const res = await getJobs({ page: 1, page_size: 20 });
-        setJobs(res.items || []);
-        if (res.items && res.items.length > 0) {
-          setSelectedJobForDetail(res.items[0]);
-        }
-      } catch (err) {
-        setJobsError(getApiErrorMessage(err));
-      } finally {
-        setJobsLoading(false);
+  const loadJobs = useCallback(async () => {
+    setJobsLoading(true);
+    setJobsError(null);
+    try {
+      const res = await getJobs({ page: 1, page_size: 20 });
+      setJobs(res.items || []);
+      if (res.items && res.items.length > 0) {
+        setSelectedJobForDetail(res.items[0]);
       }
-    };
-    loadJobs();
+    } catch (err) {
+      setJobsError(getApiErrorMessage(err));
+    } finally {
+      setJobsLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    loadJobs();
+  }, [loadJobs]);
 
   // Compute Active Skills for Matching
   const activeCandidateSkills = useMemo(() => {
@@ -365,6 +373,18 @@ export function AIMatchingPage() {
                   {user ? (
                     isCvLoading ? (
                       <Spinner size="sm" label="Đang tải..." />
+                    ) : cvLoadError ? (
+                      <div className="flex items-center gap-2 text-xs text-rose-300 bg-rose-950/60 border border-rose-800/80 px-3 py-1.5 rounded-xl">
+                        <AlertCircle size={14} className="text-rose-400 shrink-0" />
+                        <span>{cvLoadError}</span>
+                        <button
+                          type="button"
+                          onClick={fetchUserCVs}
+                          className="underline hover:text-white flex items-center gap-1 font-semibold ml-1 cursor-pointer"
+                        >
+                          <RefreshCw size={12} /> Thử lại
+                        </button>
+                      </div>
                     ) : cvDocs.length > 0 || resumes.length > 0 ? (
                       <div className="flex flex-wrap items-center gap-2">
                         {cvDocs.map((doc) => (
@@ -538,6 +558,19 @@ export function AIMatchingPage() {
               <div className="p-12 text-center bg-white rounded-3xl border border-slate-200 shadow-xs space-y-3">
                 <Spinner size="lg" label="AI đang quét vector embedding và so khớp..." />
                 <p className="text-xs sm:text-sm text-slate-400">Đang tính toán Cosine Similarity cho {jobs.length} công việc...</p>
+              </div>
+            ) : jobsError ? (
+              <div className="p-12 text-center bg-white rounded-3xl border border-rose-200 shadow-xs space-y-3">
+                <AlertCircle size={32} className="mx-auto text-rose-500" />
+                <h3 className="text-base font-bold text-slate-800">Không thể tải danh sách việc làm</h3>
+                <p className="text-xs sm:text-sm text-rose-600 max-w-md mx-auto">{jobsError}</p>
+                <Button
+                  size="sm"
+                  onClick={loadJobs}
+                  className="bg-[#00B86B] hover:bg-[#009b5a] text-white rounded-full font-bold text-xs inline-flex items-center gap-1.5"
+                >
+                  <RefreshCw size={14} /> Thử lại
+                </Button>
               </div>
             ) : rankedJobs.length === 0 ? (
               <div className="p-12 text-center bg-white rounded-3xl border border-slate-200 shadow-xs space-y-3">

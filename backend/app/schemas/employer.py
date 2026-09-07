@@ -80,6 +80,8 @@ class CompanySettingsRead(BaseModel):
     contact_person_name: str | None = None
     contact_person_email: str | None = None
     contact_person_phone: str | None = None
+    ai_matching_weights: dict | None = None
+    webhook_config: dict | None = None
 
     model_config = {"from_attributes": True}
 
@@ -99,3 +101,5 @@ class CompanySettingsUpdate(BaseModel):
     contact_person_name: str | None = None
     contact_person_email: str | None = None
     contact_person_phone: str | None = None
+    ai_matching_weights: dict | None = None
+    webhook_config: dict | None = None

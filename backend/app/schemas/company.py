@@ -22,6 +22,8 @@ class CompanyRead(BaseModel):
     logo_url: str | None = None
     is_active: bool
     is_verified: bool = False
+    ai_matching_weights: dict | None = None
+    webhook_config: dict | None = None
 
 
 class DepartmentCreate(BaseModel):

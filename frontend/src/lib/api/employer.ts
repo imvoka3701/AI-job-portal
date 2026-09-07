@@ -47,6 +47,25 @@ export async function getEmployerStats(): Promise<EmployerStats> {
 
 // ── Company Settings ─────────────────────────────────────────────────────────
 
+export interface CompanyAIMatchingWeights {
+  min_match_threshold?: number;
+  weight_skills?: number;
+  weight_exp?: number;
+  weight_edu?: number;
+  weight_culture?: number;
+  auto_email_draft?: boolean;
+  auto_questions?: boolean;
+  [key: string]: unknown;
+}
+
+export interface CompanyWebhookConfig {
+  webhook_url?: string;
+  email_on_high_match?: boolean;
+  interview_reminder?: boolean;
+  weekly_digest?: boolean;
+  [key: string]: unknown;
+}
+
 export interface CompanySettings {
   id: number;
   name: string;
@@ -61,6 +80,8 @@ export interface CompanySettings {
   contact_person_name: string | null;
   contact_person_email: string | null;
   contact_person_phone: string | null;
+  ai_matching_weights?: CompanyAIMatchingWeights | null;
+  webhook_config?: CompanyWebhookConfig | null;
 }
 
 export type CompanySettingsUpdatePayload = Partial<Omit<CompanySettings, "id">>;

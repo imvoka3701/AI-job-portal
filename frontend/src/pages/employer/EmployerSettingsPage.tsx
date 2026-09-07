@@ -91,6 +91,25 @@ export function EmployerSettingsPage() {
       setContactName(settings.contact_person_name || "");
       setContactEmail(settings.contact_person_email || user?.email || "");
       setContactPhone(settings.contact_person_phone || "");
+
+      if (settings.ai_matching_weights) {
+        const ai = settings.ai_matching_weights;
+        if (typeof ai.min_match_threshold === "number") setMinMatchThreshold(ai.min_match_threshold);
+        if (typeof ai.weight_skills === "number") setWeightSkills(ai.weight_skills);
+        if (typeof ai.weight_exp === "number") setWeightExp(ai.weight_exp);
+        if (typeof ai.weight_edu === "number") setWeightEdu(ai.weight_edu);
+        if (typeof ai.weight_culture === "number") setWeightCulture(ai.weight_culture);
+        if (typeof ai.auto_email_draft === "boolean") setAutoEmailDraft(ai.auto_email_draft);
+        if (typeof ai.auto_questions === "boolean") setAutoQuestions(ai.auto_questions);
+      }
+
+      if (settings.webhook_config) {
+        const wh = settings.webhook_config;
+        if (typeof wh.webhook_url === "string") setWebhookUrl(wh.webhook_url);
+        if (typeof wh.email_on_high_match === "boolean") setEmailOnHighMatch(wh.email_on_high_match);
+        if (typeof wh.interview_reminder === "boolean") setInterviewReminder(wh.interview_reminder);
+        if (typeof wh.weekly_digest === "boolean") setWeeklyDigest(wh.weekly_digest);
+      }
     } catch (err) {
       setLoadError(getApiErrorMessage(err));
       // Fallback to context data
@@ -109,6 +128,7 @@ export function EmployerSettingsPage() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
+    setLoadError(null);
     try {
       await updateCompanySettings({
         name: companyName,
@@ -121,6 +141,21 @@ export function EmployerSettingsPage() {
         contact_person_name: contactName,
         contact_person_email: contactEmail,
         contact_person_phone: contactPhone,
+        ai_matching_weights: {
+          min_match_threshold: minMatchThreshold,
+          weight_skills: weightSkills,
+          weight_exp: weightExp,
+          weight_edu: weightEdu,
+          weight_culture: weightCulture,
+          auto_email_draft: autoEmailDraft,
+          auto_questions: autoQuestions,
+        },
+        webhook_config: {
+          webhook_url: webhookUrl,
+          email_on_high_match: emailOnHighMatch,
+          interview_reminder: interviewReminder,
+          weekly_digest: weeklyDigest,
+        },
       });
       setSavedSuccess(true);
       setTimeout(() => setSavedSuccess(false), 3000);
@@ -217,8 +252,15 @@ export function EmployerSettingsPage() {
         </div>
       )}
       {loadError && (
-        <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700 font-medium">
-          {loadError}
+        <div className="flex items-center justify-between p-3 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700 font-medium">
+          <span>{loadError}</span>
+          <button
+            type="button"
+            onClick={loadSettings}
+            className="flex items-center gap-1 text-red-700 hover:text-red-900 font-semibold underline ml-2 shrink-0"
+          >
+            <RefreshCw className="w-3.5 h-3.5" /> Thử lại
+          </button>
         </div>
       )}
 

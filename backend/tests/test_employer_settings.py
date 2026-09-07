@@ -132,3 +132,42 @@ class TestUpdateSettings:
         headers = _register_approved_employer(client, db_session)
         response = client.patch("/employer/settings", json={}, headers=headers)
         assert response.status_code == 400
+
+    def test_patch_and_get_ai_weights_and_webhook_config(
+        self, client: TestClient, db_session: Session
+    ):
+        """Test that AI matching weights and webhook config can be updated and retrieved."""
+        headers = _register_approved_employer(client, db_session)
+        ai_payload = {
+            "min_match_threshold": 85,
+            "weight_skills": 50,
+            "weight_exp": 30,
+            "weight_edu": 10,
+            "weight_culture": 10,
+            "auto_email_draft": True,
+            "auto_questions": False,
+        }
+        webhook_payload = {
+            "webhook_url": "https://api.company.com/webhook",
+            "email_on_high_match": True,
+            "interview_reminder": True,
+            "weekly_digest": False,
+        }
+        response = client.patch(
+            "/employer/settings",
+            json={
+                "ai_matching_weights": ai_payload,
+                "webhook_config": webhook_payload,
+            },
+            headers=headers,
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["ai_matching_weights"] == ai_payload
+        assert data["webhook_config"] == webhook_payload
+
+        # Subsequent GET persists the data
+        get_resp = client.get("/employer/settings", headers=headers)
+        assert get_resp.status_code == 200
+        assert get_resp.json()["ai_matching_weights"] == ai_payload
+        assert get_resp.json()["webhook_config"] == webhook_payload

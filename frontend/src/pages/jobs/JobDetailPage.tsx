@@ -1,11 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { applyJob, getJobById, getJobs } from "@/lib/api/jobs";
 import { getMyResumes } from "@/lib/api/resumes";
 import { getCvDocuments } from "@/lib/api/cvDocuments";
 import { generateCoverLetter, getAiMatch } from "@/lib/api/ai";
 import { useUser, useAuthStore } from "@/stores/authStore";
-import { tokenStorage } from "@/lib/axios";
+import { tokenStorage, getApiErrorMessage } from "@/lib/axios";
 import { Button, Card, Badge, Modal } from "@/components/ui";
 import { Header } from "@/pages/jobs/components/Header";
 import { SEOMeta } from "@/components/seo/SEOMeta";
@@ -76,6 +76,8 @@ export const JobDetailPage = () => {
   // AI Matching Breakdown State
   const [aiMatchResult, setAiMatchResult] = useState<AIMatchResult | null>(null);
   const [isMatchingLoading, setIsMatchingLoading] = useState(false);
+  const [matchingError, setMatchingError] = useState<string | null>(null);
+  const [cvLoadError, setCvLoadError] = useState<string | null>(null);
   const [openInterviewFaqIndex, setOpenInterviewFaqIndex] = useState<number | null>(0);
 
   // Utility State
@@ -117,8 +119,9 @@ export const JobDetailPage = () => {
     window.print();
   };
 
-  const refreshCandidateDocuments = async () => {
+  const refreshCandidateDocuments = useCallback(async () => {
     if (!tokenStorage.get() || user?.role !== "candidate") return;
+    setCvLoadError(null);
     try {
       const [resumeItems, builderItems] = await Promise.all([getMyResumes(), getCvDocuments()]);
       setResumes(resumeItems);
@@ -126,10 +129,10 @@ export const JobDetailPage = () => {
       if (!selectedDocument && (resumeItems[0] || builderItems[0])) {
         setSelectedDocument(resumeItems[0] ? `resume:${resumeItems[0].id}` : `builder:${builderItems[0].id}`);
       }
-    } catch {
-      // Ignore
+    } catch (err) {
+      setCvLoadError(getApiErrorMessage(err));
     }
-  };
+  }, [user?.role, selectedDocument]);
 
   useEffect(() => {
     if (!user && tokenStorage.get()) {
@@ -184,10 +187,14 @@ export const JobDetailPage = () => {
           attempts += 1;
           window.setTimeout(loadDocuments, 500);
         }
-      } catch {
-        if (!cancelled && attempts < 3) {
-          attempts += 1;
-          window.setTimeout(loadDocuments, 500);
+      } catch (err) {
+        if (!cancelled) {
+          if (attempts < 3) {
+            attempts += 1;
+            window.setTimeout(loadDocuments, 500);
+          } else {
+            setCvLoadError(getApiErrorMessage(err));
+          }
         }
       }
     };
@@ -198,42 +205,45 @@ export const JobDetailPage = () => {
   }, [user?.role, isCompanyInternal]);
 
   // Trigger AI Matching Evaluation when job & selected document change
-  useEffect(() => {
+  const computeMatching = useCallback(async () => {
     if (!job || isCompanyInternal) return;
 
-    const computeMatching = async () => {
-      let resumeId: number | null = null;
-      let cvDocumentId: number | null = null;
+    let resumeId: number | null = null;
+    let cvDocumentId: number | null = null;
 
-      if (selectedDocument.startsWith("resume:")) {
-        resumeId = Number(selectedDocument.split(":")[1]);
-      } else if (selectedDocument.startsWith("builder:")) {
-        cvDocumentId = Number(selectedDocument.split(":")[1]);
-      }
+    if (selectedDocument.startsWith("resume:")) {
+      resumeId = Number(selectedDocument.split(":")[1]);
+    } else if (selectedDocument.startsWith("builder:")) {
+      cvDocumentId = Number(selectedDocument.split(":")[1]);
+    }
 
-      if (!resumeId && !cvDocumentId) {
-        setAiMatchResult(null);
-        setIsMatchingLoading(false);
-        return;
-      }
+    if (!resumeId && !cvDocumentId) {
+      setAiMatchResult(null);
+      setIsMatchingLoading(false);
+      setMatchingError(null);
+      return;
+    }
 
-      setIsMatchingLoading(true);
-      try {
-        const matchData = await getAiMatch({
-          job_id: job.id,
-          ...(resumeId ? { resume_id: resumeId } : {}),
-          ...(cvDocumentId ? { cv_document_id: cvDocumentId } : {}),
-        });
-        setAiMatchResult(matchData);
-      } catch {
-        setAiMatchResult(null);
-      } finally {
-        setIsMatchingLoading(false);
-      }
-    };
-
-    computeMatching();
+    setIsMatchingLoading(true);
+    setMatchingError(null);
+    try {
+      const matchData = await getAiMatch({
+        job_id: job.id,
+        ...(resumeId ? { resume_id: resumeId } : {}),
+        ...(cvDocumentId ? { cv_document_id: cvDocumentId } : {}),
+      });
+      setAiMatchResult(matchData);
+    } catch (err) {
+      setAiMatchResult(null);
+      setMatchingError(getApiErrorMessage(err));
+    } finally {
+      setIsMatchingLoading(false);
+    }
   }, [job, selectedDocument, isCompanyInternal]);
+
+  useEffect(() => {
+    computeMatching();
+  }, [computeMatching]);
 
   // Generate AI Cover Letter
   const handleGenerateCoverLetter = async () => {
@@ -657,6 +667,8 @@ export const JobDetailPage = () => {
                     <span className="text-xs text-emerald-300 font-semibold">
                       {isMatchingLoading
                         ? "Đang phân tích..."
+                        : matchingError
+                        ? "Lỗi so khớp"
                         : aiMatchResult
                         ? aiMatchResult.score >= 85
                           ? "Cực kỳ tiềm năng"
@@ -712,6 +724,34 @@ export const JobDetailPage = () => {
                   <div className="p-6 rounded-2xl bg-white/5 border border-white/10 text-xs text-slate-200 text-center py-8 space-y-2">
                     <RefreshCw size={20} className="animate-spin text-emerald-400 mx-auto" />
                     <p>Đang so khớp vector embedding giữa CV và JD vị trí {job.title}...</p>
+                  </div>
+                ) : matchingError ? (
+                  <div className="p-4 rounded-2xl bg-rose-500/20 border border-rose-400/40 text-xs text-rose-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <AlertCircle size={16} className="text-rose-400 shrink-0" />
+                      <span>{matchingError}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => void computeMatching()}
+                      className="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold inline-flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
+                    >
+                      <RefreshCw size={12} /> Thử lại
+                    </button>
+                  </div>
+                ) : cvLoadError ? (
+                  <div className="p-4 rounded-2xl bg-rose-500/20 border border-rose-400/40 text-xs text-rose-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <AlertCircle size={16} className="text-rose-400 shrink-0" />
+                      <span>{cvLoadError}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => void refreshCandidateDocuments()}
+                      className="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold inline-flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
+                    >
+                      <RefreshCw size={12} /> Tải lại hồ sơ
+                    </button>
                   </div>
                 ) : aiMatchResult ? (
                   <>

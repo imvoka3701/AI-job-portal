@@ -134,10 +134,10 @@ Tài liệu này được định dạng chuẩn **GitHub Markdown**. Bạn có 
 - `frontend/src/pages/jobs/JobDetailPage.tsx:129-131, 220-222`
 
 ### 3. Checklist Thực Hiện
-- [ ] **Backend:** Bổ sung cấu trúc lưu trữ `ai_matching_weights` và `webhook_config` (sử dụng cột JSON trên bảng `companies` hoặc bảng cấu hình riêng).
-- [ ] **Frontend:** Gắn các trường cấu hình AI và Webhook vào payload gửi lên API khi bấm "Lưu cài đặt" tại `EmployerSettingsPage`.
-- [ ] **Frontend:** Bổ sung biến `jobsError` tại `AIMatchingPage` và hiển thị banner thông báo lỗi kèm nút "Thử lại" khi API thất bại.
-- [ ] **Frontend:** Bổ sung hiển thị thông báo lỗi khi tải CV hoặc tính điểm matching không thành công trên `JobDetailPage`.
+- [x] **Backend:** Bổ sung cấu trúc lưu trữ `ai_matching_weights` và `webhook_config` (sử dụng cột JSON trên bảng `companies` hoặc bảng cấu hình riêng).
+- [x] **Frontend:** Gắn các trường cấu hình AI và Webhook vào payload gửi lên API khi bấm "Lưu cài đặt" tại `EmployerSettingsPage`.
+- [x] **Frontend:** Bổ sung biến `jobsError` tại `AIMatchingPage` và hiển thị banner thông báo lỗi kèm nút "Thử lại" khi API thất bại.
+- [x] **Frontend:** Bổ sung hiển thị thông báo lỗi khi tải CV hoặc tính điểm matching không thành công trên `JobDetailPage`.
 
 ---
 
