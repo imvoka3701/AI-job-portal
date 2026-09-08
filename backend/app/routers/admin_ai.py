@@ -137,7 +137,20 @@ def list_prompts(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role(UserRole.ADMIN)),
 ) -> list[AIPromptConfigOut]:
-    """Return all 5 prompt configs currently stored in DB."""
+    """Return all prompt configs currently stored in DB (seeding missing defaults)."""
+    existing = {c.feature: c for c in db.query(AIPromptConfig).all()}
+    seeded = False
+    for feat, default_prompt in HARDCODED_FALLBACK_PROMPTS.items():
+        if feat not in existing:
+            new_c = AIPromptConfig(
+                feature=feat,
+                system_prompt=default_prompt,
+                is_active=True,
+            )
+            db.add(new_c)
+            seeded = True
+    if seeded:
+        db.commit()
     configs = db.query(AIPromptConfig).order_by(AIPromptConfig.feature).all()
     return [_enrich_prompt(c, db) for c in configs]
 
@@ -215,12 +228,15 @@ async def test_prompt(
     from app.services.deepseek_client import deepseek_client
     from app.services.email_generator import EMAIL_TYPE_SYSTEM_RULES
 
-    # ── Sample inputs for 4 standard features ────────────────────────────────
+    # ── Sample inputs for standard features ──────────────────────────────────
     standard_sample_inputs: dict[AIFeature, str] = {
         AIFeature.CV_EVALUATE: "Ten: Nguyen Van A\nKy nang: Python, FastAPI, PostgreSQL\nKinh nghiem: 3 nam",
         AIFeature.ROADMAP: "CV: Senior Python dev. Muc tieu: Lead Engineer trong 2 nam",
         AIFeature.SUMMARIZE_CV: "CV: Junior React dev 1 nam. JD: Senior Frontend 3 nam+",
         AIFeature.INTERVIEW_QUESTIONS: "Vi tri: Backend Engineer. Ky nang: Python, REST API, Database",
+        AIFeature.GENERATE_JD: "Chuc danh: Senior Python Backend Developer. Nganh nghe: Fintech. Kinh nghiem: 4 nam. Mo ta: Phat trien he thong microservices thanh toan.",
+        AIFeature.COVER_LETTER: "Ung vien: Hoang Minh (3 nam kinh nghiem React/NodeJS). Vi tri ung tuyen: Fullstack Engineer tai TechCorp. Diem noi bat: Toi uu hieu nang 40%.",
+        AIFeature.MATCHING: "CV: Python/FastAPI/Postgres 4 nam. JD: Senior Python Developer 3 nam+ kinh nghiem.",
     }
 
     # ── Per-type sample inputs for generate_email ─────────────────────────────

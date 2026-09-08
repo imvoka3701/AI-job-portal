@@ -44,7 +44,7 @@ interface PaginatedResponse<T> {
 }
 
 type ResultFilter = "all" | "passed" | "failed" | "pending";
-type RoundTypeFilter = "all" | "cv_screen" | "phone_screen" | "technical" | "behavioral" | "final";
+type RoundTypeFilter = "all" | "cv_screen" | "tech" | "hr" | "final" | "custom";
 
 export function AdminInterviewsPage() {
   const user = useUser();
@@ -244,12 +244,12 @@ export function AdminInterviewsPage() {
                     onChange={(e) => setRoundTypeFilter(e.target.value as RoundTypeFilter)}
                     className="h-9 rounded-lg border border-gray-200 bg-white px-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   >
-                    <option value="all">Tất cả</option>
-                    <option value="cv_screen">Sàng lọc CV</option>
-                    <option value="phone_screen">Điện thoại</option>
-                    <option value="technical">Kỹ thuật</option>
-                    <option value="behavioral">Hành vi</option>
-                    <option value="final">Cuối cùng</option>
+                    <option value="all">Tất cả các vòng</option>
+                    <option value="cv_screen">Duyệt CV (cv_screen)</option>
+                    <option value="tech">Phỏng vấn Kỹ thuật (tech)</option>
+                    <option value="hr">Phỏng vấn HR (hr)</option>
+                    <option value="final">Vòng cuối / Thỏa thuận (final)</option>
+                    <option value="custom">Vòng tùy chỉnh (custom)</option>
                   </select>
                 </div>
 

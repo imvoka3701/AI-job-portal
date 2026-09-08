@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { getAdminJobs, setAdminJobStatus, type AdminJobItem } from "@/lib/api/admin";
+import { getAdminJobs, setAdminJobStatus, getAdminStats, type AdminJobItem } from "@/lib/api/admin";
 import { getApiErrorMessage } from "@/lib/axios";
 import { useUser, useAuthStore } from "@/stores/authStore";
 import { tokenStorage } from "@/lib/axios";
@@ -32,6 +32,7 @@ export function AdminJobs() {
   const [statusFilter, setStatusFilter] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
   const [actionId, setActionId] = useState<number | null>(null);
+  const [totalActiveJobs, setTotalActiveJobs] = useState<number | null>(null);
 
   const fetch = useCallback(() => {
     let c = false; setLoading(true); setError(null);
@@ -47,6 +48,14 @@ export function AdminJobs() {
   }, [keyword, statusFilter, page]);
 
   useEffect(() => {
+    if (user?.role === "admin") {
+      getAdminStats()
+        .then((s) => setTotalActiveJobs(s.total_active_jobs))
+        .catch(() => {});
+    }
+  }, [user]);
+
+  useEffect(() => {
     if (!user && tokenStorage.get()) { useAuthStore.getState().fetchMe().catch(() => {}); return; }
     if (!user) { setLoading(false); return; }
     return fetch();
@@ -60,6 +69,7 @@ export function AdminJobs() {
       const updated = await setAdminJobStatus(job.id, nextActive);
       setData((p) => ({ ...p, items: p.items.map((item) => item.id === job.id ? updated : item) }));
       setMsg(`${nextActive ? "Đã mở lại" : "Đã đóng"} tin "${job.title}".`);
+      setTotalActiveJobs((prev) => (prev !== null ? (nextActive ? prev + 1 : Math.max(0, prev - 1)) : null));
     } catch (e) { setMsg(getApiErrorMessage(e)); }
     finally { setActionId(null); }
     setTimeout(() => setMsg(null), 3000);
@@ -68,7 +78,7 @@ export function AdminJobs() {
   if (!user) return <GuestPage>Vui lòng đăng nhập để truy cập.</GuestPage>;
   if (user.role !== "admin") return <GuestPage>Không có quyền truy cập.</GuestPage>;
 
-  const activeCount = data.items.filter(j => j.is_active).length;
+  const activeCount = totalActiveJobs ?? data.items.filter(j => j.is_active).length;
 
   return (
     <>

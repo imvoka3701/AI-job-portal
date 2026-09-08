@@ -53,6 +53,10 @@ const FEATURE_LABELS: Record<string, string> = {
   summarize_cv: "Tóm tắt CV",
   interview_questions: "Câu hỏi PV",
   generate_email: "Tạo email",
+  generate_jd: "Tạo JD tuyển dụng",
+  cover_letter: "Viết Cover Letter",
+  matching: "So khớp AI (Vector)",
+  cv_parse: "Trích xuất CV",
 };
 
 const STATUS_LABELS: Record<string, string> = {

@@ -15,6 +15,9 @@ import {
   CalendarCheck,
   ShieldAlert,
   PartyPopper,
+  Briefcase,
+  PenTool,
+  Target,
 } from "lucide-react";
 import { Badge, Button, Skeleton } from "@/components/ui";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -69,14 +72,42 @@ const FEATURE_META: Record<AIFeature, FeatureMeta> = {
     icon: Mail,
     color: "text-error",
   },
+  generate_jd: {
+    label: "Tạo mô tả công việc (JD)",
+    description: "Tạo bản mô tả công việc chuẩn ATS theo yêu cầu doanh nghiệp",
+    icon: Briefcase,
+    color: "text-emerald-600",
+  },
+  cover_letter: {
+    label: "Viết thư ứng tuyển (Cover Letter)",
+    description: "Tạo thư ứng tuyển cá nhân hoá theo từng vị trí tuyển dụng",
+    icon: PenTool,
+    color: "text-indigo-600",
+  },
+  matching: {
+    label: "So khớp AI (Deep Match)",
+    description: "Thuật toán đối soát chuyên sâu giữa CV ứng viên và mô tả công việc",
+    icon: Target,
+    color: "text-teal-600",
+  },
+  cv_parse: {
+    label: "Phân tích trích xuất CV",
+    description: "Trích xuất kỹ năng, kinh nghiệm và học vấn từ tài liệu CV",
+    icon: FileText,
+    color: "text-amber-600",
+  },
 };
 
 const ORDERED_FEATURES: AIFeature[] = [
   "cv_evaluate",
+  "matching",
   "roadmap",
   "summarize_cv",
   "interview_questions",
   "generate_email",
+  "generate_jd",
+  "cover_letter",
+  "cv_parse",
 ];
 
 // ── Email — hardcoded type rules (mirrors EMAIL_TYPE_SYSTEM_RULES in email_generator.py)

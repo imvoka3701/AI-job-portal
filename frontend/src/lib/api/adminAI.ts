@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Admin AI Control Panel API — prompt management & call log endpoints.
  */
 import { apiClient } from "@/lib/axios";
@@ -10,7 +10,11 @@ export type AIFeature =
   | "roadmap"
   | "summarize_cv"
   | "interview_questions"
-  | "generate_email";
+  | "generate_email"
+  | "generate_jd"
+  | "cover_letter"
+  | "matching"
+  | "cv_parse";
 
 export interface AIPromptConfig {
   id: number;
