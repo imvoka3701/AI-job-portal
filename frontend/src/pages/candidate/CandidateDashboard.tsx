@@ -285,7 +285,7 @@ export const CandidateDashboard = () => {
   }
 
   // ── Derived stats ──────────────────────────────────────────────────────
-  const totalCVs = resumes.length;
+  const totalCVs = resumes.length + cvDocuments.length;
   const totalApplications = applications.length;
   const validScores = applications.filter((a) => a.ai_matching_score && a.ai_matching_score > 0);
   const avgAIScore =
@@ -714,29 +714,131 @@ export const CandidateDashboard = () => {
                   onChange={handleFileSelect}
                 />
 
-                {/* CV List */}
+                {/* CV Content Section */}
                 {resumesLoading ? (
                   <div className="flex justify-center py-6">
                     <Spinner size="md" />
                   </div>
-                ) : resumes.length > 0 ? (
-                  <div className="space-y-3">
-                    {resumes.map((resume) => (
-                      <CVCard
-                        key={resume.id}
-                        resume={resume}
-                        onDelete={handleDeleteResume}
-                        onPreview={() => handlePreview(resume.id)}
-                        onEvaluate={handleEvaluateResume}
-                        isEvaluating={evaluatingResumeId === resume.id}
-                      />
-                    ))}
-                  </div>
                 ) : (
-                  <div className="p-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200 space-y-2">
-                    <FileText className="w-10 h-10 text-slate-300 mx-auto" />
-                    <p className="text-xs font-bold text-slate-700">Chưa có bản CV nào được tải lên</p>
-                    <p className="text-[11px] text-slate-400">Tải lên file PDF hoặc tạo CV với CV Builder để nhận đánh giá AI.</p>
+                  <div className="space-y-6">
+                    {/* 1. CV Builder Online Documents */}
+                    {cvDocuments.length > 0 && (
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                            <Sparkles size={14} className="text-[#00B86B]" />
+                            <span>CV Trực Tuyến (CV Builder) · {cvDocuments.length}</span>
+                          </h4>
+                          <Link
+                            to="/cv/new"
+                            className="text-xs font-bold text-[#00B86B] hover:text-emerald-700 flex items-center gap-1"
+                          >
+                            <Plus size={13} />
+                            <span>Tạo thêm</span>
+                          </Link>
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-3">
+                          {cvDocuments.map((doc) => (
+                            <div
+                              key={doc.id}
+                              className="p-4 rounded-2xl bg-white border border-slate-200/90 hover:border-emerald-300 hover:shadow-xs transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                            >
+                              <div className="flex items-center gap-3 min-w-0">
+                                <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-100 text-[#00B86B] flex items-center justify-center shrink-0">
+                                  <FileText size={18} />
+                                </div>
+                                <div className="min-w-0 space-y-0.5">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="text-sm font-black text-slate-900 truncate">
+                                      {doc.title || "Hồ Sơ CV Chưa Đặt Tên"}
+                                    </span>
+                                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
+                                      {doc.template_key}
+                                    </span>
+                                    <span
+                                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                                        doc.status === "published"
+                                          ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                          : "bg-amber-50 text-amber-700 border-amber-200"
+                                      }`}
+                                    >
+                                      {doc.status === "published" ? "Đã xuất bản" : "Bản nháp"}
+                                    </span>
+                                  </div>
+                                  <p className="text-[11px] text-slate-400">
+                                    Cập nhật: {new Date(doc.updated_at).toLocaleDateString("vi-VN")}
+                                  </p>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-2 shrink-0">
+                                <Link to={`/cv/${doc.id}/preview`}>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="rounded-xl text-xs font-bold h-8 px-3 border-slate-200 text-slate-700 hover:bg-slate-50"
+                                  >
+                                    Xem
+                                  </Button>
+                                </Link>
+                                <Link to={`/cv/${doc.id}/edit`}>
+                                  <Button
+                                    size="sm"
+                                    className="rounded-xl text-xs font-bold h-8 px-3 bg-[#00B86B] hover:bg-[#00995C] text-white shadow-2xs"
+                                  >
+                                    Sửa CV
+                                  </Button>
+                                </Link>
+                                <Link to={`/ai/matching`}>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="rounded-xl text-xs font-bold h-8 px-3 border-emerald-200 text-[#00B86B] bg-emerald-50/50 hover:bg-emerald-100"
+                                  >
+                                    <Sparkles size={12} className="mr-1" />
+                                    So khớp AI
+                                  </Button>
+                                </Link>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 2. Uploaded Resumes (PDF) */}
+                    {resumes.length > 0 && (
+                      <div className="space-y-3">
+                        <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                          <FileText size={14} className="text-slate-500" />
+                          <span>CV Đã Tải Lên (PDF) · {resumes.length}</span>
+                        </h4>
+                        <div className="space-y-3">
+                          {resumes.map((resume) => (
+                            <CVCard
+                              key={resume.id}
+                              resume={resume}
+                              onDelete={handleDeleteResume}
+                              onPreview={() => handlePreview(resume.id)}
+                              onEvaluate={handleEvaluateResume}
+                              isEvaluating={evaluatingResumeId === resume.id}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Empty state if neither exists */}
+                    {resumes.length === 0 && cvDocuments.length === 0 && (
+                      <div className="p-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200 space-y-2">
+                        <FileText className="w-10 h-10 text-slate-300 mx-auto" />
+                        <p className="text-xs font-bold text-slate-700">Chưa có bản CV nào</p>
+                        <p className="text-[11px] text-slate-400">
+                          Tải lên file PDF ở trên hoặc tạo CV trực tuyến với CV Builder để mở khóa đánh giá AI toàn diện.
+                        </p>
+                      </div>
+                    )}
                   </div>
                 )}
               </CardContent>

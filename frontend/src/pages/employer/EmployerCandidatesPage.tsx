@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { getCompanyJobs } from "@/lib/api/company";
 import { updateApplicationRecommendation, updateApplicationStatus } from "@/lib/api/applications";
@@ -52,6 +52,7 @@ export function EmployerCandidatesPage() {
   const [jobsError, setJobsError] = useState<string | null>(null);
   const [selectedJobId, setSelectedJobId] = useState<number | null>(null);
   const [selectedJobTitle, setSelectedJobTitle] = useState<string>("");
+  const activeJobRequestRef = useRef<number | null>(null);
 
   const [applications, setApplications] = useState<EmployerApplication[]>([]);
   const [appsLoading, setAppsLoading] = useState(false);
@@ -147,26 +148,27 @@ export function EmployerCandidatesPage() {
 
   const fetchApplications = useCallback(
     (jobId: number) => {
-      let cancelled = false;
+      activeJobRequestRef.current = jobId;
       setAppsLoading(true);
       setAppsError(null);
       setApplications([]);
       getEmployerApplications(jobId)
         .then((data) => {
-          if (!cancelled) {
+          if (activeJobRequestRef.current === jobId) {
             setApplications(data);
             fetchRoundsForApps(data);
           }
         })
         .catch(() => {
-          if (!cancelled) setAppsError("Không thể tải danh sách ứng viên.");
+          if (activeJobRequestRef.current === jobId) {
+            setAppsError("Không thể tải danh sách ứng viên.");
+          }
         })
         .finally(() => {
-          if (!cancelled) setAppsLoading(false);
+          if (activeJobRequestRef.current === jobId) {
+            setAppsLoading(false);
+          }
         });
-      return () => {
-        cancelled = true;
-      };
     },
     [fetchRoundsForApps],
   );
