@@ -37,7 +37,7 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:postgres_secure_password_change_me@db:5432/ai_job_portal}
-      SECRET_KEY: ${SECRET_KEY:-docker-secret-key-change-in-production}
+      SECRET_KEY: ${SECRET_KEY:-prod-secure-jwt-key-ai-job-portal-2026-enterprise-v1-safe}
       ALGORITHM: ${ALGORITHM:-HS256}
       ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-30}
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
