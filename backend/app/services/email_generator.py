@@ -62,6 +62,13 @@ EMAIL_TYPE_SYSTEM_RULES: dict[str, str] = {
 }
 
 
+TONE_DESCRIPTIONS = {
+    "formal": "Trang trọng, lịch thiệp, chuẩn mực phong cách doanh nghiệp (B2B SaaS).",
+    "friendly": "Thân thiện, ấm áp, cởi mở, tạo cảm giác gần gũi nhưng vẫn chuyên nghiệp.",
+    "concise": "Ngắn gọn, súc tích, đi thẳng vào trọng tâm, tránh dài dòng.",
+}
+
+
 class EmailGeneratorService:
     def __init__(self):
         self.client = deepseek_client
@@ -74,6 +81,8 @@ class EmailGeneratorService:
         job_title: str,
         company_name: str,
         cv_summary: str | None = None,
+        tone: str | None = None,
+        custom_prompt: str | None = None,
         db: Session | None = None,
     ) -> GenerateEmailResponse:
         if email_type not in EMAIL_TYPE_SYSTEM_RULES:
@@ -95,6 +104,13 @@ class EmailGeneratorService:
         )
         if cv_summary:
             user_prompt += f"- Tóm tắt hồ sơ ứng viên: {cv_summary}\n"
+
+        if tone:
+            tone_guide = TONE_DESCRIPTIONS.get(tone.lower(), tone)
+            user_prompt += f"- Giọng điệu (Tone): {tone_guide}\n"
+
+        if custom_prompt and custom_prompt.strip():
+            user_prompt += f"- Chỉ dẫn bổ sung từ nhà tuyển dụng (Custom Prompt): {custom_prompt.strip()}\n"
 
         user_prompt += f"\nHãy soạn email loại '{email_type}' cho ứng viên này."
 

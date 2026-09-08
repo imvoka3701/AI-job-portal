@@ -14,7 +14,7 @@ import type { InterviewQuestionsResult } from "@/types/api";
 
 interface InterviewQuestionsModalProps {
   /** null = modal đóng */
-  target: { candidateName: string; resumeId: number; jobId: number } | null;
+  target: { candidateName: string; resumeId?: number | null; cvDocumentId?: number | null; jobId: number } | null;
   /** Kỹ năng trích từ JD của job đang chọn */
   extractedSkills: string[];
   /** Kỹ năng người dùng đang chọn — được giữ lại khi đóng/mở lại */

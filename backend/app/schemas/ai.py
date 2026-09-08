@@ -34,7 +34,14 @@ class AIMatchResponse(BaseModel):
 
 
 class CVEvaluationRequest(BaseModel):
-    resume_id: int
+    resume_id: int | None = None
+    cv_document_id: int | None = None
+
+    @model_validator(mode="after")
+    def check_cv_source(self) -> "CVEvaluationRequest":
+        if self.resume_id is None and self.cv_document_id is None:
+            raise ValueError("Cần cung cấp ít nhất resume_id hoặc cv_document_id.")
+        return self
 
 
 class CVEvaluationResponse(BaseModel):
@@ -58,8 +65,15 @@ class CVEvaluationResponse(BaseModel):
 
 
 class RoadmapRequest(BaseModel):
-    resume_id: int
+    resume_id: int | None = None
+    cv_document_id: int | None = None
     target_role: str
+
+    @model_validator(mode="after")
+    def check_cv_source(self) -> "RoadmapRequest":
+        if self.resume_id is None and self.cv_document_id is None:
+            raise ValueError("Cần cung cấp ít nhất resume_id hoặc cv_document_id.")
+        return self
 
 
 # RoadmapStep must be declared before RoadmapResponse
@@ -79,8 +93,15 @@ class RoadmapResponse(BaseModel):
 
 
 class CVSummarizeRequest(BaseModel):
-    resume_id: int
+    resume_id: int | None = None
+    cv_document_id: int | None = None
     job_id: int
+
+    @model_validator(mode="after")
+    def check_cv_source(self) -> "CVSummarizeRequest":
+        if self.resume_id is None and self.cv_document_id is None:
+            raise ValueError("Cần cung cấp ít nhất resume_id hoặc cv_document_id.")
+        return self
 
 
 class CVSummarizeResponse(BaseModel):
@@ -96,9 +117,16 @@ class InterviewQuestionItem(BaseModel):
 
 
 class InterviewQuestionsRequest(BaseModel):
-    resume_id: int
+    resume_id: int | None = None
+    cv_document_id: int | None = None
     job_id: int
     skills_to_assess: list[str]  # danh sách kỹ năng nhân sự muốn hỏi sâu
+
+    @model_validator(mode="after")
+    def check_cv_source(self) -> "InterviewQuestionsRequest":
+        if self.resume_id is None and self.cv_document_id is None:
+            raise ValueError("Cần cung cấp ít nhất resume_id hoặc cv_document_id.")
+        return self
 
 
 class InterviewQuestionsResponse(BaseModel):
@@ -108,6 +136,8 @@ class InterviewQuestionsResponse(BaseModel):
 class GenerateEmailRequest(BaseModel):
     application_id: int
     email_type: str  # "invite" | "reject" | "offer"
+    tone: str | None = None  # "formal" | "friendly" | "concise"
+    custom_prompt: str | None = None
 
 
 class GenerateEmailResponse(BaseModel):
@@ -167,7 +197,8 @@ class RecommendedJob(BaseModel):
 class JobRecommendationResponse(BaseModel):
     """Response for GET /ai/recommend-jobs endpoint."""
 
-    resume_id: int
+    resume_id: int | None = None
+    cv_document_id: int | None = None
     industry_detected: str
     total_matched: int
     recommendations: list[RecommendedJob]

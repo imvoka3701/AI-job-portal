@@ -13,6 +13,8 @@ import {
 } from "lucide-react";
 import { Button, Card, Skeleton } from "@/components/ui";
 import { createCvDocument, deleteCvDocument, getCvDocuments } from "@/lib/api/cvDocuments";
+import { evaluateCV } from "@/lib/api/ai";
+import { AICVReviewModal, type CVEvaluationResponse } from "@/pages/candidate/components/AICVReviewModal";
 import { CV_TEMPLATE_OPTIONS, type CvDocument } from "@/types/cvDocument";
 
 export function CVListPage() {
@@ -21,6 +23,8 @@ export function CVListPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
+  const [evaluatingDocId, setEvaluatingDocId] = useState<number | null>(null);
+  const [reviewData, setReviewData] = useState<CVEvaluationResponse | null>(null);
 
   useEffect(() => {
     getCvDocuments()
@@ -66,6 +70,24 @@ export function CVListPage() {
       setError("Không thể nhân bản CV này. Vui lòng thử lại.");
     } finally {
       setIsCreating(false);
+    }
+  };
+
+  const handleAiEvaluate = async (doc: CvDocument) => {
+    setEvaluatingDocId(doc.id);
+    setError(null);
+    try {
+      const res = await evaluateCV({ cv_document_id: doc.id });
+      setReviewData({
+        overall_score: res.overall_score,
+        summary: res.summary,
+        suggestions: res.suggestions,
+        skill_analysis: (res.skill_analysis as Record<string, number>) || {},
+      });
+    } catch {
+      setError("Không thể đánh giá CV bằng AI lúc này. Vui lòng thử lại sau.");
+    } finally {
+      setEvaluatingDocId(null);
     }
   };
 
@@ -213,6 +235,18 @@ export function CVListPage() {
                       </Button>
                     </Link>
 
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleAiEvaluate(doc)}
+                      isLoading={evaluatingDocId === doc.id}
+                      className="border-emerald-200 text-emerald-700 hover:bg-emerald-50 text-xs rounded-xl flex items-center gap-1 font-bold px-3 shrink-0"
+                      title="Chấm điểm & đánh giá chuyên sâu bằng AI"
+                    >
+                      <Sparkles size={13} className="text-[#00B86B]" />
+                      <span>AI Review</span>
+                    </Button>
+
                     <button
                       onClick={() => duplicate(doc)}
                       className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
@@ -235,6 +269,13 @@ export function CVListPage() {
           </div>
         )}
       </main>
+
+      {reviewData && (
+        <AICVReviewModal
+          evaluation={reviewData}
+          onClose={() => setReviewData(null)}
+        />
+      )}
     </div>
   );
 }

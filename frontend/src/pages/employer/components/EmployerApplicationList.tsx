@@ -886,7 +886,7 @@ export function EmployerApplicationList({
                                 variant="outline"
                                 size="sm"
                                 onClick={() => onEvaluate(selectedApplication)}
-                                disabled={!selectedApplication.resume_id}
+                                disabled={!selectedApplication.resume_id && !selectedApplication.cv_document_id && !selectedApplication.cv_document}
                               >
                                 Đánh giá CV
                               </Button>
@@ -894,7 +894,7 @@ export function EmployerApplicationList({
                                 variant="outline"
                                 size="sm"
                                 onClick={() => onSummarize(selectedApplication)}
-                                disabled={!selectedApplication.resume_id}
+                                disabled={!selectedApplication.resume_id && !selectedApplication.cv_document_id && !selectedApplication.cv_document}
                               >
                                 Tóm tắt
                               </Button>
@@ -902,7 +902,7 @@ export function EmployerApplicationList({
                                 variant="outline"
                                 size="sm"
                                 onClick={() => onGenerateQuestions(selectedApplication)}
-                                disabled={!selectedApplication.resume_id}
+                                disabled={!selectedApplication.resume_id && !selectedApplication.cv_document_id && !selectedApplication.cv_document}
                               >
                                 Câu hỏi
                               </Button>
@@ -911,7 +911,7 @@ export function EmployerApplicationList({
                                 size="sm"
                                 leftIcon={<Mail className="w-3.5 h-3.5" />}
                                 onClick={() => onGenerateEmail(selectedApplication)}
-                                disabled={!selectedApplication.resume_id}
+                                disabled={!selectedApplication.resume_id && !selectedApplication.cv_document_id && !selectedApplication.cv_document}
                               >
                                 Email
                               </Button>

@@ -28,7 +28,7 @@ interface EmailDraftModalProps {
   result: GenerateEmailResult | null;
   loading: boolean;
   error: string | null;
-  onRetry: (type?: "invite" | "reject" | "offer", customPrompt?: string) => void;
+  onRetry: (type?: "invite" | "reject" | "offer", customPrompt?: string, tone?: EmailTone) => void;
   onClose: () => void;
 }
 
@@ -173,7 +173,7 @@ export function EmailDraftModal({
   const handleTypeChange = (type: EmailType) => {
     setSelectedType(type);
     if (type === "invite" || type === "offer" || type === "reject") {
-      onRetry(type);
+      onRetry(type, customPrompt, selectedTone);
     } else {
       loadDefaultTemplate(type, selectedTone);
     }
@@ -181,7 +181,11 @@ export function EmailDraftModal({
 
   const handleToneChange = (tone: EmailTone) => {
     setSelectedTone(tone);
-    loadDefaultTemplate(selectedType, tone);
+    if (selectedType === "invite" || selectedType === "offer" || selectedType === "reject") {
+      onRetry(selectedType, customPrompt, tone);
+    } else {
+      loadDefaultTemplate(selectedType, tone);
+    }
   };
 
   const handleInsertTag = (tag: string) => {
@@ -218,7 +222,7 @@ export function EmailDraftModal({
 
   const handleCustomRegenerate = () => {
     const apiType = selectedType === "test" ? "invite" : selectedType;
-    onRetry(apiType, customPrompt);
+    onRetry(apiType, customPrompt, selectedTone);
     setShowPromptInput(false);
   };
 

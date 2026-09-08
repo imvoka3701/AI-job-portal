@@ -451,50 +451,64 @@ async def generate_cover_letter(
 @router.get(
     "/recommend-jobs",
     response_model=JobRecommendationResponse,
-    summary="Get AI-recommended jobs for a resume",
+    summary="Get AI-recommended jobs for a resume or CV Builder document",
     description=(
-        "Finds the top matching job postings for a candidate's resume using "
-        "industry-aware filtering and pgvector cosine similarity ranking. "
-        "Resume must be validated before recommendations are available."
+        "Finds the top matching job postings for a candidate's resume or CV Builder document using "
+        "industry-aware filtering and pgvector cosine similarity ranking."
     ),
 )
 async def recommend_jobs_for_candidate(
-    resume_id: int = Query(..., description="ID of the validated resume"),
+    resume_id: int | None = Query(None, description="ID of the validated resume"),
+    cv_document_id: int | None = Query(None, description="ID of the CV Builder document"),
     limit: int = Query(20, ge=1, le=50, description="Max number of recommendations"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> JobRecommendationResponse:
-    """Find top N jobs matching a candidate's resume profile.
-
-    Uses the resume's parsed industry and embedding to:
-    1. Pre-filter jobs by matching industry/category
-    2. Rank remaining jobs by pgvector cosine similarity
-    3. Return enriched results with company names and match reasons
-    """
-    resume = crud_resume.get_by_id(db, resume_id=resume_id)
-    if not resume:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume not found")
-    if resume.user_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not your resume")
-
-    if not resume.is_validated:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="CV ch\u01b0a \u0111\u01b0\u1ee3c x\u00e1c th\u1ef1c. Vui l\u00f2ng t\u1ea3i l\u00ean l\u1ea1i CV h\u1ee3p l\u1ec7 \u0111\u1ec3 nh\u1eadn g\u1ee3i \u00fd vi\u1ec7c l\u00e0m.",
+    """Find top N jobs matching a candidate's resume or CV Builder document profile."""
+    if cv_document_id is not None:
+        cv_document = crud_cv_document.get_by_id(db, document_id=cv_document_id)
+        if not cv_document:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="CV Builder document not found"
+            )
+        _authorize_cv_document_access(db, current_user=current_user, cv_document=cv_document)
+        result = await ai_matching_service.recommend_jobs_for_cv_document(
+            db,
+            cv_document=cv_document,
+            limit=limit,
         )
+        return JobRecommendationResponse(**result)
 
-    if resume.embedding is None:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="CV ch\u01b0a c\u00f3 embedding. Vui l\u00f2ng t\u1ea3i l\u00ean l\u1ea1i CV.",
+    if resume_id is not None:
+        resume = crud_resume.get_by_id(db, resume_id=resume_id)
+        if not resume:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume not found")
+        if resume.user_id != current_user.id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not your resume")
+
+        if not resume.is_validated:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="CV chưa được xác thực. Vui lòng tải lên lại CV hợp lệ để nhận gợi ý việc làm.",
+            )
+
+        if resume.embedding is None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="CV chưa có embedding. Vui lòng tải lên lại CV.",
+            )
+
+        result = await ai_matching_service.recommend_jobs_for_resume(
+            db,
+            resume=resume,
+            limit=limit,
         )
+        return JobRecommendationResponse(**result)
 
-    result = await ai_matching_service.recommend_jobs_for_resume(
-        db,
-        resume=resume,
-        limit=limit,
+    raise HTTPException(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        detail="Cần cung cấp ít nhất resume_id hoặc cv_document_id.",
     )
-    return JobRecommendationResponse(**result)
 
 
 @router.post(
@@ -513,44 +527,67 @@ async def evaluate_cv(
     Retries up to 2 times if the LLM returns malformed JSON. Returns HTTP 502
     if all attempts fail.
     """
-    resume = crud_resume.get_by_id(db, resume_id=data.resume_id)
-    if not resume:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume not found")
-    _authorize_resume_access(db, current_user=current_user, resume=resume)
+    if data.cv_document_id is not None:
+        cv_document = crud_cv_document.get_by_id(db, document_id=data.cv_document_id)
+        if not cv_document:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="CV Builder document not found"
+            )
+        _authorize_cv_document_access(db, current_user=current_user, cv_document=cv_document)
+        text_content = extract_cv_document_text(cv_document)
+        if not text_content.strip():
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="CV Builder document has no text content to evaluate.",
+            )
+        eval_text = text_content
+        source_summary = f"cv_document_id={data.cv_document_id}"
+    elif data.resume_id is not None:
+        resume = crud_resume.get_by_id(db, resume_id=data.resume_id)
+        if not resume:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume not found")
+        _authorize_resume_access(db, current_user=current_user, resume=resume)
 
-    if not resume.is_validated:
+        if not resume.is_validated:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="CV chưa được xác thực. Vui lòng tải lên lại CV hợp lệ trước khi đánh giá.",
+            )
+
+        if not resume.raw_text:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="CV has no text content to evaluate.",
+            )
+        eval_text = resume.raw_text
+        source_summary = f"resume_id={data.resume_id}"
+    else:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="CV chưa được xác thực. Vui lòng tải lên lại CV hợp lệ trước khi đánh giá.",
-        )
-
-    if not resume.raw_text:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="CV has no text content to evaluate.",
+            detail="Cần cung cấp ít nhất resume_id hoặc cv_document_id.",
         )
 
     started = time.monotonic()
     try:
-        result = await cv_evaluator_service.evaluate(resume_text=resume.raw_text, db=db)
+        result = await cv_evaluator_service.evaluate(resume_text=eval_text, db=db)
         ai_audit.log_success(
             user_id=current_user.id,
             user_role=current_user.role.value,
             endpoint="evaluate",
             model=settings.LLM_MODEL,
-            input_summary=f"resume_id={data.resume_id}, text_len={len(resume.raw_text)}",
+            input_summary=f"{source_summary}, text_len={len(eval_text)}",
             output_summary=f"score={result.overall_score}, skills={len(result.skill_analysis)}, suggestions={len(result.suggestions)}",
             started_at=started,
         )
         return result
     except Exception as exc:
-        logger.exception("CV evaluation failed for resume %s", data.resume_id)
+        logger.exception("CV evaluation failed for %s", source_summary)
         ai_audit.log_failure(
             user_id=current_user.id,
             user_role=current_user.role.value,
             endpoint="evaluate",
             model=settings.LLM_MODEL,
-            input_summary=f"resume_id={data.resume_id}",
+            input_summary=source_summary,
             exc=exc,
             started_at=started,
         )
@@ -573,35 +610,68 @@ async def suggest_roadmap(
     Retries up to 2 times if the LLM returns malformed JSON. Returns HTTP 502
     if all attempts fail.
     """
-    resume = crud_resume.get_by_id(db, resume_id=data.resume_id)
-    if not resume:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume not found")
-    if current_user.role != UserRole.CANDIDATE or resume.user_id != current_user.id:
-        raise HTTPException(
-            status_code=403, detail="Roadmap chỉ dành cho CV của ứng viên hiện tại."
-        )
+    if data.cv_document_id is not None:
+        cv_document = crud_cv_document.get_by_id(db, document_id=data.cv_document_id)
+        if not cv_document:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="CV Builder document not found"
+            )
+        if current_user.role != UserRole.CANDIDATE or cv_document.user_id != current_user.id:
+            raise HTTPException(
+                status_code=403, detail="Roadmap chỉ dành cho CV của ứng viên hiện tại."
+            )
+        cv_text = extract_cv_document_text(cv_document)
+        if not cv_text.strip():
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="CV Builder document has no text content to generate roadmap.",
+            )
+        skills_data = cv_document.content_json.get("skills", []) if cv_document.content_json else []
+        parsed_skills = []
+        for s in skills_data:
+            if isinstance(s, str) and s.strip():
+                parsed_skills.append(s.strip())
+            elif isinstance(s, dict) and s.get("name"):
+                parsed_skills.append(str(s["name"]).strip())
+        roadmap_text = cv_text
+        source_summary = f"cv_document_id={data.cv_document_id}"
+    elif data.resume_id is not None:
+        resume = crud_resume.get_by_id(db, resume_id=data.resume_id)
+        if not resume:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume not found")
+        if current_user.role != UserRole.CANDIDATE or resume.user_id != current_user.id:
+            raise HTTPException(
+                status_code=403, detail="Roadmap chỉ dành cho CV của ứng viên hiện tại."
+            )
 
-    if not resume.raw_text:
+        if not resume.raw_text:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="CV has no text content to generate roadmap.",
+            )
+
+        parsed_skills = []
+        if resume.parsed_skills:
+            try:
+                skills_data = json.loads(resume.parsed_skills)
+                if isinstance(skills_data, list):
+                    parsed_skills = [str(s).strip() for s in skills_data if s and str(s).strip()]
+                elif isinstance(skills_data, str):
+                    parsed_skills = [s.strip() for s in skills_data.split(",") if s.strip()]
+            except Exception:
+                parsed_skills = [s.strip() for s in resume.parsed_skills.split(",") if s.strip()]
+        roadmap_text = resume.raw_text
+        source_summary = f"resume_id={data.resume_id}"
+    else:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="CV has no text content to generate roadmap.",
+            detail="Cần cung cấp ít nhất resume_id hoặc cv_document_id.",
         )
-
-    parsed_skills: list[str] = []
-    if resume.parsed_skills:
-        try:
-            skills_data = json.loads(resume.parsed_skills)
-            if isinstance(skills_data, list):
-                parsed_skills = [str(s).strip() for s in skills_data if s and str(s).strip()]
-            elif isinstance(skills_data, str):
-                parsed_skills = [s.strip() for s in skills_data.split(",") if s.strip()]
-        except Exception:
-            parsed_skills = [s.strip() for s in resume.parsed_skills.split(",") if s.strip()]
 
     started = time.monotonic()
     try:
         result = await roadmap_suggest_service.suggest(
-            resume_text=resume.raw_text,
+            resume_text=roadmap_text,
             parsed_skills=parsed_skills,
             target_role=data.target_role,
             db=db,
@@ -611,19 +681,19 @@ async def suggest_roadmap(
             user_role=current_user.role.value,
             endpoint="roadmap",
             model=settings.LLM_MODEL,
-            input_summary=f"resume_id={data.resume_id}, target_role={data.target_role}",
+            input_summary=f"{source_summary}, target_role={data.target_role}",
             output_summary=f"steps={len(result.steps)}, months={result.estimated_months}, level={result.current_level}",
             started_at=started,
         )
         return result
     except Exception as exc:
-        logger.exception("Roadmap suggestion failed for resume %s", data.resume_id)
+        logger.exception("Roadmap suggestion failed for %s", source_summary)
         ai_audit.log_failure(
             user_id=current_user.id,
             user_role=current_user.role.value,
             endpoint="roadmap",
             model=settings.LLM_MODEL,
-            input_summary=f"resume_id={data.resume_id}, target_role={data.target_role}",
+            input_summary=f"{source_summary}, target_role={data.target_role}",
             exc=exc,
             started_at=started,
         )
@@ -649,19 +719,43 @@ async def summarize_cv(
 
     Retries up to 2 times if the LLM returns malformed JSON.
     """
-    resume = crud_resume.get_by_id(db, resume_id=data.resume_id)
-    if not resume:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume not found")
-    _authorize_resume_access(db, current_user=current_user, resume=resume, job_id=data.job_id)
-    if not resume.is_validated:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="CV chưa được xác thực. Vui lòng tải lên lại CV hợp lệ trước khi tóm tắt.",
+    if data.cv_document_id is not None:
+        cv_document = crud_cv_document.get_by_id(db, document_id=data.cv_document_id)
+        if not cv_document:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="CV Builder document not found"
+            )
+        _authorize_cv_document_access(
+            db, current_user=current_user, cv_document=cv_document, job_id=data.job_id
         )
-    if not resume.raw_text:
+        cv_text = extract_cv_document_text(cv_document)
+        if not cv_text.strip():
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="CV Builder document has no text content.",
+            )
+        source_summary = f"cv_document_id={data.cv_document_id}"
+    elif data.resume_id is not None:
+        resume = crud_resume.get_by_id(db, resume_id=data.resume_id)
+        if not resume:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume not found")
+        _authorize_resume_access(db, current_user=current_user, resume=resume, job_id=data.job_id)
+        if not resume.is_validated:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="CV chưa được xác thực. Vui lòng tải lên lại CV hợp lệ trước khi tóm tắt.",
+            )
+        if not resume.raw_text:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="CV has no text content.",
+            )
+        cv_text = resume.raw_text
+        source_summary = f"resume_id={data.resume_id}"
+    else:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="CV has no text content.",
+            detail="Cần cung cấp ít nhất resume_id hoặc cv_document_id.",
         )
 
     job = crud_job.get_by_id(db, job_id=data.job_id)
@@ -672,13 +766,13 @@ async def summarize_cv(
 
     try:
         return await cv_summarizer_service.summarize(
-            cv_text=resume.raw_text,
+            cv_text=cv_text,
             job_description=jd_text,
             db=db,
         )
     except Exception as exc:
         logger.exception(
-            "CV summarization failed for resume %s, job %s", data.resume_id, data.job_id
+            "CV summarization failed for %s, job %s", source_summary, data.job_id
         )
         raise ai_http_exception(exc)
 
@@ -710,14 +804,38 @@ async def generate_interview_questions(
             detail="skills_to_assess must not be empty.",
         )
 
-    resume = crud_resume.get_by_id(db, resume_id=data.resume_id)
-    if not resume:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume not found")
-    _authorize_resume_access(db, current_user=current_user, resume=resume, job_id=data.job_id)
-    if not resume.raw_text:
+    if data.cv_document_id is not None:
+        cv_document = crud_cv_document.get_by_id(db, document_id=data.cv_document_id)
+        if not cv_document:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="CV Builder document not found"
+            )
+        _authorize_cv_document_access(
+            db, current_user=current_user, cv_document=cv_document, job_id=data.job_id
+        )
+        cv_text = extract_cv_document_text(cv_document)
+        if not cv_text.strip():
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="CV Builder document has no text content.",
+            )
+        source_summary = f"cv_document_id={data.cv_document_id}"
+    elif data.resume_id is not None:
+        resume = crud_resume.get_by_id(db, resume_id=data.resume_id)
+        if not resume:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume not found")
+        _authorize_resume_access(db, current_user=current_user, resume=resume, job_id=data.job_id)
+        if not resume.raw_text:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="CV has no text content.",
+            )
+        cv_text = resume.raw_text
+        source_summary = f"resume_id={data.resume_id}"
+    else:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="CV has no text content.",
+            detail="Cần cung cấp ít nhất resume_id hoặc cv_document_id.",
         )
 
     job = crud_job.get_by_id(db, job_id=data.job_id)
@@ -728,15 +846,15 @@ async def generate_interview_questions(
 
     try:
         return await interview_questions_service.generate(
-            cv_text=resume.raw_text,
+            cv_text=cv_text,
             job_description=jd_text,
             skills_to_assess=data.skills_to_assess,
             db=db,
         )
     except Exception as exc:
         logger.exception(
-            "Interview questions generation failed for resume %s, job %s, skills=%s",
-            data.resume_id,
+            "Interview questions generation failed for %s, job %s, skills=%s",
+            source_summary,
             data.job_id,
             data.skills_to_assess,
         )
@@ -786,6 +904,10 @@ async def generate_email(
     cv_summary = None
     if app.resume and app.resume.raw_text:
         cv_summary = app.resume.raw_text[:500]  # enough context, not the whole CV
+    elif app.cv_document:
+        doc_text = extract_cv_document_text(app.cv_document)
+        if doc_text:
+            cv_summary = doc_text[:500]
 
     started = time.monotonic()
     try:
@@ -795,6 +917,8 @@ async def generate_email(
             job_title=job_title,
             company_name=company_name,
             cv_summary=cv_summary,
+            tone=data.tone,
+            custom_prompt=data.custom_prompt,
             db=db,
         )
         ai_audit.log_success(
@@ -802,7 +926,7 @@ async def generate_email(
             user_role=current_user.role.value,
             endpoint="generate_email",
             model=settings.LLM_MODEL,
-            input_summary=f"application_id={data.application_id}, type={data.email_type}, job={job_title[:60]}",
+            input_summary=f"application_id={data.application_id}, type={data.email_type}, tone={data.tone}, prompt_len={len(data.custom_prompt or '')}",
             output_summary=f"subject_len={len(result.subject)}, body_len={len(result.body)}",
             started_at=started,
         )
@@ -818,7 +942,7 @@ async def generate_email(
             user_role=current_user.role.value,
             endpoint="generate_email",
             model=settings.LLM_MODEL,
-            input_summary=f"application_id={data.application_id}, type={data.email_type}",
+            input_summary=f"application_id={data.application_id}, type={data.email_type}, tone={data.tone}",
             exc=exc,
             started_at=started,
         )

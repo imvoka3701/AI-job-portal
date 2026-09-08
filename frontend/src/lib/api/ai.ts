@@ -136,17 +136,27 @@ export async function getAiMatch(
   return data;
 }
 
+export interface CVEvaluationPayload {
+  resume_id?: number;
+  cv_document_id?: number;
+}
+
 /**
  * Evaluate CV quality using AI.
  * POST /ai/evaluate
  */
 export async function evaluateCV(
-  resumeId: number,
+  resumeIdOrPayload: number | CVEvaluationPayload,
 ): Promise<CVEvaluationResult> {
-  const { data } = await apiClient.post<CVEvaluationResult>("/ai/evaluate", {
-    resume_id: resumeId,
-  });
+  const payload = typeof resumeIdOrPayload === "number" ? { resume_id: resumeIdOrPayload } : resumeIdOrPayload;
+  const { data } = await apiClient.post<CVEvaluationResult>("/ai/evaluate", payload);
   return data;
+}
+
+export interface RoadmapPayload {
+  resume_id?: number;
+  cv_document_id?: number;
+  target_role: string;
 }
 
 /**
@@ -154,51 +164,62 @@ export async function evaluateCV(
  * POST /ai/roadmap
  */
 export async function generateRoadmap(
-  resumeId: number,
-  targetRole: string,
+  resumeIdOrPayload: number | RoadmapPayload,
+  targetRole?: string,
 ): Promise<RoadmapResult> {
-  const { data } = await apiClient.post<RoadmapResult>("/ai/roadmap", {
-    resume_id: resumeId,
-    target_role: targetRole,
-  });
+  const payload =
+    typeof resumeIdOrPayload === "number"
+      ? { resume_id: resumeIdOrPayload, target_role: targetRole ?? "" }
+      : resumeIdOrPayload;
+  const { data } = await apiClient.post<RoadmapResult>("/ai/roadmap", payload);
   return data;
 }
 
-/**
- * Get applications for an employer's job with AI match scores.
- * GET /applications/employer/jobs/{job_id}
- */
+export interface CVSummarizePayload {
+  resume_id?: number;
+  cv_document_id?: number;
+  job_id: number;
+}
+
 /**
  * Summarize how a CV matches a specific job posting.
  * POST /ai/summarize-cv
  */
 export async function summarizeCV(
-  resumeId: number,
-  jobId: number,
+  resumeIdOrPayload: number | CVSummarizePayload,
+  jobId?: number,
 ): Promise<CVSummarizeResult> {
-  const { data } = await apiClient.post<CVSummarizeResult>("/ai/summarize-cv", {
-    resume_id: resumeId,
-    job_id: jobId,
-  });
+  const payload =
+    typeof resumeIdOrPayload === "number"
+      ? { resume_id: resumeIdOrPayload, job_id: jobId! }
+      : resumeIdOrPayload;
+  const { data } = await apiClient.post<CVSummarizeResult>("/ai/summarize-cv", payload);
   return data;
 }
 
-/**
- * Get applications for an employer's job with AI match scores.
- * GET /applications/employer/jobs/{job_id}
- */
+export interface InterviewQuestionsPayload {
+  resume_id?: number;
+  cv_document_id?: number;
+  job_id: number;
+  skills_to_assess: string[];
+}
+
 /**
  * Generate targeted interview questions for specific skills.
  * POST /ai/interview-questions
  */
 export async function generateInterviewQuestions(
-  resumeId: number,
-  jobId: number,
-  skillsToAssess: string[],
+  resumeIdOrPayload: number | InterviewQuestionsPayload,
+  jobId?: number,
+  skillsToAssess?: string[],
 ): Promise<InterviewQuestionsResult> {
+  const payload =
+    typeof resumeIdOrPayload === "number"
+      ? { resume_id: resumeIdOrPayload, job_id: jobId!, skills_to_assess: skillsToAssess ?? [] }
+      : resumeIdOrPayload;
   const { data } = await apiClient.post<InterviewQuestionsResult>(
     "/ai/interview-questions",
-    { resume_id: resumeId, job_id: jobId, skills_to_assess: skillsToAssess },
+    payload,
   );
   return data;
 }
@@ -210,12 +231,16 @@ export async function generateInterviewQuestions(
 export async function generateEmail(
   applicationId: number,
   emailType: "invite" | "reject" | "offer",
+  tone?: "formal" | "friendly" | "concise",
+  customPrompt?: string,
 ): Promise<GenerateEmailResult> {
   const { data } = await apiClient.post<GenerateEmailResult>(
     "/ai/generate-email",
     {
       application_id: applicationId,
       email_type: emailType,
+      tone,
+      custom_prompt: customPrompt,
     },
   );
   return data;
@@ -244,23 +269,34 @@ export interface RecommendedJob {
 }
 
 export interface JobRecommendationResponse {
-  resume_id: number;
+  resume_id?: number | null;
+  cv_document_id?: number | null;
   industry_detected: string;
   total_matched: number;
   recommendations: RecommendedJob[];
 }
 
+export interface JobRecommendationParams {
+  resume_id?: number;
+  cv_document_id?: number;
+  limit?: number;
+}
+
 /**
- * Get AI-recommended jobs for a candidate's resume.
- * GET /ai/recommend-jobs?resume_id=X&limit=Y
+ * Get AI-recommended jobs for a candidate's resume or CV Builder document.
+ * GET /ai/recommend-jobs?resume_id=X&limit=Y or ?cv_document_id=Z&limit=Y
  */
 export async function getRecommendedJobs(
-  resumeId: number,
+  resumeIdOrParams: number | JobRecommendationParams,
   limit: number = 20,
 ): Promise<JobRecommendationResponse> {
+  const params =
+    typeof resumeIdOrParams === "number"
+      ? { resume_id: resumeIdOrParams, limit }
+      : { limit: 20, ...resumeIdOrParams };
   const { data } = await apiClient.get<JobRecommendationResponse>(
     "/ai/recommend-jobs",
-    { params: { resume_id: resumeId, limit } },
+    { params },
   );
   return data;
 }

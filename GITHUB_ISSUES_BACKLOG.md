@@ -216,10 +216,10 @@ Tài liệu này được định dạng chuẩn **GitHub Markdown**. Bạn có 
 - `backend/app/schemas/ai.py:11-50` (`AIMatchRequest`, `CVEvaluationRequest`, `RoadmapRequest` chỉ nhận `resume_id`)
 
 ### 3. Checklist Thực Hiện
-- [ ] **Backend:** Cập nhật `GenerateEmailRequest` và `email_generator_service.generate()` để tiếp nhận `tone: str | None` và `custom_prompt: str | None`, đưa các chỉ dẫn này vào user prompt gửi tới mô hình DeepSeek.
-- [ ] **Frontend:** Cập nhật `generateEmail` trong `lib/api/ai.ts` và `EmployerCandidatesPage.tsx` để truyền đầy đủ `tone` và `customPrompt` từ `EmailDraftModal`.
-- [ ] **Frontend:** Tích hợp component `AIRecommendedJobs` vào trang tìm việc (`JobsPage`) hoặc `CandidateDashboard`, gọi hàm `recommendJobsForResume` khi ứng viên đã đăng nhập và có CV.
-- [ ] **Backend & Frontend:** Mở rộng các schema và router `/ai/match`, `/ai/evaluate`, `/ai/roadmap` để hỗ trợ cả `cv_document_id`, tự động trích xuất text từ `CvDocument.content_json` để đánh giá và tạo lộ trình công bằng cho mọi ứng viên.
+- [x] **Backend:** Cập nhật `GenerateEmailRequest` và `email_generator_service.generate()` để tiếp nhận `tone: str | None` và `custom_prompt: str | None`, đưa các chỉ dẫn này vào user prompt gửi tới mô hình DeepSeek.
+- [x] **Frontend:** Cập nhật `generateEmail` trong `lib/api/ai.ts` và `EmployerCandidatesPage.tsx` để truyền đầy đủ `tone` và `customPrompt` từ `EmailDraftModal`.
+- [x] **Frontend:** Tích hợp component `AIRecommendedJobs` vào trang tìm việc (`JobsPage`) hoặc `CandidateDashboard`, gọi hàm `recommendJobsForResume` khi ứng viên đã đăng nhập và có CV.
+- [x] **Backend & Frontend:** Mở rộng các schema và router `/ai/match`, `/ai/evaluate`, `/ai/roadmap` để hỗ trợ cả `cv_document_id`, tự động trích xuất text từ `CvDocument.content_json` để đánh giá và tạo lộ trình công bằng cho mọi ứng viên.
 
 ---
 

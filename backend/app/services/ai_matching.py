@@ -523,6 +523,85 @@ class AIMatchingService:
             "recommendations": recommendations,
         }
 
+    async def recommend_jobs_for_cv_document(
+        self,
+        db: Session,
+        *,
+        cv_document: CvDocument,
+        limit: int = 20,
+    ) -> dict:
+        """Orchestrate full job recommendation for a CV Builder document."""
+        text_content = extract_cv_document_text(cv_document)
+        if not text_content.strip():
+            return {
+                "cv_document_id": cv_document.id,
+                "industry_detected": "Tùy biến (CV Builder)",
+                "total_matched": 0,
+                "recommendations": [],
+            }
+
+        try:
+            from app.services.embedding_service import generate_embedding
+
+            embedding = generate_embedding(text_content)
+        except Exception:
+            logger.exception("Failed to generate embedding for CV document %s", cv_document.id)
+            return {
+                "cv_document_id": cv_document.id,
+                "industry_detected": "Tùy biến (CV Builder)",
+                "total_matched": 0,
+                "recommendations": [],
+            }
+
+        results = await self.find_top_matching_jobs(
+            db,
+            resume_embedding=embedding,
+            category_id=None,
+            limit=limit,
+        )
+
+        from app.models.company import Company
+
+        company_ids = {r["company_id"] for r in results if r.get("company_id")}
+        company_map: dict[int, str] = {}
+        if company_ids:
+            companies = db.query(Company.id, Company.name).filter(Company.id.in_(company_ids)).all()
+            company_map = {c.id: c.name for c in companies}
+
+        skills_data = cv_document.content_json.get("skills", []) if cv_document.content_json else []
+        skill_names = []
+        for s in skills_data:
+            if isinstance(s, str) and s.strip():
+                skill_names.append(s.strip())
+            elif isinstance(s, dict) and s.get("name"):
+                skill_names.append(str(s["name"]).strip())
+        skills_text = ", ".join(skill_names[:5]) if skill_names else "Kỹ năng trong CV"
+
+        recommendations = []
+        for r in results:
+            score = round(max(0.0, min(100.0, r["similarity"] * 100)), 1)
+            if score >= 60:
+                reason = f"Kỹ năng {skills_text} có độ tương đồng cao với yêu cầu công việc."
+            else:
+                reason = "Có một số điểm tương đồng về kinh nghiệm và kỹ năng."
+
+            recommendations.append({
+                "job_id": r["job_id"],
+                "title": r["title"],
+                "company_name": company_map.get(r["company_id"]) if r.get("company_id") else None,
+                "location": r["location"],
+                "experience_level": r["experience_level"],
+                "match_score": score,
+                "match_reason": reason,
+            })
+
+        return {
+            "cv_document_id": cv_document.id,
+            "industry_detected": "Tùy biến (CV Builder)",
+            "total_matched": len(recommendations),
+            "recommendations": recommendations,
+        }
+
 
 ai_matching_service = AIMatchingService()
 

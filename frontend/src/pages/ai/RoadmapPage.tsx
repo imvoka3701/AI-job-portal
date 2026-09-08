@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { getMyResumes } from "@/lib/api/resumes";
+import { getCvDocuments } from "@/lib/api/cvDocuments";
 import { generateRoadmap } from "@/lib/api/ai";
 import { useUser, useAuthStore } from "@/stores/authStore";
 import { tokenStorage, getApiErrorMessage } from "@/lib/axios";
@@ -10,6 +11,7 @@ import { Header } from "@/pages/jobs/components/Header";
 import { Footer } from "@/pages/jobs/components/Footer";
 import { SEOMeta } from "@/components/seo/SEOMeta";
 import type { Resume } from "@/types/resume";
+import type { CvDocument } from "@/types/cvDocument";
 import type { RoadmapResult } from "@/types/api";
 
 import {
@@ -598,10 +600,11 @@ export const RoadmapPage = () => {
   const [studyHoursPerWeek, setStudyHoursPerWeek] = useState<number>(10);
   const [targetMultiplier, setTargetMultiplier] = useState<number>(1.6); // +60%
 
-  // 4. Personalized Generator State (from CV)
+  // 4. Personalized Generator State (from CV & CV Builder)
   const [resumes, setResumes] = useState<Resume[]>([]);
+  const [cvDocuments, setCvDocuments] = useState<CvDocument[]>([]);
   const [resumesLoading, setResumesLoading] = useState(false);
-  const [selectedResumeId, setSelectedResumeId] = useState<number | null>(null);
+  const [selectedCvKey, setSelectedCvKey] = useState<string>("");
   const [targetRole, setTargetRole] = useState(TARGET_ROLE_PRESETS[0]);
   const [result, setResult] = useState<RoadmapResult | null>(null);
   const [loading, setLoading] = useState(false);
@@ -637,18 +640,25 @@ export const RoadmapPage = () => {
     }));
   };
 
-  // Fetch Resumes
-  const fetchResumes = useCallback(() => {
+  // Fetch Resumes & CV Documents
+  const fetchCvs = useCallback(() => {
     if (!user) return;
     let cancelled = false;
     setResumesLoading(true);
-    getMyResumes()
-      .then((data) => {
+    Promise.all([
+      getMyResumes().catch(() => []),
+      getCvDocuments().catch(() => []),
+    ])
+      .then(([resumeData, docData]) => {
         if (!cancelled) {
-          setResumes(data);
-          if (data.length > 0) {
-            setSelectedResumeId((prev) => prev ?? data[0].id);
-          }
+          setResumes(resumeData);
+          setCvDocuments(docData);
+          setSelectedCvKey((prev) => {
+            if (prev) return prev;
+            if (resumeData.length > 0) return `resume:${resumeData[0].id}`;
+            if (docData.length > 0) return `builder:${docData[0].id}`;
+            return "";
+          });
         }
       })
       .catch(() => {
@@ -663,9 +673,9 @@ export const RoadmapPage = () => {
   }, [user]);
 
   useEffect(() => {
-    const cancel = fetchResumes();
+    const cancel = fetchCvs();
     return cancel;
-  }, [fetchResumes]);
+  }, [fetchCvs]);
 
   // Auth hydration
   useEffect(() => {
@@ -715,14 +725,22 @@ export const RoadmapPage = () => {
     return salaryDifference * 24; // 24 months
   }, [salaryDifference]);
 
-  // Handle Generate Roadmap from CV
+  // Handle Generate Roadmap from CV or CV Document
   const handleGenerate = async () => {
-    if (!selectedResumeId || !targetRole.trim()) return;
+    if (!selectedCvKey || !targetRole.trim()) return;
+    const [type, idStr] = selectedCvKey.split(":");
+    const id = Number(idStr);
+    if (!id) return;
+
     setLoading(true);
     setError(null);
     setResult(null);
     try {
-      const data = await generateRoadmap(selectedResumeId, targetRole.trim());
+      const data = await generateRoadmap({
+        resume_id: type === "resume" ? id : undefined,
+        cv_document_id: type === "builder" ? id : undefined,
+        target_role: targetRole.trim(),
+      });
       setResult(data);
     } catch (err) {
       setError(getApiErrorMessage(err));
@@ -1178,18 +1196,37 @@ export const RoadmapPage = () => {
               <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-end">
                 <div className="md:col-span-5 space-y-2">
                   <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                    <IconFileText size={15} className="text-emerald-600" /> Chọn CV gốc ({resumes.length} bản):
+                    <IconFileText size={15} className="text-emerald-600" /> Chọn CV gốc ({resumes.length + cvDocuments.length} bản):
                   </label>
                   <select
-                    value={selectedResumeId ?? ""}
-                    onChange={(e) => setSelectedResumeId(e.target.value ? Number(e.target.value) : null)}
+                    value={selectedCvKey}
+                    onChange={(e) => setSelectedCvKey(e.target.value)}
                     className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-800 outline-none focus:border-emerald-500 focus:bg-white transition-all cursor-pointer shadow-2xs"
                   >
-                    {resumes.map((r) => (
-                      <option key={r.id} value={r.id}>
-                        {r.title} (Cập nhật: {new Date(r.created_at).toLocaleDateString("vi-VN")})
-                      </option>
-                    ))}
+                    {resumes.length === 0 && cvDocuments.length === 0 ? (
+                      <option value="" disabled>Chưa có CV nào — hãy tải lên hoặc tạo bằng CV Builder</option>
+                    ) : (
+                      <>
+                        {resumes.length > 0 && (
+                          <optgroup label="Tệp CV tải lên (PDF)">
+                            {resumes.map((r) => (
+                              <option key={`resume:${r.id}`} value={`resume:${r.id}`}>
+                                📄 {r.title} (Cập nhật: {new Date(r.created_at).toLocaleDateString("vi-VN")})
+                              </option>
+                            ))}
+                          </optgroup>
+                        )}
+                        {cvDocuments.length > 0 && (
+                          <optgroup label="CV Builder trực tuyến">
+                            {cvDocuments.map((doc) => (
+                              <option key={`builder:${doc.id}`} value={`builder:${doc.id}`}>
+                                ✨ {doc.title} ({doc.content_json?.personal?.headline || "CV trực tuyến"})
+                              </option>
+                            ))}
+                          </optgroup>
+                        )}
+                      </>
+                    )}
                   </select>
                 </div>
 
@@ -1211,7 +1248,7 @@ export const RoadmapPage = () => {
                     <Button
                       fullWidth
                       isLoading={loading}
-                      disabled={!selectedResumeId || !targetRole.trim()}
+                      disabled={!selectedCvKey || !targetRole.trim()}
                       onClick={handleGenerate}
                       className="h-11 rounded-2xl font-black text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-600/20 cursor-pointer flex items-center justify-center gap-1.5"
                     >

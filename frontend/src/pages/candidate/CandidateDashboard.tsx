@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { getMyApplications } from "@/lib/api/applications";
 import { getRounds, type RoundItem } from "@/lib/api/rounds";
 import { uploadResume, getMyResumes, deleteResume, evaluateResume } from "@/lib/api/resumes";
+import { getCvDocuments } from "@/lib/api/cvDocuments";
 import { uploadAvatar } from "@/lib/api/users";
 import { useUser, useAuthStore } from "@/stores/authStore";
 import { tokenStorage, apiClient } from "@/lib/axios";
@@ -10,6 +11,7 @@ import { Button, Card, CardHeader, CardContent, Spinner, ApplicationStatusBadge,
 import { getApiErrorMessage } from "@/lib/axios";
 import type { Application } from "@/types/application";
 import type { Resume } from "@/types/resume";
+import type { CvDocument } from "@/types/cvDocument";
 import {
   Briefcase,
   FileText,
@@ -55,8 +57,9 @@ export const CandidateDashboard = () => {
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [activeFilterTab, setActiveFilterTab] = useState<FilterTab>("all");
 
-  // ── Resume state ──────────────────────────────────────────────────────────
+  // ── Resume & CV Document state ───────────────────────────────────────────
   const [resumes, setResumes] = useState<Resume[]>([]);
+  const [cvDocuments, setCvDocuments] = useState<CvDocument[]>([]);
   const [resumesLoading, setResumesLoading] = useState(false);
   const [uploadState, setUploadState] = useState<UploadState>("idle");
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -149,6 +152,19 @@ export const CandidateDashboard = () => {
     const cancel = fetchResumes();
     return cancel;
   }, [fetchResumes]);
+
+  useEffect(() => {
+    if (!user) return;
+    let isCancelled = false;
+    getCvDocuments()
+      .then((docs) => {
+        if (!isCancelled) setCvDocuments(docs);
+      })
+      .catch(() => {});
+    return () => {
+      isCancelled = true;
+    };
+  }, [user]);
 
 
   // ── Handlers ──────────────────────────────────────────────────────────────
@@ -739,7 +755,8 @@ export const CandidateDashboard = () => {
             {/* AI Recommended Jobs — Industry-Aware Matching */}
             <RecommendedJobs
               resumeId={resumes.length > 0 ? resumes[0].id : null}
-              isValidated={resumes.length > 0 && resumes[0].is_validated}
+              cvDocumentId={cvDocuments.length > 0 ? cvDocuments[0].id : null}
+              isValidated={(resumes.length > 0 && resumes[0].is_validated) || cvDocuments.length > 0}
             />
           </aside>
         </div>

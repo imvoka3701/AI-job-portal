@@ -60,14 +60,15 @@ export function EmployerCandidatesPage() {
 
   const [stats, setStats] = useState<EmployerStats | null>(null);
 
-  const [evalTarget, setEvalTarget] = useState<{ candidateName: string; resumeId: number; matchScore?: number | null } | null>(null);
+  const [evalTarget, setEvalTarget] = useState<{ candidateName: string; resumeId?: number | null; cvDocumentId?: number | null; matchScore?: number | null } | null>(null);
   const [evalResult, setEvalResult] = useState<CVEvaluationResult | null>(null);
   const [evalLoading, setEvalLoading] = useState(false);
   const [evalError, setEvalError] = useState<string | null>(null);
 
   const [summarizeTarget, setSummarizeTarget] = useState<{
     candidateName: string;
-    resumeId: number;
+    resumeId?: number | null;
+    cvDocumentId?: number | null;
     jobId: number;
   } | null>(null);
   const [summarizeResult, setSummarizeResult] = useState<CVSummarizeResult | null>(null);
@@ -85,7 +86,7 @@ export function EmployerCandidatesPage() {
   const [emailLoading, setEmailLoading] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
 
-  const [intvTarget, setIntvTarget] = useState<{ candidateName: string; resumeId: number; jobId: number } | null>(null);
+  const [intvTarget, setIntvTarget] = useState<{ candidateName: string; resumeId?: number | null; cvDocumentId?: number | null; jobId: number } | null>(null);
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
   const [intvResult, setIntvResult] = useState<InterviewQuestionsResult | null>(null);
   const [intvLoading, setIntvLoading] = useState(false);
@@ -206,13 +207,24 @@ export function EmployerCandidatesPage() {
   }, []);
 
   const handleSummarize = useCallback(async (app: EmployerApplication) => {
-    if (!app.resume_id || !app.candidate) return;
-    setSummarizeTarget({ candidateName: app.candidate.full_name, resumeId: app.resume_id, jobId: app.job_id });
+    if ((!app.resume_id && !app.cv_document_id) || !app.candidate) return;
+    setSummarizeTarget({
+      candidateName: app.candidate.full_name,
+      resumeId: app.resume_id,
+      cvDocumentId: app.cv_document_id,
+      jobId: app.job_id,
+    });
     setSummarizeResult(null);
     setSummarizeError(null);
     setSummarizeLoading(true);
     try {
-      setSummarizeResult(await summarizeCV(app.resume_id, app.job_id));
+      setSummarizeResult(
+        await summarizeCV({
+          resume_id: app.resume_id ?? undefined,
+          cv_document_id: app.cv_document_id ?? undefined,
+          job_id: app.job_id,
+        })
+      );
     } catch (error) {
       setSummarizeError(getApiErrorMessage(error));
     } finally {
@@ -220,30 +232,41 @@ export function EmployerCandidatesPage() {
     }
   }, []);
 
-  const requestEmailDraft = useCallback(async (applicationId: number, emailType: "invite" | "reject" | "offer" = "invite") => {
-    setEmailResult(null);
-    setEmailError(null);
-    setEmailLoading(true);
-    try {
-      setEmailResult(await generateEmail(applicationId, emailType));
-    } catch (error) {
-      setEmailError(getApiErrorMessage(error));
-    } finally {
-      setEmailLoading(false);
-    }
-  }, []);
+  const requestEmailDraft = useCallback(
+    async (
+      applicationId: number,
+      emailType: "invite" | "reject" | "offer" = "invite",
+      tone?: "formal" | "friendly" | "concise",
+      customPrompt?: string,
+    ) => {
+      setEmailResult(null);
+      setEmailError(null);
+      setEmailLoading(true);
+      try {
+        setEmailResult(await generateEmail(applicationId, emailType, tone, customPrompt));
+      } catch (error) {
+        setEmailError(getApiErrorMessage(error));
+      } finally {
+        setEmailLoading(false);
+      }
+    },
+    []
+  );
 
-  const handleGenerateEmail = useCallback((app: EmployerApplication) => {
-    if (!app.resume_id || !app.candidate) return;
-    setEmailTarget({
-      candidateName: app.candidate.full_name,
-      candidateEmail: app.candidate.email,
-      applicationId: app.id,
-      jobTitle: selectedJobTitle || "Vị trí tuyển dụng",
-      matchScore: app.ai_matching_score,
-    });
-    void requestEmailDraft(app.id, "invite");
-  }, [requestEmailDraft, selectedJobTitle]);
+  const handleGenerateEmail = useCallback(
+    (app: EmployerApplication) => {
+      if ((!app.resume_id && !app.cv_document_id) || !app.candidate) return;
+      setEmailTarget({
+        candidateName: app.candidate.full_name,
+        candidateEmail: app.candidate.email,
+        applicationId: app.id,
+        jobTitle: selectedJobTitle || "Vị trí tuyển dụng",
+        matchScore: app.ai_matching_score,
+      });
+      void requestEmailDraft(app.id, "invite");
+    },
+    [requestEmailDraft, selectedJobTitle]
+  );
 
   const handleGenerateQuestions = useCallback(async () => {
     if (!intvTarget || selectedSkills.length === 0) return;
@@ -251,7 +274,14 @@ export function EmployerCandidatesPage() {
     setIntvError(null);
     setIntvLoading(true);
     try {
-      setIntvResult(await generateInterviewQuestions(intvTarget.resumeId, intvTarget.jobId, selectedSkills));
+      setIntvResult(
+        await generateInterviewQuestions({
+          resume_id: intvTarget.resumeId ?? undefined,
+          cv_document_id: intvTarget.cvDocumentId ?? undefined,
+          job_id: intvTarget.jobId,
+          skills_to_assess: selectedSkills,
+        })
+      );
     } catch (error) {
       setIntvError(getApiErrorMessage(error));
     } finally {
@@ -260,13 +290,23 @@ export function EmployerCandidatesPage() {
   }, [intvTarget, selectedSkills]);
 
   const handleEvaluate = useCallback(async (app: EmployerApplication) => {
-    if (!app.resume_id || !app.candidate) return;
-    setEvalTarget({ candidateName: app.candidate.full_name, resumeId: app.resume_id, matchScore: app.ai_matching_score });
+    if ((!app.resume_id && !app.cv_document_id) || !app.candidate) return;
+    setEvalTarget({
+      candidateName: app.candidate.full_name,
+      resumeId: app.resume_id,
+      cvDocumentId: app.cv_document_id,
+      matchScore: app.ai_matching_score,
+    });
     setEvalResult(null);
     setEvalError(null);
     setEvalLoading(true);
     try {
-      setEvalResult(await evaluateCV(app.resume_id));
+      setEvalResult(
+        await evaluateCV({
+          resume_id: app.resume_id ?? undefined,
+          cv_document_id: app.cv_document_id ?? undefined,
+        })
+      );
     } catch (error) {
       setEvalError(getApiErrorMessage(error));
     } finally {
@@ -484,8 +524,13 @@ export function EmployerCandidatesPage() {
           onPreviewBuilder={(application) => setBuilderPreview(application.cv_document)}
           onSummarize={handleSummarize}
           onGenerateQuestions={(app) => {
-            if (!app.resume_id || !app.candidate) return;
-            setIntvTarget({ candidateName: app.candidate.full_name, resumeId: app.resume_id, jobId: app.job_id });
+            if ((!app.resume_id && !app.cv_document_id) || !app.candidate) return;
+            setIntvTarget({
+              candidateName: app.candidate.full_name,
+              resumeId: app.resume_id,
+              cvDocumentId: app.cv_document_id,
+              jobId: app.job_id,
+            });
             setSelectedSkills([]);
             setIntvResult(null);
             setIntvError(null);
@@ -722,7 +767,12 @@ export function EmployerCandidatesPage() {
                 size="sm"
                 leftIcon={<Sparkles className="w-3.5 h-3.5" />}
                 onClick={() => {
-                  const targetApp = applications.find((a) => a.candidate?.full_name === evalTarget.candidateName || a.resume_id === evalTarget.resumeId);
+                  const targetApp = applications.find(
+                    (a) =>
+                      a.candidate?.full_name === evalTarget.candidateName ||
+                      (evalTarget.resumeId && a.resume_id === evalTarget.resumeId) ||
+                      (evalTarget.cvDocumentId && a.cv_document_id === evalTarget.cvDocumentId)
+                  );
                   handleCloseEval();
                   if (targetApp) handleGenerateEmail(targetApp);
                 }}
@@ -842,8 +892,8 @@ export function EmployerCandidatesPage() {
         result={emailResult}
         loading={emailLoading}
         error={emailError}
-        onRetry={(type) => {
-          if (emailTarget) void requestEmailDraft(emailTarget.applicationId, type || "invite");
+        onRetry={(type, customPrompt, tone) => {
+          if (emailTarget) void requestEmailDraft(emailTarget.applicationId, type || "invite", tone, customPrompt);
         }}
         onClose={handleCloseEmail}
       />

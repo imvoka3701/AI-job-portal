@@ -17,8 +17,9 @@ import { getRecommendedJobs } from "@/lib/api/ai";
 import type { RecommendedJob, JobRecommendationResponse } from "@/lib/api/ai";
 
 interface RecommendedJobsProps {
-  resumeId: number | null;
-  isValidated: boolean;
+  resumeId?: number | null;
+  cvDocumentId?: number | null;
+  isValidated?: boolean;
 }
 
 const EXPERIENCE_LABEL_MAP: Record<string, string> = {
@@ -49,17 +50,24 @@ function getScoreBg(score: number): string {
   return "bg-gray-50 border-gray-200";
 }
 
-export function RecommendedJobs({ resumeId, isValidated }: RecommendedJobsProps) {
+export function RecommendedJobs({ resumeId, cvDocumentId, isValidated = true }: RecommendedJobsProps) {
   const [data, setData] = useState<JobRecommendationResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const hasCv = Boolean(resumeId || cvDocumentId);
+  const isReady = hasCv && isValidated;
+
   const fetchRecommendations = useCallback(async () => {
-    if (!resumeId || !isValidated) return;
+    if (!hasCv || !isValidated) return;
     setLoading(true);
     setError(null);
     try {
-      const result = await getRecommendedJobs(resumeId, 10);
+      const result = await getRecommendedJobs({
+        resume_id: resumeId ?? undefined,
+        cv_document_id: cvDocumentId ?? undefined,
+        limit: 10,
+      });
       setData(result);
     } catch (err: unknown) {
       const message =
@@ -68,20 +76,20 @@ export function RecommendedJobs({ resumeId, isValidated }: RecommendedJobsProps)
     } finally {
       setLoading(false);
     }
-  }, [resumeId, isValidated]);
+  }, [resumeId, cvDocumentId, hasCv, isValidated]);
 
   useEffect(() => {
     fetchRecommendations();
   }, [fetchRecommendations]);
 
   // Not ready state
-  if (!resumeId || !isValidated) {
+  if (!isReady) {
     return (
       <Card className="p-6 border border-dashed border-gray-200 bg-gray-50/50">
         <div className="flex items-center gap-3 text-gray-500">
           <Zap className="w-5 h-5" />
           <p className="text-sm">
-            Tải lên CV hợp lệ để nhận gợi ý việc làm phù hợp ngành nghề từ AI.
+            Tải lên CV hợp lệ hoặc tạo CV trực tuyến để nhận gợi ý việc làm phù hợp ngành nghề từ AI.
           </p>
         </div>
       </Card>
