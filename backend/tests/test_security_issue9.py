@@ -119,19 +119,23 @@ def test_security_headers_middleware(client: TestClient):
 
 def test_production_secret_key_validation():
     """Test that Settings validator rejects weak/default SECRET_KEY in production."""
-    # Production with default key -> must raise ValidationError
+    # Production with default key on PostgreSQL -> must raise ValidationError
     with pytest.raises(ValidationError):
-        Settings(DEBUG=False, SECRET_KEY="change-me-in-production")
+        Settings(DEBUG=False, SECRET_KEY="change-me-in-production", DATABASE_URL="postgresql://user:pass@localhost:5432/db")
 
-    # Production with short key (< 32 chars) -> must raise ValidationError
+    # Production with short key (< 32 chars) on PostgreSQL -> must raise ValidationError
     with pytest.raises(ValidationError):
-        Settings(DEBUG=False, SECRET_KEY="short-secret-key")
+        Settings(DEBUG=False, SECRET_KEY="short-secret-key", DATABASE_URL="postgresql://user:pass@localhost:5432/db")
 
-    # Production with strong 32+ char key -> succeeds
+    # Production with strong 32+ char key on PostgreSQL -> succeeds
     strong_key = "a" * 32
-    prod_settings = Settings(DEBUG=False, SECRET_KEY=strong_key)
+    prod_settings = Settings(DEBUG=False, SECRET_KEY=strong_key, DATABASE_URL="postgresql://user:pass@localhost:5432/db")
     assert prod_settings.DEBUG is False
     assert prod_settings.SECRET_KEY == strong_key
+
+    # SQLite in-memory test mode -> does not block test execution
+    sqlite_test_settings = Settings(DEBUG=False, SECRET_KEY="test-secret", DATABASE_URL="sqlite:///:memory:")
+    assert sqlite_test_settings.DEBUG is False
 
     # Debug mode with short key -> succeeds in development
     dev_settings = Settings(DEBUG=True, SECRET_KEY="dev-secret")

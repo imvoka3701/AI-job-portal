@@ -24,7 +24,9 @@ def _register_and_login(
     payload: dict = {"email": email, "password": password, "full_name": full_name, "role": role}
     if company_name:
         payload["company_name"] = company_name
-    resp = client.post("/auth/register", json=payload)
+    ip_suffix = abs(hash(email)) % 240 + 1
+    headers = {"X-Forwarded-For": f"10.99.2.{ip_suffix}"}
+    resp = client.post("/auth/register", json=payload, headers=headers)
     assert resp.status_code in (200, 201), resp.text
     user_data = resp.json()
     if role == "employer":
@@ -32,7 +34,7 @@ def _register_and_login(
         if user and not user.is_active:
             user.is_active = True
             db_session.commit()
-    login_resp = client.post("/auth/login", json={"email": email, "password": password})
+    login_resp = client.post("/auth/login", json={"email": email, "password": password}, headers=headers)
     assert login_resp.status_code == 200, login_resp.text
     return {"Authorization": f"Bearer {login_resp.json()['access_token']}"}
 

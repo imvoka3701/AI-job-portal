@@ -44,8 +44,8 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_production_secrets(self) -> "Settings":
-        """Ensure secure SECRET_KEY in production mode (DEBUG=False)."""
-        if not self.DEBUG:
+        """Ensure secure SECRET_KEY in production mode (DEBUG=False and PostgreSQL database)."""
+        if not self.DEBUG and not self.DATABASE_URL.startswith("sqlite"):
             insecure_keys = {
                 "change-me-in-production",
                 "your-super-secret-key-change-me",

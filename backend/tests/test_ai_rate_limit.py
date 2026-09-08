@@ -135,17 +135,20 @@ def test_rate_limit_user_isolation():
 
 def test_rate_limit_bypass_when_disabled():
     """Verify that setting RATE_LIMIT_ENABLED = False bypasses rate limiting."""
-    settings.RATE_LIMIT_ENABLED = False
+    try:
+        settings.RATE_LIMIT_ENABLED = False
 
-    test_app = FastAPI()
+        test_app = FastAPI()
 
-    @test_app.get("/test-ai-bypass", dependencies=[Depends(rate_limit("ai_expensive"))])
-    def route():
-        return {"status": "ok"}
+        @test_app.get("/test-ai-bypass", dependencies=[Depends(rate_limit("ai_expensive"))])
+        def route():
+            return {"status": "ok"}
 
-    client = TestClient(test_app)
+        client = TestClient(test_app)
 
-    # Even 15 requests succeed when disabled
-    for _ in range(15):
-        resp = client.get("/test-ai-bypass")
-        assert resp.status_code == status.HTTP_200_OK
+        # Even 15 requests succeed when disabled
+        for _ in range(15):
+            resp = client.get("/test-ai-bypass")
+            assert resp.status_code == status.HTTP_200_OK
+    finally:
+        settings.RATE_LIMIT_ENABLED = True
