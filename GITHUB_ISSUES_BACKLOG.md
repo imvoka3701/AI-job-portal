@@ -1,8 +1,8 @@
 # DANH SÁCH GITHUB ISSUES & ACTION CHECKLIST
 ## Hệ Thống AI-Powered Job Portal — Khắc Phục Lỗi Audit Fullstack
 
-> 🏆 **TỔNG KẾT TIẾN ĐỘ: 9/9 ISSUES ĐÃ HOÀN THÀNH 100% (CLOSED)**
-> Toàn bộ 9 issues kỹ thuật, bảo mật, dữ liệu và AI đã được giải quyết trọn vẹn, vượt qua 100% bài kiểm thử tự động và đã được push lên nhánh `main`.
+> 🏆 **TỔNG KẾT TIẾN ĐỘ: 13/13 ISSUES ĐÃ HOÀN THÀNH 100% (CLOSED)**
+> Toàn bộ 13 issues kỹ thuật, bảo mật, dữ liệu và AI đã được giải quyết trọn vẹn, vượt qua 100% bài kiểm thử tự động và đã được push lên nhánh `main`.
 
 ---
 
@@ -19,6 +19,10 @@
 | **#7** | [[Auth & Leads] Khắc phục Form Quên Mật Khẩu & Tư Vấn Doanh Nghiệp dùng setTimeout giả lập](#issue-7-auth--leads-khắc-phục-form-quên-mật-khẩu--tư-vấn-doanh-nghiệp-dùng-settimeout-giả-lập) | 🔴 Critical | 2 (Mới phát hiện) | `bug`, `auth`, `critical` | ✅ **100% Done** |
 | **#8** | [[AI Feature Gap] Tích hợp AI Job Recommendations & Hỗ trợ CV Builder cho AI Evaluate/Roadmap](#issue-8-ai-feature-gap-tích-hợp-ai-job-recommendations--hỗ-trợ-cv-builder-cho-ai-evaluateroadmap) | 🔴 Critical | 3 (Mới phát hiện) | `ai-core`, `feature-gap`, `critical` | ✅ **100% Done** |
 | **#9** | [[Security Hardening] Vá Lỗ Hổng Bảo Mật Toàn Diện (Bảo Vệ CV PII, OAuth CSRF, Prompt Injection & Rate Limit)](#issue-9-security-hardening-vá-lỗ-hổng-bảo-mật-toàn-diện-bảo-vệ-cv-pii-oauth-csrf-prompt-injection--auth-rate-limit) | 🔴 Critical | 8 (SEC-01 -> SEC-08) | `security`, `critical`, `backend`, `frontend` | ✅ **100% Done** |
+| **#10** | [[AI Matching & Jobs] Tự Động Tái Tạo Vector Embedding Khi Cập Nhật Job & Hỗ Trợ CV Builder Document](#issue-10-ai-matching--jobs-tự-động-tái-tạo-vector-embedding-khi-cập-nhật-job--hỗ-trợ-cv-builder-document-trên-ai-matching-closed) | 🟠 High | 2 (Vector recalc & CV Doc) | `ai`, `backend`, `frontend` | ✅ **100% Done** |
+| **#11** | [[Admin & Multi-Tenancy] Chuẩn Hóa Quản Lý Company & Chức Năng Xác Thực Doanh Nghiệp (is_verified)](#issue-11-admin--multi-tenancy-chuẩn-hóa-quản-lý-company--chức-năng-xác-thực-doanh-nghiệp-is_verified-closed) | 🟠 High | 3 (Verify toggle & Badge) | `admin`, `backend`, `frontend` | ✅ **100% Done** |
+| **#12** | [[Admin AI & Interviews] Đồng Bộ Enum RoundType & Tự Động Nạp System Prompts / Test Playground](#issue-12-admin-ai--interviews-đồng-bộ-enum-roundtype--tự-động-nạp-system-prompts--test-playground-closed) | 🟡 Medium | 3 (RoundType & AI Studio) | `admin`, `ai`, `interviews` | ✅ **100% Done** |
+| **#13** | [[Candidate & Employer ATS] Thống Kê Đầy Đủ CV Builder Trên Dashboard & Khắc Phục Race Condition Kanban](#issue-13-candidate--employer-ats-thống-kê-đầy-đủ-cv-builder-trên-dashboard--khắc-phục-race-condition-kanban-closed) | 🟡 Medium | 2 (CV count & Kanban race) | `candidate`, `employer`, `ats` | ✅ **100% Done** |
 
 ---
 
@@ -418,5 +422,111 @@
 | **Kiểm tra cú pháp Frontend** | `npm run lint` | **0 errors** | 🟢 **Clean** |
 | **Cô lập kiểm thử Email** | `SafeMockSMTP` in-memory | **0 emails leaked** | 🟢 **An toàn tuyệt đối** |
 | **Trạng thái Git Repository** | `git push origin main` | **Đã push đầy đủ (Commit `ce55f4d`)** | 🟢 **Up-to-date** |
+
+---
+
+## ISSUE 10: [AI Matching & Jobs] Tự Động Tái Tạo Vector Embedding Khi Cập Nhật Job & Hỗ Trợ CV Builder Document Trên AI Matching [CLOSED]
+
+- **Status:** ✅ Closed (100% Done)
+- **Labels:** `ai`, `backend`, `frontend`, `priority: high`
+- **Milestone:** `Phase 2: Enterprise Polish & Governance` (Hoàn thành)
+
+### 1. Mô tả vấn đề
+1. **Lệch Vector Embedding khi sửa Job:** Khi nhà tuyển dụng sửa tin tuyển dụng (`PATCH /jobs/{id}`), chỉ có text được lưu vào DB mà vector embedding 384 chiều (`job.embedding`) không được tái tạo. Khi các thuật toán AI Cosine Similarity (`<=>`) chạy, hệ thống so khớp trên vector cũ dẫn tới kết quả sai lệch nghiêm trọng.
+2. **Kích hoạt CV Builder trên AI Matching:** Trang `AIMatchingPage.tsx` trước đó chỉ nhận `resume_id` (file PDF). Khi ứng viên chọn hồ sơ trực tuyến từ CV Builder (`cv_document_id`), giao diện hiển thị cảnh báo cứng và không thể so khớp AI với công việc.
+
+### 2. Tệp tin sửa đổi
+- `backend/app/routers/jobs.py`
+- `backend/tests/test_jobs.py`
+- `frontend/src/pages/ai/AIMatchingPage.tsx`
+
+### 3. Giải pháp đã thực hiện
+- **Backend:** Bổ sung logic kiểm tra các trường text cấu thành JD (`title`, `description`, `requirements`, `benefits`) trong hàm `update_job`. Nếu có thay đổi, hệ thống tự động gọi `generate_embedding(new_jd_text)` và cập nhật lại `job.embedding` trong CSDL pgvector.
+- **Frontend:** Cập nhật `handleRunDeepMatch` trong `AIMatchingPage.tsx` để nhận diện `selectedCvSource.type === "cv_doc"`, truyền `cv_document_id` vào API `getAiMatch` thay vì ép buộc ứng viên phải tải lên file PDF.
+- **Kiểm thử:** Bổ sung unit test `test_employer_update_job_regenerates_embedding` trong `backend/tests/test_jobs.py`, xác thực 100% việc cập nhật text kích hoạt sinh lại vector embedding.
+
+---
+
+## ISSUE 11: [Admin & Multi-Tenancy] Chuẩn Hóa Quản Lý Company & Chức Năng Xác Thực Doanh Nghiệp (is_verified) [CLOSED]
+
+- **Status:** ✅ Closed (100% Done)
+- **Labels:** `admin`, `backend`, `frontend`, `security`
+- **Milestone:** `Phase 2: Enterprise Polish & Governance` (Hoàn thành)
+
+### 1. Mô tả vấn đề
+1. **Admin Companies thiếu dữ liệu Doanh nghiệp:** Router `/admin/companies` trước đó chỉ trả về thông tin User cơ bản (`full_name`, `company_name`, `email`), bỏ rơi toàn bộ thuộc tính của thực thể `Company` thật (`tax_code`, `website`, `is_verified`, `company_size`, `member_count`).
+2. **Thiếu Endpoint & Nút Cấp Xác Thực Doanh Nghiệp:** Admin không có cơ chế cấp hoặc hủy huy hiệu doanh nghiệp xác thực (`is_verified`), trong khi bảng `companies` đã có sẵn trường này.
+3. **Hardcode Huy Hiệu Xác Thực trên Employer Dashboard:** `EmployerDashboard.tsx` hiển thị nhãn "Doanh Nghiệp Xác Thực" cho mọi tài khoản bất kể trạng thái `is_verified` trong CSDL.
+
+### 2. Tệp tin sửa đổi
+- `backend/app/schemas/admin.py`
+- `backend/app/services/admin_service.py`
+- `backend/app/routers/admin.py`
+- `backend/tests/test_admin_core.py`
+- `frontend/src/lib/api/admin.ts`
+- `frontend/src/pages/admin/AdminCompanies.tsx`
+- `frontend/src/pages/employer/EmployerDashboard.tsx`
+
+### 3. Giải pháp đã thực hiện
+- **Backend:** 
+  - Mở rộng schema `CompanySummary` với `tax_code`, `website`, `is_verified`, `company_size`, `member_count`.
+  - Thêm endpoint `PATCH /admin/companies/{company_id}/verify` nhận `{ "is_verified": bool }`, cập nhật trực tiếp `Company.is_verified` và ghi lại Audit Log (`company.verified` / `company.unverified`).
+  - Cập nhật `list_companies`, `approve_company`, `reject_company` để tự động enrich dữ liệu đa người dùng (multi-tenancy) từ bảng `Company`.
+- **Frontend:**
+  - `AdminCompanies.tsx`: Thêm cột Mã số thuế (MST), quy mô nhân sự, huy hiệu xác thực, và nút Toggle Cấp / Gỡ xác thực.
+  - `EmployerDashboard.tsx`: Điều kiện hóa huy hiệu xác thực theo `companyContext?.company.is_verified`. Nếu chưa được duyệt, hiển thị nhãn cảnh báo trung tính "Hồ Sơ Chờ Xác Thực".
+- **Kiểm thử:** Viết unit test `test_company_verify_toggle_and_audit` trong `test_admin_core.py`, kiểm tra đầy đủ luồng cấp, hủy xác thực và ghi vết audit log.
+
+---
+
+## ISSUE 12: [Admin Oversight & AI Studio] Khắc Phục Lệch Enum Vòng Phỏng Vấn & Mở Rộng AI Prompt Studio & Call Logs [CLOSED]
+
+- **Status:** ✅ Closed (100% Done)
+- **Labels:** `admin`, `frontend`, `backend`, `ai`
+- **Milestone:** `Phase 2: Enterprise Polish & Governance` (Hoàn thành)
+
+### 1. Mô tả vấn đề
+1. **Lệch Enum Vòng Phỏng Vấn giữa Frontend và Backend:** Frontend `AdminInterviewsPage.tsx` định nghĩa các giá trị bộ lọc: `phone_screen`, `technical`, `behavioral`. Trong khi đó, Backend CSDL `RoundType` chỉ có: `cv_screen`, `tech`, `hr`, `final`, `custom`. Hậu quả: Khi Admin lọc theo vòng kỹ thuật hoặc HR, API luôn trả về danh sách rỗng.
+2. **Thiếu Tính Năng trên AI Prompts Studio & AI Call Logs:** Hệ thống AI Prompts Studio và AI Call Logs chỉ hỗ trợ 5 tính năng cơ bản, thiếu hoàn toàn `generate_jd` (Soạn JD bằng AI) và `cover_letter` (Viết Cover Letter), khiến Admin không thể tinh chỉnh prompt hoặc theo dõi chi phí/token của 2 tính năng này.
+3. **Đếm Sai Số Lượng Tin Hoạt Động (Active Jobs):** `AdminJobs.tsx` tính số tin hoạt động bằng `data.items.filter(j => j.is_active).length`, chỉ đếm trên 20 items của trang hiện tại thay vì toàn bộ hệ thống.
+
+### 2. Tệp tin sửa đổi
+- `frontend/src/pages/admin/AdminInterviewsPage.tsx`
+- `backend/app/routers/admin_ai.py`
+- `frontend/src/lib/api/adminAI.ts`
+- `frontend/src/pages/admin/AIPromptsPage.tsx`
+- `frontend/src/pages/admin/AdminAILogsPage.tsx`
+- `frontend/src/pages/admin/AdminJobs.tsx`
+
+### 3. Giải pháp đã thực hiện
+- **Đồng bộ Enum Phỏng vấn:** Cập nhật `RoundTypeFilter` trong `AdminInterviewsPage.tsx` thành `"all" | "cv_screen" | "tech" | "hr" | "final" | "custom"`, khớp 100% với model backend.
+- **Mở rộng AI Prompt Studio:** Bổ sung `generate_jd`, `cover_letter`, `matching`, `cv_parse` vào `AIFeature`, `FEATURE_META`, `ORDERED_FEATURES` và bảng ánh xạ `FEATURE_LABELS`. Backend tự động seed các prompt dự phòng từ `HARDCODED_FALLBACK_PROMPTS` vào DB khi Admin mở Prompt Studio.
+- **Mẫu dữ liệu kiểm thử (Sample Inputs):** Cập nhật endpoint `/admin/ai/prompts/{feature}/test` bổ sung kịch bản test thực tế cho `GENERATE_JD` và `COVER_LETTER`.
+- **Thống kê Tin tuyển dụng chính xác:** `AdminJobs.tsx` tích hợp gọi `getAdminStats()` để lấy `total_active_jobs` trên toàn hệ thống thay vì đếm cục bộ trên trang.
+
+---
+
+## ISSUE 13: [UX Polish & ATS Stability] Đồng Bộ CV Builder Lên Candidate Dashboard & Khắc Phục Race Condition Trên ATS Kanban [CLOSED]
+
+- **Status:** ✅ Closed (100% Done)
+- **Labels:** `frontend`, `candidate`, `employer`, `ux`
+- **Milestone:** `Phase 2: Enterprise Polish & Governance` (Hoàn thành)
+
+### 1. Mô tả vấn đề
+1. **Thiếu CV Builder trên Candidate Dashboard:** Bảng điều khiển ứng viên (`CandidateDashboard.tsx`) tính `totalCVs = resumes.length` và chỉ render danh sách file tải lên (`resumes`), bỏ quên toàn bộ các bản CV trực tuyến mà ứng viên tạo bằng CV Builder (`cvDocuments`).
+2. **Race Condition trên Bảng Tuyển Dụng ATS Kanban:** Trong `EmployerCandidatesPage.tsx`, hàm `fetchApplications` không hủy bỏ kết quả của các request trước đó khi HR bấm chuyển nhanh giữa nhiều công việc khác nhau. Nếu kết quả của Job cũ phản hồi chậm hơn Job mới, danh sách ứng viên sẽ bị ghi đè sai lệch vào Job đang chọn.
+
+### 2. Tệp tin sửa đổi
+- `frontend/src/pages/candidate/CandidateDashboard.tsx`
+- `frontend/src/pages/employer/EmployerCandidatesPage.tsx`
+
+### 3. Giải pháp đã thực hiện
+- **Đồng bộ CV Studio cho Ứng viên:**
+  - Cập nhật thống kê `totalCVs = resumes.length + cvDocuments.length`.
+  - Phân vùng trực quan chuyên nghiệp trong "Trung Tâm Hồ Sơ (CV Studio)" hiển thị danh sách CV Builder trực tuyến (kèm tên, template, trạng thái xuất bản, ngày cập nhật, nút Xem trước, Sửa CV, và So khớp AI).
+- **Chống Race Condition trong ATS Kanban:**
+  - Thêm `activeJobRequestRef = useRef<number | null>(null)` quản lý định danh công việc đang được truy vấn.
+  - Kiểm tra `if (activeJobRequestRef.current === jobId)` trước khi ghi dữ liệu vào state `setApplications(data)` và `setAppsLoading(false)`. Triệt tiêu hoàn toàn nguy cơ hiển thị sai lệch ứng viên giữa các vị trí tuyển dụng.
+
 
 

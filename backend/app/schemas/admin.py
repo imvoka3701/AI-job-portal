@@ -29,6 +29,15 @@ class CompanySummary(BaseModel):
     company_description: str | None = None
     is_active: bool
     created_at: datetime
+    tax_code: str | None = None
+    website: str | None = None
+    is_verified: bool = False
+    company_size: str | None = None
+    member_count: int = 1
+
+
+class CompanyVerifyUpdate(BaseModel):
+    is_verified: bool
 
 
 class UserStatusUpdate(BaseModel):

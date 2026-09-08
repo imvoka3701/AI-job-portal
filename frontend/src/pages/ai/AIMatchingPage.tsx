@@ -308,16 +308,20 @@ export function AIMatchingPage() {
       return;
     }
 
-    const realResumeId =
-      selectedCvSource?.type === "resume"
-        ? selectedCvSource.id
-        : resumes[0]?.id;
+    const isDoc = selectedCvSource?.type === "cv_doc";
+    const isResume = selectedCvSource?.type === "resume";
+    const resumeId = isResume ? selectedCvSource.id : (!isDoc && resumes[0]?.id ? resumes[0].id : undefined);
+    const cvDocumentId = isDoc ? selectedCvSource.id : undefined;
 
-    if (realResumeId) {
+    if (resumeId || cvDocumentId) {
       setMatchingJobId(job.id);
       setActiveMatchResult(null);
       try {
-        const data = await getAiMatch(realResumeId, job.id);
+        const data = await getAiMatch({
+          job_id: job.id,
+          resume_id: resumeId,
+          cv_document_id: cvDocumentId,
+        });
         setActiveMatchResult(data);
         setJobMatchScores((prev) => ({ ...prev, [job.id]: data }));
       } catch (err) {
@@ -326,7 +330,7 @@ export function AIMatchingPage() {
         setMatchingJobId(null);
       }
     } else {
-      setMatchError("Vui lòng chọn hoặc tải lên một CV dạng file để so khớp AI với công việc này.");
+      setMatchError("Vui lòng chọn hoặc tạo một hồ sơ CV để so khớp AI với công việc này.");
     }
   };
 

@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.core.dependencies import require_role
 from app.crud.admin import crud_admin
 from app.crud.admin_audit_log import crud_admin_audit_log
+from app.crud.company import crud_company
 from app.database import get_db
 from app.models.interview_round import InterviewRound
 from app.models.user import User, UserRole
@@ -20,6 +21,7 @@ from app.schemas.admin import (
     AdminStats,
     AdminUserSummary,
     CompanySummary,
+    CompanyVerifyUpdate,
     InterviewRoundAdminItem,
     InterviewRoundMarkReviewRequest,
     JobStatusUpdate,
@@ -29,6 +31,7 @@ from app.schemas.admin import (
 from app.services.admin_service import (
     permanently_delete_job,
     set_company_status,
+    set_company_verification,
     set_job_status,
     set_user_status,
 )
@@ -233,13 +236,33 @@ def list_companies(
     keyword: str | None = Query(None, max_length=100),
     is_active: bool | None = Query(None),
 ) -> list[CompanySummary]:
-    """List all employer accounts, optionally filtered by active status."""
-    companies = crud_admin.list_companies(
+    """List all employer accounts with company metadata, optionally filtered by active status."""
+    employers = crud_admin.list_companies(
         db,
         keyword=keyword,
         is_active=is_active,
     )
-    return [CompanySummary.model_validate(company) for company in companies]
+    result = []
+    for employer in employers:
+        membership = crud_company.get_active_membership(db, user_id=employer.id)
+        comp = membership.company if membership else None
+        result.append(
+            CompanySummary(
+                id=employer.id,
+                email=employer.email,
+                full_name=employer.full_name,
+                company_name=comp.name if comp else employer.company_name,
+                company_description=comp.description if comp else employer.company_description,
+                is_active=employer.is_active,
+                created_at=employer.created_at,
+                tax_code=comp.tax_code if comp else None,
+                website=comp.website if comp else None,
+                is_verified=comp.is_verified if comp else False,
+                company_size=comp.company_size if comp else None,
+                member_count=len(comp.memberships) if (comp and comp.memberships) else 1,
+            )
+        )
+    return result
 
 
 @router.patch(
@@ -259,7 +282,22 @@ def approve_company(
         is_active=True,
         actor=current_user,
     )
-    return CompanySummary.model_validate(company)
+    membership = crud_company.get_active_membership(db, user_id=company.id)
+    comp = membership.company if membership else None
+    return CompanySummary(
+        id=company.id,
+        email=company.email,
+        full_name=company.full_name,
+        company_name=comp.name if comp else company.company_name,
+        company_description=comp.description if comp else company.company_description,
+        is_active=company.is_active,
+        created_at=company.created_at,
+        tax_code=comp.tax_code if comp else None,
+        website=comp.website if comp else None,
+        is_verified=comp.is_verified if comp else False,
+        company_size=comp.company_size if comp else None,
+        member_count=len(comp.memberships) if (comp and comp.memberships) else 1,
+    )
 
 
 @router.patch(
@@ -279,7 +317,42 @@ def reject_company(
         is_active=False,
         actor=current_user,
     )
-    return CompanySummary.model_validate(company)
+    membership = crud_company.get_active_membership(db, user_id=company.id)
+    comp = membership.company if membership else None
+    return CompanySummary(
+        id=company.id,
+        email=company.email,
+        full_name=company.full_name,
+        company_name=comp.name if comp else company.company_name,
+        company_description=comp.description if comp else company.company_description,
+        is_active=company.is_active,
+        created_at=company.created_at,
+        tax_code=comp.tax_code if comp else None,
+        website=comp.website if comp else None,
+        is_verified=comp.is_verified if comp else False,
+        company_size=comp.company_size if comp else None,
+        member_count=len(comp.memberships) if (comp and comp.memberships) else 1,
+    )
+
+
+@router.patch(
+    "/companies/{company_id}/verify",
+    response_model=CompanySummary,
+    summary="Toggle verification status for a company",
+)
+def verify_company(
+    company_id: int,
+    data: CompanyVerifyUpdate,
+    current_user: User = Depends(_require_admin),
+    db: Session = Depends(get_db),
+) -> CompanySummary:
+    """Grant or revoke official verification badge for an employer/company."""
+    return set_company_verification(
+        db,
+        company_id=company_id,
+        is_verified=data.is_verified,
+        actor=current_user,
+    )
 
 
 # ── Jobs ───────────────────────────────────────────────────────────────────────

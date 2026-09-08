@@ -1,4 +1,4 @@
-"""Business rules for privileged administrator actions."""
+from datetime import datetime, timezone
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
@@ -6,8 +6,10 @@ from sqlalchemy.orm import Session
 from app.crud.admin import crud_admin
 from app.crud.admin_audit_log import crud_admin_audit_log
 from app.crud.company import crud_company
+from app.models.company import Company
 from app.models.job import Job
 from app.models.user import User, UserRole
+from app.schemas.admin import CompanySummary
 
 
 def set_company_status(
@@ -131,3 +133,62 @@ def permanently_delete_job(db: Session, *, job_id: int, actor: User) -> None:
         details={"employer_id": employer_id},
     )
     db.commit()
+
+
+def set_company_verification(
+    db: Session,
+    *,
+    company_id: int,
+    is_verified: bool,
+    actor: User,
+) -> CompanySummary:
+    user = crud_admin.get_company(db, company_id=company_id)
+    company_obj = None
+    target_user = None
+
+    if user is not None:
+        target_user = user
+        membership = crud_company.get_active_membership(db, user_id=user.id)
+        if membership is None:
+            from app.services.company_service import company_service
+
+            membership = company_service.bootstrap_employer_company(db, user=user)
+        company_obj = membership.company
+    else:
+        company_obj = db.get(Company, company_id)
+        if company_obj is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Company not found")
+        target_user = db.get(User, company_obj.created_by_user_id)
+
+    previous = company_obj.is_verified
+    company_obj.is_verified = is_verified
+
+    crud_admin_audit_log.create(
+        db,
+        actor_user_id=actor.id,
+        actor_email=actor.email,
+        action="company.verified" if is_verified else "company.unverified",
+        target_type="company",
+        target_id=str(company_id),
+        target_label=company_obj.name or (target_user.company_name if target_user else "Company"),
+        details={"previous_verified": previous, "new_verified": is_verified},
+    )
+    db.commit()
+    db.refresh(company_obj)
+
+    return CompanySummary(
+        id=user.id if user else company_obj.id,
+        email=target_user.email if target_user else "",
+        full_name=target_user.full_name if target_user else "",
+        company_name=company_obj.name,
+        company_description=company_obj.description,
+        is_active=company_obj.is_active,
+        created_at=company_obj.created_at
+        or (target_user.created_at if target_user else datetime.now(timezone.utc)),
+        tax_code=company_obj.tax_code,
+        website=company_obj.website,
+        is_verified=company_obj.is_verified,
+        company_size=company_obj.company_size,
+        member_count=len(company_obj.memberships) if company_obj.memberships else 1,
+    )
+

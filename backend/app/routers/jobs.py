@@ -176,6 +176,26 @@ def update_job(
                 detail="Phòng ban không thuộc doanh nghiệp hoặc đã ngừng hoạt động.",
             )
     updated = crud_job.update(db, db_obj=job, obj_in=data)
+
+    text_fields = {"title", "description", "requirements", "benefits"}
+    if any(field in data.model_fields_set for field in text_fields):
+        jd_text = " ".join(
+            part
+            for part in [
+                updated.title,
+                updated.description,
+                updated.requirements,
+                updated.benefits,
+            ]
+            if part
+        )
+        if jd_text.strip():
+            try:
+                embedding = generate_embedding(jd_text)
+                updated = crud_job.update_embedding(db, job=updated, embedding=embedding)
+            except Exception:
+                logger.exception("Failed to regenerate embedding for updated job %s", updated.id)
+
     return JobRead.model_validate(updated)
 
 

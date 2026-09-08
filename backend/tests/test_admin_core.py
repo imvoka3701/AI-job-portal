@@ -200,3 +200,48 @@ def test_audit_logs_are_admin_only(client: TestClient, db_session: Session):
 
     assert client.get("/admin/audit-logs", headers=candidate_headers).status_code == 403
     assert client.get("/admin/audit-logs", headers=admin_headers).status_code == 200
+
+
+def test_company_verify_toggle_and_audit(client: TestClient, db_session: Session):
+    admin, headers = _admin(client, db_session)
+    employer = _create_user(
+        db_session,
+        email="verify-employer@example.com",
+        role=UserRole.EMPLOYER,
+        full_name="Tech Corp Owner",
+        company_name="Tech Corp Vietnam",
+    )
+
+    # Initial check - not verified
+    companies = client.get("/admin/companies", headers=headers).json()
+    matched = [c for c in companies if c["id"] == employer.id]
+    assert len(matched) == 1
+    assert matched[0]["is_verified"] is False
+
+    # Toggle verify -> True
+    verify_resp = client.patch(
+        f"/admin/companies/{employer.id}/verify",
+        headers=headers,
+        json={"is_verified": True},
+    )
+    assert verify_resp.status_code == 200, verify_resp.text
+    assert verify_resp.json()["is_verified"] is True
+
+    # Audit log check
+    logs = client.get(
+        "/admin/audit-logs",
+        headers=headers,
+        params={"action": "company.verified"},
+    ).json()
+    assert logs["total"] >= 1
+    assert logs["items"][0]["target_id"] == str(employer.id)
+
+    # Toggle verify -> False (revoke)
+    revoke_resp = client.patch(
+        f"/admin/companies/{employer.id}/verify",
+        headers=headers,
+        json={"is_verified": False},
+    )
+    assert revoke_resp.status_code == 200
+    assert revoke_resp.json()["is_verified"] is False
+

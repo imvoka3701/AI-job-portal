@@ -134,6 +134,38 @@ class TestJobUpdate:
         response = client.patch("/jobs/999", json={"title": "X"}, headers=headers)
         assert response.status_code == 404
 
+    def test_employer_update_job_regenerates_embedding(
+        self, client: TestClient, db_session: Session, monkeypatch
+    ):
+        """Test that updating text fields triggers generate_embedding and updates job embedding."""
+        called = []
+
+        def fake_embedding(text: str):
+            called.append(text)
+            return [0.1] * 384
+
+        monkeypatch.setattr("app.routers.jobs.generate_embedding", fake_embedding)
+
+        headers = _register_employer(client, db_session, email="emp_emb@example.com")
+        create = client.post("/jobs", json=JOB_PAYLOAD, headers=headers)
+        assert create.status_code == 201
+        job_id = create.json()["id"]
+        called.clear()
+
+        patch_resp = client.patch(
+            f"/jobs/{job_id}",
+            json={
+                "title": "Senior AI Architect",
+                "description": "Building modern LLM and RAG agents",
+            },
+            headers=headers,
+        )
+        assert patch_resp.status_code == 200
+        assert patch_resp.json()["title"] == "Senior AI Architect"
+        assert len(called) == 1
+        assert "Senior AI Architect" in called[0]
+        assert "Building modern LLM and RAG agents" in called[0]
+
 
 class TestJobDelete:
     def test_employer_can_delete_job(self, client: TestClient, db_session: Session):

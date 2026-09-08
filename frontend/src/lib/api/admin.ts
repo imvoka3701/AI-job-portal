@@ -25,6 +25,11 @@ export interface CompanySummary {
   company_description: string | null;
   is_active: boolean;
   created_at: string;
+  tax_code?: string | null;
+  website?: string | null;
+  is_verified?: boolean;
+  company_size?: string | null;
+  member_count?: number;
 }
 
 export interface AdminJobItem {
@@ -95,6 +100,14 @@ export async function approveCompany(id: number): Promise<CompanySummary> {
 export async function rejectCompany(id: number): Promise<CompanySummary> {
   const { data } = await apiClient.patch<CompanySummary>(
     `/admin/companies/${id}/reject`,
+  );
+  return data;
+}
+
+export async function verifyCompany(id: number, isVerified: boolean): Promise<CompanySummary> {
+  const { data } = await apiClient.patch<CompanySummary>(
+    `/admin/companies/${id}/verify`,
+    { is_verified: isVerified }
   );
   return data;
 }

@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { getCompanies, approveCompany, rejectCompany, type CompanySummary } from "@/lib/api/admin";
+import { getCompanies, approveCompany, rejectCompany, verifyCompany, type CompanySummary } from "@/lib/api/admin";
 import { getApiErrorMessage } from "@/lib/axios";
 import { useUser, useAuthStore } from "@/stores/authStore";
 import { tokenStorage } from "@/lib/axios";
 import { Button, Input, Skeleton } from "@/components/ui";
-import { Shield, Building2, Search, CheckCircle2, XCircle, Mail, Calendar } from "lucide-react";
+import { Shield, Building2, Search, CheckCircle2, XCircle, Mail, Calendar, BadgeCheck } from "lucide-react";
 import { AdminTabNavigation } from "./components/AdminTabNavigation";
 import { SEOMeta } from "@/components/seo/SEOMeta";
 import { motion } from "framer-motion";
@@ -20,6 +20,7 @@ export function AdminCompanies() {
   const [keyword, setKeyword] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [actionId, setActionId] = useState<number | null>(null);
+  const [verifyActionId, setVerifyActionId] = useState<number | null>(null);
 
   const fetch = useCallback(() => {
     let c = false;
@@ -58,6 +59,21 @@ export function AdminCompanies() {
       setActionMsg("Đã khóa tài khoản nhà tuyển dụng.");
     } catch (e) { setActionMsg(getApiErrorMessage(e)); }
     finally { setActionId(null); }
+    setTimeout(() => setActionMsg(null), 3000);
+  };
+
+  const handleToggleVerify = async (id: number, currentVerified: boolean) => {
+    setVerifyActionId(id);
+    try {
+      const nextState = !currentVerified;
+      await verifyCompany(id, nextState);
+      setCompanies((p) => p.map((c) => (c.id === id ? { ...c, is_verified: nextState } : c)));
+      setActionMsg(nextState ? "✓ Đã cấp huy hiệu xác thực doanh nghiệp." : "Đã gỡ huy hiệu xác thực doanh nghiệp.");
+    } catch (e) {
+      setActionMsg(getApiErrorMessage(e));
+    } finally {
+      setVerifyActionId(null);
+    }
     setTimeout(() => setActionMsg(null), 3000);
   };
 
@@ -209,6 +225,16 @@ export function AdminCompanies() {
                           }`}>
                             {c.is_active ? "● Đang hoạt động" : "⏳ Chờ duyệt"}
                           </span>
+                          {c.is_verified ? (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold border rounded-full px-2 py-0.5 bg-blue-50 border-blue-200 text-blue-700">
+                              <BadgeCheck className="w-3 h-3 text-blue-600" />
+                              Đã xác thực
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-medium border rounded-full px-2 py-0.5 bg-slate-50 border-slate-200 text-slate-500">
+                              Chưa xác thực
+                            </span>
+                          )}
                         </div>
                         <div className="flex items-center gap-3 mt-1 flex-wrap">
                           <span className="flex items-center gap-1 text-xs text-slate-500">
@@ -218,13 +244,37 @@ export function AdminCompanies() {
                           <span className="flex items-center gap-1 text-xs text-slate-400">
                             <Calendar className="w-3 h-3" />{new Date(c.created_at).toLocaleDateString("vi-VN")}
                           </span>
+
+                          {c.tax_code && (
+                            <span className="text-[11px] text-slate-600 font-mono bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded">
+                              MST: {c.tax_code}
+                            </span>
+                          )}
+
+                          {c.company_size && (
+                            <span className="text-[11px] text-slate-500 bg-slate-50 border border-slate-200 px-1.5 py-0.5 rounded">
+                              Quy mô: {c.company_size}
+                            </span>
+                          )}
                         </div>
                         {c.company_description && (
                           <p className="text-xs text-slate-400 mt-1 line-clamp-1">{c.company_description}</p>
                         )}
                       </div>
                     </div>
-                    <div className="flex gap-2 flex-shrink-0">
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <button
+                        disabled={verifyActionId === c.id}
+                        onClick={() => handleToggleVerify(c.id, Boolean(c.is_verified))}
+                        className={`flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl border transition-all disabled:opacity-50 ${
+                          c.is_verified
+                            ? "border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100"
+                            : "border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100"
+                        }`}
+                      >
+                        <BadgeCheck className="w-3.5 h-3.5" />
+                        {verifyActionId === c.id ? "⋯" : c.is_verified ? "Gỡ xác thực" : "Cấp xác thực"}
+                      </button>
                       {!c.is_active && (
                         <button
                           disabled={actionId === c.id}
