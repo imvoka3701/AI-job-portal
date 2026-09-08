@@ -1,30 +1,32 @@
 # DANH SÁCH GITHUB ISSUES & ACTION CHECKLIST
 ## Hệ Thống AI-Powered Job Portal — Khắc Phục Lỗi Audit Fullstack
 
-Tài liệu này được định dạng chuẩn **GitHub Markdown**. Bạn có thể sao chép trực tiếp từng mục dưới đây để nhấn **"New issue"** trên GitHub repository `imvoka3701/AI-job-portal` hoặc theo dõi tiến độ thực hiện trực tiếp tại file này.
+> 🏆 **TỔNG KẾT TIẾN ĐỘ: 9/9 ISSUES ĐÃ HOÀN THÀNH 100% (CLOSED)**
+> Toàn bộ 9 issues kỹ thuật, bảo mật, dữ liệu và AI đã được giải quyết trọn vẹn, vượt qua 100% bài kiểm thử tự động và đã được push lên nhánh `main`.
 
 ---
 
 ## 📌 BẢNG ĐIỀU HƯỚNG CÁC ISSUES
 
-| Issue | Tiêu đề | Mức độ | Số lỗi giải quyết | Nhãn (Labels) |
-| :---: | :--- | :---: | :---: | :--- |
-| **#1** | [[AI Core] Loại bỏ Mock Cover Letter & Kích hoạt AI Matching thật cho CV Builder](#issue-1-ai-core-loại-bỏ-mock-cover-letter--kích-hoạt-ai-matching-thật-cho-cv-builder) | 🔴 Critical | 3 (1.1, 3.2, 3.3) | `bug`, `ai-core`, `critical` |
-| **#2** | [[Dashboard] Loại bỏ toàn bộ Dữ liệu Ảo & Fallback số liệu cố định trên Admin & Employer](#issue-2-dashboard-loại-bỏ-toàn-bộ-dữ-liệu-ảo--fallback-số-liệu-cố-định-trên-admin--employer) | 🔴 Critical | 4 (1.3, 1.4, 1.5, 1.6) | `bug`, `data-integrity`, `dashboard` |
-| **#3** | [[Backend] Fix Race Condition Singleton CV Evaluator & Kích hoạt ghi cột DB rỗng](#issue-3-backend-fix-race-condition-singleton-cv-evaluator--kích-hoạt-ghi-cột-db-rỗng) | 🔴 Critical | 4 (2.3, 3.1, 4.1, 4.2) | `bug`, `backend`, `concurrency` |
-| **#4** | [[UI Truthfulness] Chuẩn hóa Vector Embedding 384D & Điều kiện hóa Badge Xác thực Doanh nghiệp](#issue-4-ui-truthfulness-chuẩn-hóa-vector-embedding-384d--điều-kiện-hóa-badge-xác-thực-doanh-nghiệp) | 🔴 Critical | 4 (1.9, 5.1, 5.2, 5.3) | `ui/ux`, `accuracy`, `enhancement` |
-| **#5** | [[Settings & Errors] Hoàn thiện lưu cài đặt AI Doanh nghiệp & Xử lý triệt để Exception bị nuốt](#issue-5-settings--errors-hoàn-thiện-lưu-cài-đặt-ai-doanh-nghiệp--xử-lý-triệt-để-exception-bị-nuốt) | 🟡 Medium | 4 (1.2, 1.10, 4.3, 4.4) | `feature`, `error-handling`, `settings` |
-| **#6** | [[Clean-up] Dọn dẹp Code Mồ Côi & Động hóa Tech Stacks / Tỷ lệ hoàn thiện hồ sơ](#issue-6-clean-up-dọn-dẹp-code-mồ-côi--động-hóa-tech-stacks--tỷ-lệ-hoàn-thiện-hồ-sơ) | 🟢 Low | 4 (1.7, 1.8, 2.1, 2.2) | `refactor`, `clean-up` |
-| **#7** | [[Auth & Leads] Khắc phục Form Quên Mật Khẩu & Tư Vấn Doanh Nghiệp dùng setTimeout giả lập](#issue-7-auth--leads-khắc-phục-form-quên-mật-khẩu--tư-vấn-doanh-nghiệp-dùng-settimeout-giả-lập) | 🔴 Critical | 2 (Mới phát hiện) | `bug`, `auth`, `critical` |
-| **#8** | [[AI Feature Gap] Tích hợp AI Job Recommendations & Hỗ trợ CV Builder cho AI Evaluate/Roadmap](#issue-8-ai-feature-gap-tích-hợp-ai-job-recommendations--hỗ-trợ-cv-builder-cho-ai-evaluateroadmap) | 🔴 Critical | 3 (Mới phát hiện) | `ai-core`, `feature-gap`, `critical` |
-| **#9** | [[Security Hardening] Vá Lỗ Hổng Bảo Mật Toàn Diện (Bảo Vệ CV PII, OAuth CSRF, Prompt Injection & Rate Limit)](#issue-9-security-hardening-vá-lỗ-hổng-bảo-mật-toàn-diện-bảo-vệ-cv-pii-oauth-csrf-prompt-injection--auth-rate-limit) | 🔴 Critical | 8 (SEC-01 -> SEC-08) | `security`, `critical`, `backend`, `frontend` |
+| Issue | Tiêu đề | Mức độ | Số lỗi giải quyết | Nhãn (Labels) | Trạng thái |
+| :---: | :--- | :---: | :---: | :--- | :---: |
+| **#1** | [[AI Core] Loại bỏ Mock Cover Letter & Kích hoạt AI Matching thật cho CV Builder](#issue-1-ai-core-loại-bỏ-mock-cover-letter--kích-hoạt-ai-matching-thật-cho-cv-builder) | 🔴 Critical | 3 (1.1, 3.2, 3.3) | `bug`, `ai-core`, `critical` | ✅ **100% Done** |
+| **#2** | [[Dashboard] Loại bỏ toàn bộ Dữ liệu Ảo & Fallback số liệu cố định trên Admin & Employer](#issue-2-dashboard-loại-bỏ-toàn-bộ-dữ-liệu-ảo--fallback-số-liệu-cố-định-trên-admin--employer) | 🔴 Critical | 4 (1.3, 1.4, 1.5, 1.6) | `bug`, `data-integrity`, `dashboard` | ✅ **100% Done** |
+| **#3** | [[Backend] Fix Race Condition Singleton CV Evaluator & Kích hoạt ghi cột DB rỗng](#issue-3-backend-fix-race-condition-singleton-cv-evaluator--kích-hoạt-ghi-cột-db-rỗng) | 🔴 Critical | 4 (2.3, 3.1, 4.1, 4.2) | `bug`, `backend`, `concurrency` | ✅ **100% Done** |
+| **#4** | [[UI Truthfulness] Chuẩn hóa Vector Embedding 384D & Điều kiện hóa Badge Xác thực Doanh nghiệp](#issue-4-ui-truthfulness-chuẩn-hóa-vector-embedding-384d--điều-kiện-hóa-badge-xác-thực-doanh-nghiệp) | 🔴 Critical | 4 (1.9, 5.1, 5.2, 5.3) | `ui/ux`, `accuracy`, `enhancement` | ✅ **100% Done** |
+| **#5** | [[Settings & Errors] Hoàn thiện lưu cài đặt AI Doanh nghiệp & Xử lý triệt để Exception bị nuốt](#issue-5-settings--errors-hoàn-thiện-lưu-cài-đặt-ai-doanh-nghiệp--xử-lý-triệt-để-exception-bị-nuốt) | 🟡 Medium | 4 (1.2, 1.10, 4.3, 4.4) | `feature`, `error-handling`, `settings` | ✅ **100% Done** |
+| **#6** | [[Clean-up] Dọn dẹp Code Mồ Côi & Động hóa Tech Stacks / Tỷ lệ hoàn thiện hồ sơ](#issue-6-clean-up-dọn-dẹp-code-mồ-côi--động-hóa-tech-stacks--tỷ-lệ-hoàn-thiện-hồ-sơ) | 🟢 Low | 4 (1.7, 1.8, 2.1, 2.2) | `refactor`, `clean-up` | ✅ **100% Done** |
+| **#7** | [[Auth & Leads] Khắc phục Form Quên Mật Khẩu & Tư Vấn Doanh Nghiệp dùng setTimeout giả lập](#issue-7-auth--leads-khắc-phục-form-quên-mật-khẩu--tư-vấn-doanh-nghiệp-dùng-settimeout-giả-lập) | 🔴 Critical | 2 (Mới phát hiện) | `bug`, `auth`, `critical` | ✅ **100% Done** |
+| **#8** | [[AI Feature Gap] Tích hợp AI Job Recommendations & Hỗ trợ CV Builder cho AI Evaluate/Roadmap](#issue-8-ai-feature-gap-tích-hợp-ai-job-recommendations--hỗ-trợ-cv-builder-cho-ai-evaluateroadmap) | 🔴 Critical | 3 (Mới phát hiện) | `ai-core`, `feature-gap`, `critical` | ✅ **100% Done** |
+| **#9** | [[Security Hardening] Vá Lỗ Hổng Bảo Mật Toàn Diện (Bảo Vệ CV PII, OAuth CSRF, Prompt Injection & Rate Limit)](#issue-9-security-hardening-vá-lỗ-hổng-bảo-mật-toàn-diện-bảo-vệ-cv-pii-oauth-csrf-prompt-injection--auth-rate-limit) | 🔴 Critical | 8 (SEC-01 -> SEC-08) | `security`, `critical`, `backend`, `frontend` | ✅ **100% Done** |
 
 ---
 
-## ISSUE 1: [AI Core] Loại bỏ Mock Cover Letter & Kích hoạt AI Matching thật cho CV Builder
+## ISSUE 1: [AI Core] Loại bỏ Mock Cover Letter & Kích hoạt AI Matching thật cho CV Builder [CLOSED]
 
+- **Status:** ✅ Closed (100% Done)
 - **Labels:** `bug`, `ai-core`, `priority: critical`, `frontend`, `backend`
-- **Milestone:** `Phase 1: Real AI & Integrity`
+- **Milestone:** `Phase 1: Real AI & Integrity` (Hoàn thành)
 
 ### 1. Mô tả vấn đề
 1. Nút "AI Tạo Cover Letter" trên trang chi tiết công việc đang sử dụng `setTimeout(..., 600)` và ghép chuỗi template tĩnh thay vì gọi mô hình AI DeepSeek.
@@ -44,10 +46,11 @@ Tài liệu này được định dạng chuẩn **GitHub Markdown**. Bạn có 
 
 ---
 
-## ISSUE 2: [Dashboard] Loại bỏ toàn bộ Dữ liệu Ảo & Fallback số liệu cố định trên Admin & Employer
+## ISSUE 2: [Dashboard] Loại bỏ toàn bộ Dữ liệu Ảo & Fallback số liệu cố định trên Admin & Employer [CLOSED]
 
+- **Status:** ✅ Closed (100% Done)
 - **Labels:** `bug`, `data-integrity`, `priority: critical`, `dashboard`
-- **Milestone:** `Phase 1: Real AI & Integrity`
+- **Milestone:** `Phase 1: Real AI & Integrity` (Hoàn thành)
 
 ### 1. Mô tả vấn đề
 1. `AdminDashboard`: Nhãn `<Activity /> Live Data` hiển thị phễu 4 giai đoạn nhưng thực chất tự nhân `total` với 88%, 50%, 25% kèm fallback `8`.
@@ -69,10 +72,11 @@ Tài liệu này được định dạng chuẩn **GitHub Markdown**. Bạn có 
 
 ---
 
-## ISSUE 3: [Backend] Fix Race Condition Singleton CV Evaluator & Kích hoạt ghi cột DB rỗng
+## ISSUE 3: [Backend] Fix Race Condition Singleton CV Evaluator & Kích hoạt ghi cột DB rỗng [CLOSED]
 
+- **Status:** ✅ Closed (100% Done)
 - **Labels:** `bug`, `backend`, `priority: critical`, `concurrency`, `database`
-- **Milestone:** `Phase 1: Real AI & Integrity`
+- **Milestone:** `Phase 1: Real AI & Integrity` (Hoàn thành)
 
 ### 1. Mô tả vấn đề
 1. `CVEvaluatorService`: Hàm `validate_is_cv` gán `self._last_reject_reason = reason` trên singleton instance dùng chung cho toàn server. Khi nhiều ứng viên cùng upload CV đồng thời, lý do từ chối sẽ bị ghi đè chéo giữa các user.
@@ -95,10 +99,11 @@ Tài liệu này được định dạng chuẩn **GitHub Markdown**. Bạn có 
 
 ---
 
-## ISSUE 4: [UI Truthfulness] Chuẩn hóa Vector Embedding 384D & Điều kiện hóa Badge Xác thực Doanh nghiệp
+## ISSUE 4: [UI Truthfulness] Chuẩn hóa Vector Embedding 384D & Điều kiện hóa Badge Xác thực Doanh nghiệp [CLOSED]
 
+- **Status:** ✅ Closed (100% Done)
 - **Labels:** `ui/ux`, `accuracy`, `priority: critical`, `frontend`
-- **Milestone:** `Phase 1: Real AI & Integrity`
+- **Milestone:** `Phase 1: Real AI & Integrity` (Hoàn thành)
 
 ### 1. Mô tả vấn đề
 1. Nhiều nơi trên giao diện tuyên bố hệ thống sử dụng "Vector Embedding 1536 chiều" / "pgvector 1536-D", trong khi thực tế backend sử dụng model mã nguồn mở `paraphrase-multilingual-MiniLM-L12-v2` với vector **384 chiều**.
@@ -118,10 +123,11 @@ Tài liệu này được định dạng chuẩn **GitHub Markdown**. Bạn có 
 
 ---
 
-## ISSUE 5: [Settings & Errors] Hoàn thiện lưu cài đặt AI Doanh nghiệp & Xử lý triệt để Exception bị nuốt
+## ISSUE 5: [Settings & Errors] Hoàn thiện lưu cài đặt AI Doanh nghiệp & Xử lý triệt để Exception bị nuốt [CLOSED]
 
+- **Status:** ✅ Closed (100% Done)
 - **Labels:** `feature`, `error-handling`, `settings`, `priority: medium`, `frontend`, `backend`
-- **Milestone:** `Phase 2: Hardening & Resilience`
+- **Milestone:** `Phase 2: Hardening & Resilience` (Hoàn thành)
 
 ### 1. Mô tả vấn đề
 1. `EmployerSettingsPage`: Tab "Cấu hình AI & Matching" và "Bảo mật & Webhook" chỉ có các thanh trượt và toggle hiển thị trên giao diện, khi bấm "Lưu cài đặt" chỉ có thông tin công ty được gửi lên API, toàn bộ cấu hình AI bị mất khi refresh trang.
@@ -141,10 +147,11 @@ Tài liệu này được định dạng chuẩn **GitHub Markdown**. Bạn có 
 
 ---
 
-## ISSUE 6: [Clean-up] Dọn dẹp Code Mồ Côi & Động hóa Tech Stacks / Tỷ lệ hoàn thiện hồ sơ
+## ISSUE 6: [Clean-up] Dọn dẹp Code Mồ Côi & Động hóa Tech Stacks / Tỷ lệ hoàn thiện hồ sơ [CLOSED]
 
+- **Status:** ✅ Closed (100% Done)
 - **Labels:** `refactor`, `clean-up`, `priority: low`, `frontend`, `backend`
-- **Milestone:** `Phase 3: Polish & Maintenance`
+- **Milestone:** `Phase 3: Polish & Maintenance` (Hoàn thành)
 
 ### 1. Mô tả vấn đề
 1. File `assessment_scorer.py` bị bỏ dở 29 dòng và không được sử dụng ở bất kỳ đâu.
@@ -171,10 +178,11 @@ Tài liệu này được định dạng chuẩn **GitHub Markdown**. Bạn có 
 
 ---
 
-## ISSUE 7: [Auth & Enterprise Leads] Khắc phục Form Quên Mật Khẩu, Tư Vấn Doanh Nghiệp & Social Login Giả Lập
+## ISSUE 7: [Auth & Enterprise Leads] Khắc phục Form Quên Mật Khẩu, Tư Vấn Doanh Nghiệp & Social Login Giả Lập [CLOSED]
 
+- **Status:** ✅ Closed (100% Done)
 - **Labels:** `bug`, `auth`, `priority: critical`, `frontend`, `backend`
-- **Milestone:** `Phase 2: Hardening & Resilience`
+- **Milestone:** `Phase 2: Hardening & Resilience` (Hoàn thành)
 
 ### 1. Mô tả vấn đề
 1. **Form Quên mật khẩu giả lập:** `ForgotPasswordPage` sử dụng `setTimeout(resolve, 1000)` giả lập API (`// Simulate API call`) và hiển thị thông báo thành công dù backend không hề có bất kỳ endpoint nào về quên/đổi mật khẩu trong `routers/auth.py`.
@@ -196,10 +204,11 @@ Tài liệu này được định dạng chuẩn **GitHub Markdown**. Bạn có 
 
 ---
 
-## ISSUE 8: [AI Feature Integration & Tone/Prompt Support] Kết Nối AI Recommendations, Hỗ Trợ CV Builder Toàn Diện & Kích Hoạt Prompt/Tone Email
+## ISSUE 8: [AI Feature Integration & Tone/Prompt Support] Kết Nối AI Recommendations, Hỗ Trợ CV Builder Toàn Diện & Kích Hoạt Prompt/Tone Email [CLOSED]
 
+- **Status:** ✅ Closed (100% Done)
 - **Labels:** `ai-core`, `feature-gap`, `priority: critical`, `frontend`, `backend`
-- **Milestone:** `Phase 1: Real AI & Integrity`
+- **Milestone:** `Phase 1: Real AI & Integrity` (Hoàn thành)
 
 ### 1. Mô tả vấn đề
 1. **Rơi rụng Custom Prompt & Tone Email:** Trong `EmailDraftModal`, HR có thể chọn giọng điệu email (Trang trọng, Thân thiện, Ngắn gọn) và nhập prompt tùy chỉnh để AI tạo lại email. Tuy nhiên, `EmployerCandidatesPage.tsx:837` bỏ rơi tham số prompt, `frontend/src/lib/api/ai.ts` không truyền, và `GenerateEmailRequest` schema lẫn `email_generator.py` trên backend hoàn toàn không nhận `tone` hay `custom_prompt`.
@@ -223,10 +232,11 @@ Tài liệu này được định dạng chuẩn **GitHub Markdown**. Bạn có 
 
 ---
 
-## ISSUE 9: [Security Hardening] Vá Lỗ Hổng Bảo Mật Toàn Diện (Bảo Vệ CV PII, OAuth CSRF, Prompt Injection & Auth Rate Limit)
+## ISSUE 9: [Security Hardening] Vá Lỗ Hổng Bảo Mật Toàn Diện (Bảo Vệ CV PII, OAuth CSRF, Prompt Injection & Auth Rate Limit) [CLOSED]
 
+- **Status:** ✅ Closed (100% Done)
 - **Labels:** `security`, `priority: critical`, `backend`, `frontend`
-- **Milestone:** `Phase 1: Real AI & Integrity`
+- **Milestone:** `Phase 1: Real AI & Integrity` (Hoàn thành)
 
 ### 1. Mô tả vấn đề
 1. **Lộ tệp CV PII qua Route Static công khai:** Thư mục `uploads/` đang được mount tĩnh bằng `app.mount("/uploads", StaticFiles(directory="uploads"))` mà không có bất kỳ lớp xác thực nào. Bất kỳ ai có đường dẫn URL đều tải được toàn bộ CV ứng viên (chứa họ tên, số điện thoại, địa chỉ nhà, email, lịch sử công tác). Nguyên nhân gốc rễ do endpoint `/resumes/{id}/content` kiểm tra quyền quá cứng nhắc (`resume.user_id != current_user.id`), chặn cả Nhà tuyển dụng nhận hồ sơ, khiến Frontend phải đọc trực tiếp file tĩnh từ `/uploads`.
