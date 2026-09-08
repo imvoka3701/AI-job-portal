@@ -1,6 +1,6 @@
 """Interview Rounds router — manage multi-stage recruitment pipeline."""
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session
 
 from app.core.company_permissions import (
@@ -14,10 +14,32 @@ from app.core.dependencies import get_current_user
 from app.crud.application import crud_application
 from app.crud.interview_round import crud_interview_round
 from app.database import get_db
+from app.models.interview_round import InterviewRound
 from app.models.user import User, UserRole
 from app.schemas.interview_round import RoundCreate, RoundRead, RoundUpdate
+from app.services.calendar_service import generate_ics_calendar, get_calendar_links
 
 router = APIRouter(prefix="/applications", tags=["Interview Rounds"])
+
+
+def check_round_access(round_obj: InterviewRound, current_user: User, db: Session) -> None:
+    """Ensure user has permission to view/download interview round calendar."""
+    if current_user.role == UserRole.ADMIN:
+        return
+    app = round_obj.application
+    if not app:
+        raise HTTPException(status_code=404, detail="Application not found for this round")
+    if current_user.role == UserRole.CANDIDATE:
+        if app.candidate_id != current_user.id:
+            raise HTTPException(
+                status_code=403, detail="Bạn không có quyền truy cập lịch phỏng vấn này."
+            )
+        return
+    if current_user.role == UserRole.EMPLOYER:
+        context = build_company_context(db, current_user)
+        require_application_scope(db, context=context, application=app)
+        return
+    raise HTTPException(status_code=403, detail="Quyền truy cập không hợp lệ.")
 
 
 @router.get(
@@ -119,3 +141,51 @@ def update_round(
                 round_obj.application.ai_feedback = note_entry
             db.commit()
     return RoundRead.model_validate(updated)
+
+
+@router.get(
+    "/rounds/{round_id}/calendar.ics",
+    summary="Download RFC 5545 iCalendar (.ics) file for an interview round",
+)
+def download_round_ics(
+    round_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Response:
+    """Return an .ics file attachment for importing to Google, Apple, or Outlook Calendar."""
+    round_obj = crud_interview_round.get_by_id(db, round_id=round_id)
+    if not round_obj:
+        raise HTTPException(status_code=404, detail="Không tìm thấy vòng phỏng vấn.")
+    check_round_access(round_obj, current_user, db)
+    if not round_obj.scheduled_at:
+        raise HTTPException(
+            status_code=400, detail="Vòng phỏng vấn này chưa được lên lịch thời gian."
+        )
+
+    ics_content = generate_ics_calendar(round_obj)
+    return Response(
+        content=ics_content,
+        media_type="text/calendar; charset=utf-8",
+        headers={
+            "Content-Disposition": f'attachment; filename="interview_round_{round_id}.ics"',
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+        },
+    )
+
+
+@router.get(
+    "/rounds/{round_id}/calendar-links",
+    summary="Get 1-click calendar links for an interview round",
+)
+def get_round_calendar_links(
+    round_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Return 1-click Google Calendar URL and ICS download path."""
+    round_obj = crud_interview_round.get_by_id(db, round_id=round_id)
+    if not round_obj:
+        raise HTTPException(status_code=404, detail="Không tìm thấy vòng phỏng vấn.")
+    check_round_access(round_obj, current_user, db)
+    return get_calendar_links(round_obj)
+

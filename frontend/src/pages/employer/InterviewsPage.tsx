@@ -13,7 +13,10 @@ import {
   ExternalLink,
   Briefcase,
   CalendarCheck2,
+  CalendarPlus,
+  Download,
 } from "lucide-react";
+import { getCalendarLinks, downloadIcsFile } from "@/lib/api/rounds";
 import { apiClient, tokenStorage } from "@/lib/axios";
 import { useUser, useAuthStore } from "@/stores/authStore";
 import { Button, Card, Skeleton, EmptyState, ErrorState, PageTransition } from "@/components/ui";
@@ -77,6 +80,32 @@ export function InterviewsPage() {
   const [interviews, setInterviews] = useState<InterviewItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [calendarLoadingId, setCalendarLoadingId] = useState<number | null>(null);
+
+  const handleGoogleCalendar = async (roundId: number) => {
+    try {
+      setCalendarLoadingId(roundId);
+      const links = await getCalendarLinks(roundId);
+      if (links.google_calendar_url) {
+        window.open(links.google_calendar_url, "_blank", "noopener,noreferrer");
+      }
+    } catch {
+      // ignore
+    } finally {
+      setCalendarLoadingId(null);
+    }
+  };
+
+  const handleDownloadIcs = async (roundId: number) => {
+    try {
+      setCalendarLoadingId(roundId);
+      await downloadIcsFile(roundId);
+    } catch {
+      // ignore
+    } finally {
+      setCalendarLoadingId(null);
+    }
+  };
 
   useEffect(() => {
     if (!user && tokenStorage.get()) {
@@ -357,9 +386,31 @@ export function InterviewsPage() {
                       </div>
 
                       {/* Right: Direct Actions */}
-                      <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                      <div className="flex flex-wrap items-center gap-2 shrink-0 self-end sm:self-center">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={calendarLoadingId === item.round_id}
+                          className="text-xs h-8 text-amber-700 hover:text-amber-800 hover:bg-amber-50 border-amber-200/80 cursor-pointer"
+                          onClick={() => handleGoogleCalendar(item.round_id)}
+                          title="Thêm lịch vào Google Calendar"
+                        >
+                          <CalendarPlus className="w-3.5 h-3.5 mr-1 text-amber-600" />
+                          Google Cal
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={calendarLoadingId === item.round_id}
+                          className="text-xs h-8 text-sky-700 hover:text-sky-800 hover:bg-sky-50 border-sky-200/80 cursor-pointer"
+                          onClick={() => handleDownloadIcs(item.round_id)}
+                          title="Tải file .ics cho Outlook / Apple Calendar"
+                        >
+                          <Download className="w-3.5 h-3.5 mr-1 text-sky-600" />
+                          Tải .ICS
+                        </Button>
                         <Link to={`/employer/candidates?search=${encodeURIComponent(item.candidate_name)}`}>
-                          <Button variant="outline" size="sm" className="text-xs h-8">
+                          <Button variant="outline" size="sm" className="text-xs h-8 cursor-pointer">
                             Hồ sơ ứng viên <ChevronRight className="w-3.5 h-3.5 ml-1 text-slate-400" />
                           </Button>
                         </Link>

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, useRef } from "react";
 import { Link } from "react-router-dom";
 import { getMyApplications } from "@/lib/api/applications";
-import { getRounds, type RoundItem } from "@/lib/api/rounds";
+import { getRounds, getCalendarLinks, downloadIcsFile, type RoundItem } from "@/lib/api/rounds";
 import { uploadResume, getMyResumes, deleteResume, evaluateResume } from "@/lib/api/resumes";
 import { getCvDocuments } from "@/lib/api/cvDocuments";
 import { uploadAvatar } from "@/lib/api/users";
@@ -23,6 +23,8 @@ import {
   Camera,
   FileCheck,
   Calendar,
+  CalendarPlus,
+  Download,
   Sparkles,
   ChevronRight,
   Bot,
@@ -73,6 +75,7 @@ export const CandidateDashboard = () => {
 
   // ── Interview banner ──────────────────────────────────────────────────────
   const [interviews, setInterviews] = useState<Array<{
+    round_id: number;
     scheduled_at: string;
     location: string | null;
     round_name: string;
@@ -80,6 +83,32 @@ export const CandidateDashboard = () => {
     company_name: string;
     status: string;
   }>>([]);
+  const [calendarActionLoading, setCalendarActionLoading] = useState(false);
+
+  const handleGoogleCalendar = async (roundId: number) => {
+    try {
+      setCalendarActionLoading(true);
+      const links = await getCalendarLinks(roundId);
+      if (links.google_calendar_url) {
+        window.open(links.google_calendar_url, "_blank", "noopener,noreferrer");
+      }
+    } catch {
+      // ignore
+    } finally {
+      setCalendarActionLoading(false);
+    }
+  };
+
+  const handleDownloadIcs = async (roundId: number) => {
+    try {
+      setCalendarActionLoading(true);
+      await downloadIcsFile(roundId);
+    } catch {
+      // ignore
+    } finally {
+      setCalendarActionLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (!user) return;
@@ -440,11 +469,35 @@ export const CandidateDashboard = () => {
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 shrink-0">
+              <div className="flex flex-wrap items-center gap-2 shrink-0">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={calendarActionLoading}
+                  onClick={() => handleGoogleCalendar(interviews[0].round_id)}
+                  className="bg-white/10 hover:bg-white/20 text-white text-xs font-bold rounded-full border border-white/20 cursor-pointer"
+                  title="Thêm vào Google Calendar"
+                >
+                  <CalendarPlus size={14} className="mr-1.5 text-amber-300" />
+                  Google Cal
+                </Button>
+
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={calendarActionLoading}
+                  onClick={() => handleDownloadIcs(interviews[0].round_id)}
+                  className="bg-white/10 hover:bg-white/20 text-white text-xs font-bold rounded-full border border-white/20 cursor-pointer"
+                  title="Tải file iCalendar (.ics) cho Outlook / Apple Calendar"
+                >
+                  <Download size={14} className="mr-1.5 text-sky-300" />
+                  Tải .ICS
+                </Button>
+
                 <Link to="/ai/roadmap">
                   <Button size="sm" className="bg-white/10 hover:bg-white/20 text-white text-xs font-bold rounded-full border border-white/20">
                     <Bot size={14} className="mr-1 text-emerald-400" />
-                    Ôn Luyện Phỏng Vấn
+                    Ôn Luyện
                   </Button>
                 </Link>
                 {interviews[0].location && (

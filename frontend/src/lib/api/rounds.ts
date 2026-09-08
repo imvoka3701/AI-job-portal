@@ -55,3 +55,33 @@ export async function updateRound(
   );
   return data;
 }
+
+export interface CalendarLinksResponse {
+  round_id: number;
+  scheduled_at: string | null;
+  duration_minutes: number;
+  google_calendar_url: string;
+  ics_download_url: string;
+}
+
+export async function getCalendarLinks(roundId: number): Promise<CalendarLinksResponse> {
+  const { data } = await apiClient.get<CalendarLinksResponse>(
+    `/applications/rounds/${roundId}/calendar-links`,
+  );
+  return data;
+}
+
+export async function downloadIcsFile(roundId: number): Promise<void> {
+  const response = await apiClient.get(`/applications/rounds/${roundId}/calendar.ics`, {
+    responseType: "blob",
+  });
+  const url = window.URL.createObjectURL(new Blob([response.data], { type: "text/calendar" }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.setAttribute("download", `interview_round_${roundId}.ics`);
+  document.body.appendChild(link);
+  link.click();
+  link.parentNode?.removeChild(link);
+  window.URL.revokeObjectURL(url);
+}
+
