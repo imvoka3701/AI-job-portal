@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import StaticPool, create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
+from app.core.rate_limiter import rate_limiter_store
 from app.database import Base, get_db
 from app.main import app
 
@@ -21,7 +22,8 @@ TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engin
 
 @pytest.fixture(autouse=True)
 def db_session():
-    """Create a fresh database for each test."""
+    """Create a fresh database and reset rate limiter state for each test."""
+    rate_limiter_store.reset()
     Base.metadata.create_all(bind=engine)
     session = TestingSessionLocal()
     try:
@@ -29,6 +31,7 @@ def db_session():
     finally:
         session.close()
         Base.metadata.drop_all(bind=engine)
+        rate_limiter_store.reset()
 
 
 @pytest.fixture

@@ -4,7 +4,7 @@ AI Job Portal — Application Settings.
 Loads configuration from environment variables using pydantic-settings.
 """
 
-from pydantic import field_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -41,6 +41,25 @@ class Settings(BaseSettings):
     SECRET_KEY: str = "change-me-in-production"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+
+    @model_validator(mode="after")
+    def validate_production_secrets(self) -> "Settings":
+        """Ensure secure SECRET_KEY in production mode (DEBUG=False)."""
+        if not self.DEBUG:
+            insecure_keys = {
+                "change-me-in-production",
+                "your-super-secret-key-change-me",
+                "secret",
+                "secret-key",
+                "changeme",
+                "docker-secret-key-change-in-production",
+            }
+            if self.SECRET_KEY in insecure_keys or len(self.SECRET_KEY) < 32:
+                raise ValueError(
+                    "Bảo mật: SECRET_KEY phải được thay đổi khỏi giá trị mặc định "
+                    "và có độ dài tối thiểu 32 ký tự khi chạy chế độ Production (DEBUG=False)."
+                )
+        return self
 
     # --- CORS ---
     CORS_ORIGINS: str = "http://localhost:5173,http://localhost:3000"

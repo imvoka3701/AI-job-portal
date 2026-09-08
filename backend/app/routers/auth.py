@@ -5,6 +5,7 @@ from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
 from app.config import settings
+from app.core.rate_limiter import rate_limit
 from app.database import get_db
 from app.schemas.auth import (
     ForgotPasswordRequest,
@@ -25,6 +26,7 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
     response_model=UserRead,
     status_code=status.HTTP_201_CREATED,
     summary="Register a new user",
+    dependencies=[Depends(rate_limit("auth_register"))],
 )
 def register(data: RegisterRequest, db: Session = Depends(get_db)) -> UserRead:
     """Create a new candidate or employer account."""
@@ -39,6 +41,7 @@ def register(data: RegisterRequest, db: Session = Depends(get_db)) -> UserRead:
     "/login",
     response_model=Token,
     summary="Login and get JWT token",
+    dependencies=[Depends(rate_limit("auth_login"))],
 )
 def login(data: LoginRequest, db: Session = Depends(get_db)) -> Token:
     """Authenticate user and return access token."""

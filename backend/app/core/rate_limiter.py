@@ -22,11 +22,33 @@ class SlidingWindowRateLimiter:
     def __init__(self) -> None:
         self._requests: dict[str, deque[float]] = defaultdict(deque)
         self._lock = threading.Lock()
+        self._cleanup_counter = 0
 
     def reset(self) -> None:
         """Clear all tracking state (primarily for tests)."""
         with self._lock:
             self._requests.clear()
+            self._cleanup_counter = 0
+
+    def cleanup(self, max_idle_seconds: int = 300) -> int:
+        """Purge stale and empty request queues to prevent unbounded memory growth.
+
+        Returns the number of deleted keys.
+        """
+        now = time.time()
+        cutoff = now - max_idle_seconds
+        with self._lock:
+            return self._cleanup_locked(cutoff)
+
+    def _cleanup_locked(self, cutoff: float) -> int:
+        """Internal helper for cleanup while lock is held."""
+        stale_keys = [
+            k for k, q in self._requests.items()
+            if not q or q[-1] <= cutoff
+        ]
+        for k in stale_keys:
+            del self._requests[k]
+        return len(stale_keys)
 
     def check(
         self,
@@ -43,6 +65,12 @@ class SlidingWindowRateLimiter:
         window_start = now - window_seconds
 
         with self._lock:
+            # Periodic cleanup every 500 checks or if tracking table exceeds 2,000 entries
+            self._cleanup_counter += 1
+            if self._cleanup_counter >= 500 or len(self._requests) > 2000:
+                self._cleanup_counter = 0
+                self._cleanup_locked(now - 300)
+
             queue = self._requests[key]
 
             # Evict timestamps older than the sliding window
@@ -69,6 +97,8 @@ RATE_LIMIT_PRESETS: dict[str, tuple[int, int]] = {
     "ai_expensive": (10, 60),      # 10 requests / 60 seconds (Evaluate, Summarize, Roadmap, Email)
     "ai_interactive": (20, 60),    # 20 requests / 60 seconds (Skills suggest, Experience rewrite)
     "ai_matching": (30, 60),       # 30 requests / 60 seconds (Vector matching requests)
+    "auth_login": (5, 60),         # 5 requests / 60 seconds (Login attempts)
+    "auth_register": (3, 60),      # 3 requests / 60 seconds (Registration attempts)
 }
 
 
@@ -92,7 +122,11 @@ def rate_limit(preset_name: str = "ai_expensive") -> Callable:
                 pass
 
         if not identifier:
-            client_ip = request.client.host if request.client else "127.0.0.1"
+            forwarded = request.headers.get("x-forwarded-for")
+            if forwarded:
+                client_ip = forwarded.split(",")[0].strip()
+            else:
+                client_ip = request.client.host if request.client else "127.0.0.1"
             identifier = f"ip:{client_ip}"
 
         key = f"{identifier}:{preset_name}"
@@ -112,9 +146,16 @@ def rate_limit(preset_name: str = "ai_expensive") -> Callable:
                 "X-RateLimit-Remaining": "0",
                 "X-RateLimit-Reset": str(reset_epoch),
             }
+            if preset_name.startswith("auth_"):
+                detail_msg = f"Bạn đã gửi quá nhiều yêu cầu đăng nhập/đăng ký. Vui lòng thử lại sau {retry_after} giây."
+            elif preset_name.startswith("ai_"):
+                detail_msg = f"Bạn đã gửi quá nhiều yêu cầu phân tích AI. Vui lòng thử lại sau {retry_after} giây."
+            else:
+                detail_msg = f"Bạn đã gửi quá nhiều yêu cầu. Vui lòng thử lại sau {retry_after} giây."
+
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail=f"Bạn đã gửi quá nhiều yêu cầu phân tích AI. Vui lòng thử lại sau {retry_after} giây.",
+                detail=detail_msg,
                 headers=headers,
             )
 

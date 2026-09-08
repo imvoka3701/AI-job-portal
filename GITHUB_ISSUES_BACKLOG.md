@@ -260,11 +260,11 @@ Tài liệu này được định dạng chuẩn **GitHub Markdown**. Bạn có 
   - Không truyền token trên URL query string `?token=...`. Chuyển sang sử dụng URL Fragment (`#token=...`) và dọn dẹp sạch sẽ History/URL bar ngay lập tức khi nhận token phía Frontend.
 - [x] **Backend (Chống Prompt Injection):**
   - Cập nhật `ChatMessage` schema chỉ chấp nhận `role: Literal["user", "assistant"]` (chặn tuyệt đối quyền gửi `system` từ client với HTTP 422).
-- [ ] **Backend (Rate Limiting & Auth Hardening):**
+- [x] **Backend (Rate Limiting & Auth Hardening):**
   - Bổ sung preset rate limit cho `/auth/login` (5 lần/phút/IP) và `/auth/register` (3 lần/phút/IP).
   - Thêm cơ chế dọn dẹp (cleanup/eviction) cho `SlidingWindowRateLimiter` khi deque rỗng để chống cạn kiệt RAM.
   - Thêm validator bắt buộc thay đổi `SECRET_KEY` đủ độ dài khi chạy chế độ Production.
-- [ ] **Backend (Security Headers):**
+- [x] **Backend (Security Headers):**
   - Thêm middleware thiết lập `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`.
   - Tắt `/docs` và `/redoc` khi môi trường là Production (`DEBUG=False`).
 

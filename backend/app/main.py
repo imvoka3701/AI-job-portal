@@ -125,8 +125,9 @@ app = FastAPI(
     description="AI-Powered Job Portal — RESTful API with LLM integration",
     version="0.1.0",
     lifespan=lifespan,
-    docs_url="/docs",
-    redoc_url="/redoc",
+    docs_url="/docs" if settings.DEBUG else None,
+    redoc_url="/redoc" if settings.DEBUG else None,
+    openapi_url="/openapi.json" if settings.DEBUG else None,
 )
 
 # --- CORS Middleware ---
@@ -139,16 +140,29 @@ app.add_middleware(
 )
 
 
+# --- Security Headers Middleware ---
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    """Enforce defensive security headers across all incoming HTTP responses."""
+    response = await call_next(request)
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    return response
+
+
 # --- Exception Handlers ---
 @app.exception_handler(HTTPException)
 async def custom_http_exception_handler(request: Request, exc: HTTPException):
+    headers = getattr(exc, "headers", None)
     if isinstance(exc.detail, dict):
         # If detail is already a dict (e.g. custom structured error), use it directly as error
-        return JSONResponse(status_code=exc.status_code, content={"error": exc.detail})
+        return JSONResponse(status_code=exc.status_code, content={"error": exc.detail}, headers=headers)
 
     return JSONResponse(
         status_code=exc.status_code,
         content={"error": {"code": "HTTP_ERROR", "message": str(exc.detail)}},
+        headers=headers,
     )
 
 
@@ -247,7 +261,7 @@ async def root() -> dict[str, str]:
     return {
         "status": "ok",
         "app": settings.APP_NAME,
-        "docs": "/docs",
+        "docs": "/docs" if settings.DEBUG else "disabled",
         "health": "/healthz",
     }
 

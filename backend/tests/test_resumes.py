@@ -62,7 +62,12 @@ def _register_and_login(
     if company_name:
         payload["company_name"] = company_name
 
-    resp = client.post("/auth/register", json=payload)
+    ip_suffix = abs(hash(email)) % 240 + 1
+    resp = client.post(
+        "/auth/register",
+        json=payload,
+        headers={"X-Forwarded-For": f"10.99.1.{ip_suffix}"},
+    )
     assert resp.status_code in (200, 201), resp.text
     if role == "employer":
         from app.models.user import User
