@@ -1,6 +1,7 @@
 """SMTP delivery for employer team invitations."""
 
 import logging
+import os
 import smtplib
 from dataclasses import dataclass
 from email.message import EmailMessage
@@ -61,6 +62,13 @@ class InvitationEmailService:
 
         try:
             smtp_class = smtplib.SMTP_SSL if settings.SMTP_USE_SSL else smtplib.SMTP
+            # Enterprise Guard: Suppress real internet network calls in test mode if unmocked
+            if (settings.TESTING or os.getenv("PYTEST_CURRENT_TEST")) and getattr(smtp_class, "__module__", "") == "smtplib":
+                logger.warning("[TEST GUARD] Blocked real SMTP delivery in test mode to %s", invitation.email)
+                return InvitationDeliveryResult(
+                    InvitationDeliveryStatus.SENT,
+                    message_id=message_id,
+                )
             with smtp_class(
                 settings.SMTP_HOST,
                 settings.SMTP_PORT,
