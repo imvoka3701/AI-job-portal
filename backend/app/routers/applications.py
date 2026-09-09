@@ -18,7 +18,6 @@ from app.crud.application import crud_application
 from app.crud.cv_document import crud_cv_document
 from app.crud.interview_round import crud_interview_round
 from app.crud.job import crud_job
-from app.crud.notification import crud_notification
 from app.crud.resume import crud_resume
 from app.database import get_db
 from app.models.interview_round import RoundType
@@ -32,6 +31,7 @@ from app.schemas.application import (
     EmployerApplicationRead,
 )
 from app.services.ai_matching import ai_matching_service
+from app.services.notification_dispatcher import create_and_dispatch_notification
 from app.services.recruitment_pipeline_service import recruitment_pipeline_service
 
 logger = logging.getLogger(__name__)
@@ -47,12 +47,12 @@ def _send_application_notification_task(
 
     db = SessionLocal()
     try:
-        crud_notification.create(
+        create_and_dispatch_notification(
             db,
             user_id=employer_id,
             title="Ứng viên mới ứng tuyển",
             message=f'{candidate_name} đã ứng tuyển vào vị trí "{job_title}".',
-            type=NotificationType.APPLICATION_UPDATE,
+            notif_type=NotificationType.APPLICATION_UPDATE,
         )
     except Exception:
         logger.exception("Failed to create background notification for employer %s", employer_id)
@@ -302,7 +302,7 @@ def update_application(
         label = status_labels.get(data.status, f'cập nhật thành "{data.status}"')
         try:
             job = crud_job.get_by_id(db, job_id=app.job_id)
-            crud_notification.create(
+            create_and_dispatch_notification(
                 db,
                 user_id=app.candidate_id,
                 title="Cập nhật trạng thái ứng tuyển",
@@ -310,7 +310,8 @@ def update_application(
                     f'Đơn ứng tuyển "{job.title if job else f"Job #{app.job_id}"}" '
                     f"của bạn đã được cập nhật: {label}."
                 ),
-                type=NotificationType.APPLICATION_UPDATE,
+                notif_type=NotificationType.APPLICATION_UPDATE,
+                extra_data={"application_id": app.id, "status": data.status},
             )
         except Exception:
             logger.exception("Failed to notify candidate %s", app.candidate_id)

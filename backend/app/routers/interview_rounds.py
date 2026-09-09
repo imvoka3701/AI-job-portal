@@ -140,6 +140,27 @@ def update_round(
             else:
                 round_obj.application.ai_feedback = note_entry
             db.commit()
+
+    if "scheduled_at" in data.model_fields_set and round_obj.application and round_obj.scheduled_at:
+        try:
+            from app.models.notification import NotificationType
+            from app.services.notification_dispatcher import create_and_dispatch_notification
+
+            cand_id = round_obj.application.candidate_id
+            job_title = round_obj.application.job.title if round_obj.application.job else "Công việc"
+            round_label = round_obj.round_name or f"Vòng {round_obj.round_number}"
+            time_str = round_obj.scheduled_at.strftime("%H:%M ngày %d/%m/%Y")
+            create_and_dispatch_notification(
+                db,
+                user_id=cand_id,
+                title="Lịch phỏng vấn mới",
+                message=f'Bạn có lịch phỏng vấn {round_label} cho vị trí "{job_title}" lúc {time_str}.',
+                notif_type=NotificationType.APPLICATION_UPDATE,
+                extra_data={"round_id": round_obj.id, "application_id": round_obj.application_id},
+            )
+        except Exception:
+            pass
+
     return RoundRead.model_validate(updated)
 
 

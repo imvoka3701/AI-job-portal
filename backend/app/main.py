@@ -47,6 +47,7 @@ from app.routers import (
     recruitment_requests,
     resumes,
     users,
+    ws,
 )
 
 
@@ -219,6 +220,7 @@ app.include_router(admin.router)
 app.include_router(admin_ai.router)
 app.include_router(assessments.router)
 app.include_router(contact.router)
+app.include_router(ws.router)
 
 # --- Mount Static Files (Public Avatars only) ---
 Path("uploads/avatars").mkdir(parents=True, exist_ok=True)
