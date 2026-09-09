@@ -110,7 +110,9 @@ class EmailGeneratorService:
             user_prompt += f"- Giọng điệu (Tone): {tone_guide}\n"
 
         if custom_prompt and custom_prompt.strip():
-            user_prompt += f"- Chỉ dẫn bổ sung từ nhà tuyển dụng (Custom Prompt): {custom_prompt.strip()}\n"
+            user_prompt += (
+                f"- Chỉ dẫn bổ sung từ nhà tuyển dụng (Custom Prompt): {custom_prompt.strip()}\n"
+            )
 
         user_prompt += f"\nHãy soạn email loại '{email_type}' cho ứng viên này."
 

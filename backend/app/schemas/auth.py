@@ -42,4 +42,3 @@ class ForgotPasswordRequest(BaseModel):
 class ForgotPasswordResponse(BaseModel):
     message: str
     email: EmailStr
-

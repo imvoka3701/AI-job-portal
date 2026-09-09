@@ -23,9 +23,7 @@ def authenticate_websocket_token(token: str | None, db: Session) -> User | None:
     if not token:
         return None
     try:
-        payload = jwt.decode(
-            token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
-        )
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         user_id = int(payload.get("sub"))
         user = crud_user.get_by_id(db, user_id=user_id)
         if user and user.is_active:

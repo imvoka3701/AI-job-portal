@@ -46,7 +46,6 @@ class TestRegister:
         assert "Không thể tự đăng ký tài khoản Quản trị viên" in response.text
 
 
-
 class TestLogin:
     def test_login_success(self, client: TestClient):
         """Test successful login returns JWT token."""
@@ -109,6 +108,7 @@ class TestOAuthStateAndCSRF:
         import hmac
 
         from app.config import settings
+
         payload = f"{raw_state}:{old_ts}"
         sig = hmac.new(settings.SECRET_KEY.encode(), payload.encode(), hashlib.sha256).hexdigest()
         expired_cookie = f"{raw_state}:{old_ts}:{sig}"
@@ -121,6 +121,7 @@ class TestOAuthStateAndCSRF:
     def test_google_login_not_configured(self, client: TestClient, monkeypatch):
         """When GOOGLE_CLIENT_ID is not configured, endpoint returns 501."""
         from app.config import settings
+
         monkeypatch.setattr(settings, "GOOGLE_CLIENT_ID", "")
         response = client.get("/auth/google/login", follow_redirects=False)
         assert response.status_code == 501
@@ -134,7 +135,10 @@ class TestOAuthStateAndCSRF:
         monkeypatch.setattr(
             oauth_service,
             "get_authorization_url",
-            lambda: ("https://accounts.google.com/o/oauth2/v2/auth?state=gen_state_123", "gen_state_123"),
+            lambda: (
+                "https://accounts.google.com/o/oauth2/v2/auth?state=gen_state_123",
+                "gen_state_123",
+            ),
         )
 
         response = client.get("/auth/google/login", follow_redirects=False)
@@ -166,7 +170,9 @@ class TestOAuthStateAndCSRF:
         assert res3.status_code == 400
 
         # Case 4: State mismatch (CSRF attack attempt)
-        res4 = client.get("/auth/google/callback?code=mock_code&state=attacker_state", follow_redirects=False)
+        res4 = client.get(
+            "/auth/google/callback?code=mock_code&state=attacker_state", follow_redirects=False
+        )
         assert res4.status_code == 400
 
     def test_google_callback_success_redirects_with_fragment_and_clears_cookie(
@@ -202,4 +208,3 @@ class TestOAuthStateAndCSRF:
         set_cookie_header = response.headers.get("set-cookie", "")
         assert "oauth_state=" in set_cookie_header
         assert "Max-Age=0" in set_cookie_header or "expires=" in set_cookie_header
-

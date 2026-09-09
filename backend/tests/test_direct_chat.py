@@ -33,7 +33,9 @@ def _register_and_login(
             user.is_active = True
             db_session.commit()
 
-    login_resp = client.post("/auth/login", json={"email": email, "password": password}, headers=headers)
+    login_resp = client.post(
+        "/auth/login", json={"email": email, "password": password}, headers=headers
+    )
     assert login_resp.status_code == 200, login_resp.text
     return {"Authorization": f"Bearer {login_resp.json()['access_token']}"}, user_id
 
@@ -105,7 +107,9 @@ def test_direct_chat_flow_and_authorization(client: TestClient, db_session: Sess
     with patch("app.services.websocket_manager.ws_manager.notify_user_sync") as mock_ws_notify:
         send_resp = client.post(
             f"/chat/conversations/{conv_id}/messages",
-            json={"content": "Chào bạn, hồ sơ của bạn rất ấn tượng. Bạn có thể tham gia phỏng vấn tuần này không?"},
+            json={
+                "content": "Chào bạn, hồ sơ của bạn rất ấn tượng. Bạn có thể tham gia phỏng vấn tuần này không?"
+            },
             headers=emp_headers,
         )
         assert send_resp.status_code == 201, send_resp.text

@@ -36,9 +36,7 @@ class NotificationWebSocketManager:
                 del self.active_connections[user_id]
         logger.info("User %s disconnected from WebSocket", user_id)
 
-    async def send_personal_notification(
-        self, user_id: int, payload: dict[str, Any]
-    ) -> None:
+    async def send_personal_notification(self, user_id: int, payload: dict[str, Any]) -> None:
         """Send JSON notification to all active sockets for a specific user."""
         if user_id not in self.active_connections:
             return
@@ -47,16 +45,12 @@ class NotificationWebSocketManager:
             try:
                 await connection.send_json(payload)
             except Exception as exc:
-                logger.warning(
-                    "Failed to send WebSocket message to user %s: %s", user_id, exc
-                )
+                logger.warning("Failed to send WebSocket message to user %s: %s", user_id, exc)
                 dead_connections.append(connection)
         for dead in dead_connections:
             self.disconnect(dead, user_id)
 
-    async def broadcast_to_users(
-        self, user_ids: list[int], payload: dict[str, Any]
-    ) -> None:
+    async def broadcast_to_users(self, user_ids: list[int], payload: dict[str, Any]) -> None:
         """Send JSON notification to multiple users."""
         for uid in user_ids:
             await self.send_personal_notification(uid, payload)
@@ -70,9 +64,7 @@ class NotificationWebSocketManager:
             try:
                 asyncio.run(self.send_personal_notification(user_id, payload))
             except Exception as exc:
-                logger.warning(
-                    "Could not dispatch async WebSocket notification: %s", exc
-                )
+                logger.warning("Could not dispatch async WebSocket notification: %s", exc)
 
 
 ws_manager = NotificationWebSocketManager()

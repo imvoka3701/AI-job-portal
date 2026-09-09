@@ -69,7 +69,11 @@ class JDGeneratorService:
                 company_info_lines.append(f"- Giới thiệu công ty: {company.description[:300]}")
             if company.address:
                 company_info_lines.append(f"- Trụ sở: {company.address}")
-        company_context_str = "\n".join(company_info_lines) if company_info_lines else "Doanh nghiệp tiêu chuẩn tại Việt Nam"
+        company_context_str = (
+            "\n".join(company_info_lines)
+            if company_info_lines
+            else "Doanh nghiệp tiêu chuẩn tại Việt Nam"
+        )
 
         # 3. Build Prompt
         system_prompt = get_system_prompt(AIFeature.GENERATE_JD, db=db)
@@ -107,14 +111,18 @@ class JDGeneratorService:
             data = json.loads(raw_content)
 
             # Fallback benchmark salary if LLM omits or gives 0
-            bench_min, bench_max = SALARY_BENCHMARKS.get(request.experience_level.lower(), (15000000, 30000000))
+            bench_min, bench_max = SALARY_BENCHMARKS.get(
+                request.experience_level.lower(), (15000000, 30000000)
+            )
             salary_min = int(data.get("salary_min") or bench_min)
             salary_max = int(data.get("salary_max") or bench_max)
 
             # Clean formatting
             skills = [str(s).strip() for s in data.get("suggested_skills", []) if str(s).strip()]
             if not skills:
-                skills = [request.job_title, industry_name] if industry_name else [request.job_title]
+                skills = (
+                    [request.job_title, industry_name] if industry_name else [request.job_title]
+                )
 
             return GenerateJDResponse(
                 title=data.get("title") or request.job_title,
@@ -130,7 +138,9 @@ class JDGeneratorService:
             )
 
         except Exception as exc:
-            logger.warning("LLM JD generation failed (%s), falling back to dynamic heuristic template", exc)
+            logger.warning(
+                "LLM JD generation failed (%s), falling back to dynamic heuristic template", exc
+            )
             return self._heuristic_fallback(
                 request=request,
                 industry_name=industry_name,

@@ -182,7 +182,9 @@ class TestJobDelete:
         get_response = client.get(f"/jobs/{job_id}")
         assert get_response.status_code == 404
 
-    def test_delete_job_with_applications_soft_deletes(self, client: TestClient, db_session: Session):
+    def test_delete_job_with_applications_soft_deletes(
+        self, client: TestClient, db_session: Session
+    ):
         """Test that deleting a job with applications soft-deletes (archives) it without FK crash."""
         emp_headers = _register_employer(client, db_session, email="delete_emp2@example.com")
         create = client.post("/jobs", json=JOB_PAYLOAD, headers=emp_headers)
@@ -271,4 +273,3 @@ class TestJobGet:
         data = response.json()
         assert data["id"] == job_id
         assert data["title"] == JOB_PAYLOAD["title"]
-

@@ -6,7 +6,10 @@ from zoneinfo import ZoneInfo
 
 from app.models.interview_round import InterviewRound
 
-VIETNAM_TZ = ZoneInfo("Asia/Ho_Chi_Minh")
+try:
+    VIETNAM_TZ = ZoneInfo("Asia/Ho_Chi_Minh")
+except Exception:
+    VIETNAM_TZ = timezone(timedelta(hours=7))
 
 
 def escape_ics_text(text: str | None) -> str:
@@ -50,9 +53,7 @@ def build_interview_details(round_obj: InterviewRound) -> dict:
         if company and company.name
         else (employer.company_name if employer and employer.company_name else "Doanh nghiệp")
     )
-    organizer_email = (
-        employer.email if employer and employer.email else "recruitment@jobportal.vn"
-    )
+    organizer_email = employer.email if employer and employer.email else "recruitment@jobportal.vn"
 
     job_title = job.title if job else "Vị trí tuyển dụng"
     round_label = round_obj.round_name or f"Vòng {round_obj.round_number}"
@@ -88,9 +89,7 @@ def build_interview_details(round_obj: InterviewRound) -> dict:
     }
 
 
-def generate_ics_calendar(
-    round_obj: InterviewRound, duration_minutes: int = 60
-) -> str:
+def generate_ics_calendar(round_obj: InterviewRound, duration_minutes: int = 60) -> str:
     """Generate an RFC 5545 compliant iCalendar string (.ics) for an interview round."""
     if not round_obj.scheduled_at:
         raise ValueError("Lịch phỏng vấn chưa được thiết lập thời gian (scheduled_at is None).")
@@ -141,9 +140,7 @@ def generate_ics_calendar(
     return crlf.join(ics_lines) + crlf
 
 
-def generate_google_calendar_url(
-    round_obj: InterviewRound, duration_minutes: int = 60
-) -> str:
+def generate_google_calendar_url(round_obj: InterviewRound, duration_minutes: int = 60) -> str:
     """Generate a 1-click Google Calendar web event creation link."""
     if not round_obj.scheduled_at:
         return ""
@@ -167,9 +164,7 @@ def generate_google_calendar_url(
     )
 
 
-def get_calendar_links(
-    round_obj: InterviewRound, duration_minutes: int = 60
-) -> dict:
+def get_calendar_links(round_obj: InterviewRound, duration_minutes: int = 60) -> dict:
     """Return both Google Calendar URL and metadata for client consumption."""
     google_url = generate_google_calendar_url(round_obj, duration_minutes=duration_minutes)
     return {

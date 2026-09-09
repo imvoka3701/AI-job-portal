@@ -26,9 +26,7 @@ def create_and_dispatch_notification(
         type=notif_type,
     )
 
-    type_str = (
-        notif.type.value if hasattr(notif.type, "value") else str(notif.type)
-    )
+    type_str = notif.type.value if hasattr(notif.type, "value") else str(notif.type)
 
     ws_manager.notify_user_sync(
         user_id=user_id,
@@ -40,9 +38,7 @@ def create_and_dispatch_notification(
                 "message": notif.message,
                 "notif_type": type_str,
                 "is_read": notif.is_read,
-                "created_at": notif.created_at.isoformat()
-                if notif.created_at
-                else None,
+                "created_at": notif.created_at.isoformat() if notif.created_at else None,
                 "extra_data": extra_data or {},
             },
         },

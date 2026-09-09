@@ -147,7 +147,9 @@ def update_round(
             from app.services.notification_dispatcher import create_and_dispatch_notification
 
             cand_id = round_obj.application.candidate_id
-            job_title = round_obj.application.job.title if round_obj.application.job else "Công việc"
+            job_title = (
+                round_obj.application.job.title if round_obj.application.job else "Công việc"
+            )
             round_label = round_obj.round_name or f"Vòng {round_obj.round_number}"
             time_str = round_obj.scheduled_at.strftime("%H:%M ngày %d/%m/%Y")
             create_and_dispatch_notification(
@@ -209,4 +211,3 @@ def get_round_calendar_links(
         raise HTTPException(status_code=404, detail="Không tìm thấy vòng phỏng vấn.")
     check_round_access(round_obj, current_user, db)
     return get_calendar_links(round_obj)
-

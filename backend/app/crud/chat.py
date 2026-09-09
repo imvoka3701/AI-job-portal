@@ -13,9 +13,7 @@ from app.models.user import User, UserRole
 
 
 class CRUDChat:
-    def get_conversation_by_id(
-        self, db: Session, *, conversation_id: int
-    ) -> Conversation | None:
+    def get_conversation_by_id(self, db: Session, *, conversation_id: int) -> Conversation | None:
         stmt = (
             select(Conversation)
             .where(Conversation.id == conversation_id)
@@ -43,9 +41,7 @@ class CRUDChat:
         )
         return db.execute(stmt).scalar_one_or_none()
 
-    def get_or_create_conversation(
-        self, db: Session, *, application_id: int
-    ) -> Conversation:
+    def get_or_create_conversation(self, db: Session, *, application_id: int) -> Conversation:
         existing = self.get_conversation_by_application(db, application_id=application_id)
         if existing:
             return existing
@@ -110,15 +106,12 @@ class CRUDChat:
         limit: int = 50,
     ) -> list[Conversation]:
         """List all conversations accessible to the given user."""
-        stmt = (
-            select(Conversation)
-            .options(
-                joinedload(Conversation.application),
-                joinedload(Conversation.job),
-                joinedload(Conversation.candidate),
-                joinedload(Conversation.company),
-                joinedload(Conversation.messages),
-            )
+        stmt = select(Conversation).options(
+            joinedload(Conversation.application),
+            joinedload(Conversation.job),
+            joinedload(Conversation.candidate),
+            joinedload(Conversation.company),
+            joinedload(Conversation.messages),
         )
 
         if user.role == UserRole.ADMIN:
@@ -130,20 +123,24 @@ class CRUDChat:
         else:
             # Employer / Company Member:
             # Conversations for company where user is active member OR jobs created by user
-            user_company_ids = db.execute(
-                select(CompanyMembership.company_id).where(
-                    CompanyMembership.user_id == user.id,
-                    CompanyMembership.status == MembershipStatus.ACTIVE,
+            user_company_ids = (
+                db.execute(
+                    select(CompanyMembership.company_id).where(
+                        CompanyMembership.user_id == user.id,
+                        CompanyMembership.status == MembershipStatus.ACTIVE,
+                    )
                 )
-            ).scalars().all()
+                .scalars()
+                .all()
+            )
 
             conditions = []
             if user_company_ids:
                 conditions.append(Conversation.company_id.in_(user_company_ids))
 
-            user_job_ids = db.execute(
-                select(Job.id).where(Job.employer_id == user.id)
-            ).scalars().all()
+            user_job_ids = (
+                db.execute(select(Job.id).where(Job.employer_id == user.id)).scalars().all()
+            )
             if user_job_ids:
                 conditions.append(Conversation.job_id.in_(user_job_ids))
 
@@ -153,9 +150,13 @@ class CRUDChat:
                 return []
 
         # Order by latest activity first
-        stmt = stmt.order_by(
-            func.coalesce(Conversation.last_message_at, Conversation.created_at).desc()
-        ).offset(skip).limit(limit)
+        stmt = (
+            stmt.order_by(
+                func.coalesce(Conversation.last_message_at, Conversation.created_at).desc()
+            )
+            .offset(skip)
+            .limit(limit)
+        )
 
         return list(db.execute(stmt).scalars().unique().all())
 
@@ -204,9 +205,7 @@ class CRUDChat:
         )
         return list(db.execute(stmt).scalars().all())
 
-    def mark_messages_read(
-        self, db: Session, *, conversation_id: int, reader_id: int
-    ) -> int:
+    def mark_messages_read(self, db: Session, *, conversation_id: int, reader_id: int) -> int:
         """Mark unread messages in conversation not sent by reader_id as read."""
         now = datetime.now(timezone.utc)
         stmt = (
@@ -222,9 +221,7 @@ class CRUDChat:
         db.commit()
         return res.rowcount or 0
 
-    def count_unread_for_user(
-        self, db: Session, *, conversation_id: int, user_id: int
-    ) -> int:
+    def count_unread_for_user(self, db: Session, *, conversation_id: int, user_id: int) -> int:
         stmt = select(func.count()).where(
             ChatMessage.conversation_id == conversation_id,
             ChatMessage.sender_id != user_id,

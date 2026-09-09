@@ -34,7 +34,9 @@ def _register_and_login(
         if user and not user.is_active:
             user.is_active = True
             db_session.commit()
-    login_resp = client.post("/auth/login", json={"email": email, "password": password}, headers=headers)
+    login_resp = client.post(
+        "/auth/login", json={"email": email, "password": password}, headers=headers
+    )
     assert login_resp.status_code == 200, login_resp.text
     return {"Authorization": f"Bearer {login_resp.json()['access_token']}"}
 
@@ -596,9 +598,7 @@ class TestTerminalStatusPreservation:
 
         # 2. Employer modifies an interview round
         round_obj = (
-            db_session.query(InterviewRound)
-            .filter(InterviewRound.application_id == app_id)
-            .first()
+            db_session.query(InterviewRound).filter(InterviewRound.application_id == app_id).first()
         )
         assert round_obj is not None
 
@@ -630,9 +630,7 @@ class TestTerminalStatusPreservation:
 
         # 2. Modify an interview round
         round_obj = (
-            db_session.query(InterviewRound)
-            .filter(InterviewRound.application_id == app_id)
-            .first()
+            db_session.query(InterviewRound).filter(InterviewRound.application_id == app_id).first()
         )
         assert round_obj is not None
 
@@ -647,4 +645,3 @@ class TestTerminalStatusPreservation:
         assert app.status == ApplicationStatus.REJECTED, (
             f"Expected application status to remain REJECTED, got {app.status}"
         )
-

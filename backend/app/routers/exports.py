@@ -141,9 +141,7 @@ def export_candidates_csv(
 
 @router.get("/pipeline-metrics.csv", summary="Export recruitment metrics and funnel as CSV")
 def export_pipeline_metrics_csv(
-    context: CompanyContext = Depends(
-        require_company_permission(CompanyPermission.ANALYTICS_VIEW)
-    ),
+    context: CompanyContext = Depends(require_company_permission(CompanyPermission.ANALYTICS_VIEW)),
     db: Session = Depends(get_db),
 ) -> Response:
     """Export aggregated recruitment metrics and interview funnel to CSV."""

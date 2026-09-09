@@ -9,7 +9,9 @@ class ContactLeadCreate(BaseModel):
     full_name: str = Field(..., min_length=1, max_length=255, description="Họ và tên người liên hệ")
     email: EmailStr = Field(..., description="Email doanh nghiệp")
     phone: str = Field(..., min_length=1, max_length=50, description="Số điện thoại liên hệ")
-    company_name: str = Field(..., min_length=1, max_length=255, description="Tên công ty / doanh nghiệp")
+    company_name: str = Field(
+        ..., min_length=1, max_length=255, description="Tên công ty / doanh nghiệp"
+    )
     location: str = Field(..., min_length=1, max_length=100, description="Khu vực tuyển dụng")
     service_package: str = Field("pro", max_length=50, description="Gói giải pháp mong muốn")
     notes: str | None = Field(None, description="Ghi chú thêm từ khách hàng")

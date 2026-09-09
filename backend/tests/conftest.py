@@ -24,6 +24,7 @@ TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engin
 @pytest.fixture(autouse=True)
 def mock_smtp_backend(monkeypatch):
     """Ensure test executions never send real emails over network to real user inboxes."""
+
     class SafeMockSMTP:
         _is_mocked_for_test = True
 

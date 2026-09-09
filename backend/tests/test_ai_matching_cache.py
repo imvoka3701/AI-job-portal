@@ -82,7 +82,12 @@ async def test_lazy_embedding_generation_on_resume(db_session: Session, monkeypa
 
     user = db_session.query(User).filter(User.role == UserRole.CANDIDATE).first()
     if not user:
-        user = User(email="lazy_emb@example.com", full_name="Lazy Emb", hashed_password="pw", role=UserRole.CANDIDATE)
+        user = User(
+            email="lazy_emb@example.com",
+            full_name="Lazy Emb",
+            hashed_password="pw",
+            role=UserRole.CANDIDATE,
+        )
         db_session.add(user)
         db_session.commit()
         db_session.refresh(user)
@@ -117,7 +122,12 @@ async def test_compute_match_for_cv_document(db_session: Session, monkeypatch):
 
     user = db_session.query(User).filter(User.role == UserRole.CANDIDATE).first()
     if not user:
-        user = User(email="cvdoc_test@example.com", full_name="CV Doc Test", hashed_password="pw", role=UserRole.CANDIDATE)
+        user = User(
+            email="cvdoc_test@example.com",
+            full_name="CV Doc Test",
+            hashed_password="pw",
+            role=UserRole.CANDIDATE,
+        )
         db_session.add(user)
         db_session.commit()
         db_session.refresh(user)
@@ -138,7 +148,9 @@ async def test_compute_match_for_cv_document(db_session: Session, monkeypatch):
     db_session.refresh(doc)
 
     job_emb = [0.2] * EMBEDDING_DIM
-    res = await ai_matching_service.compute_match_for_cv_document(db_session, cv_document=doc, job_embedding=job_emb)
+    res = await ai_matching_service.compute_match_for_cv_document(
+        db_session, cv_document=doc, job_embedding=job_emb
+    )
 
     assert res.score == 100.0  # Identical vectors => 100%
     assert res.explanation is not None

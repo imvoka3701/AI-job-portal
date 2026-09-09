@@ -91,14 +91,31 @@ def generate_pipeline_metrics_csv(metrics_data: dict[str, Any]) -> str:
     writer.writerow(["Tổng số vị trí tuyển dụng", metrics_data.get("total_jobs", 0)])
     writer.writerow(["Tổng số đơn ứng tuyển", metrics_data.get("total_applications", 0)])
     tth = metrics_data.get("time_to_hire_avg_days")
-    writer.writerow(["Thời gian tuyển dụng trung bình (Time-to-Hire)", f"{tth} ngày" if tth is not None else "—"])
+    writer.writerow(
+        [
+            "Thời gian tuyển dụng trung bình (Time-to-Hire)",
+            f"{tth} ngày" if tth is not None else "—",
+        ]
+    )
     avg_score = metrics_data.get("avg_ai_match")
-    writer.writerow(["Điểm AI Matching trung bình", f"{avg_score}%" if avg_score is not None else "—"])
+    writer.writerow(
+        ["Điểm AI Matching trung bình", f"{avg_score}%" if avg_score is not None else "—"]
+    )
     writer.writerow([])
 
     # 2. Funnel Breakdown
     writer.writerow(["THỐNG KÊ PHỄU ỨNG VIÊN THEO VÒNG"])
-    writer.writerow(["Vòng phỏng vấn", "Số lượng vào", "Vượt qua", "Bị loại", "Bỏ qua / Huỷ", "Đang xử lý", "Tỷ lệ đỗ (%)"])
+    writer.writerow(
+        [
+            "Vòng phỏng vấn",
+            "Số lượng vào",
+            "Vượt qua",
+            "Bị loại",
+            "Bỏ qua / Huỷ",
+            "Đang xử lý",
+            "Tỷ lệ đỗ (%)",
+        ]
+    )
     for f in metrics_data.get("funnel", []):
         writer.writerow(
             [
@@ -115,7 +132,17 @@ def generate_pipeline_metrics_csv(metrics_data: dict[str, Any]) -> str:
 
     # 3. Active Jobs Breakdown
     writer.writerow(["CHI TIẾT THEO VỊ TRÍ TUYỂN DỤNG"])
-    writer.writerow(["Mã tin", "Tiêu đề công việc", "Địa điểm", "Cấp bậc", "Loại hình", "Số lượng ứng viên", "Điểm AI trung bình"])
+    writer.writerow(
+        [
+            "Mã tin",
+            "Tiêu đề công việc",
+            "Địa điểm",
+            "Cấp bậc",
+            "Loại hình",
+            "Số lượng ứng viên",
+            "Điểm AI trung bình",
+        ]
+    )
     for j in metrics_data.get("active_jobs", []):
         job_score = j.get("avg_ai_match")
         writer.writerow(

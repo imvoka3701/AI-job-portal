@@ -68,7 +68,6 @@ def forgot_password(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
-
 # ── Google OAuth ─────────────────────────────────────────────────────────────
 
 

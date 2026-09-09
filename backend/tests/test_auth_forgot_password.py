@@ -24,7 +24,9 @@ def test_forgot_password_success(client: TestClient, db_session: Session):
     old_hash = user.hashed_password
 
     # 2. Call forgot-password endpoint
-    with patch("app.services.password_reset_service.password_reset_service.send_new_password") as mock_send:
+    with patch(
+        "app.services.password_reset_service.password_reset_service.send_new_password"
+    ) as mock_send:
         mock_send.return_value = True
         response = client.post(
             "/auth/forgot-password",

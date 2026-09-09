@@ -90,10 +90,12 @@ async def test_email_generator_service_tone_and_custom_prompt():
         "choices": [
             {
                 "message": {
-                    "content": json.dumps({
-                        "subject": "[TechCorp] Thư mời phỏng vấn",
-                        "body": "Chào bạn, trân trọng mời bạn tham gia...",
-                    })
+                    "content": json.dumps(
+                        {
+                            "subject": "[TechCorp] Thư mời phỏng vấn",
+                            "body": "Chào bạn, trân trọng mời bạn tham gia...",
+                        }
+                    )
                 }
             }
         ]
@@ -130,7 +132,9 @@ async def test_email_generator_service_tone_and_custom_prompt():
 
 
 def test_evaluate_cv_document_endpoint(client: TestClient, db_session: Session):
-    headers = _register_and_login(client, "cand_issue8_eval@example.com", "Password123!", role="candidate")
+    headers = _register_and_login(
+        client, "cand_issue8_eval@example.com", "Password123!", role="candidate"
+    )
     user = db_session.query(User).filter(User.email == "cand_issue8_eval@example.com").first()
     assert user is not None
 
@@ -163,7 +167,9 @@ def test_evaluate_cv_document_endpoint(client: TestClient, db_session: Session):
         skill_analysis={"Python": 9.0, "Docker": 8.0},
     )
 
-    with patch("app.routers.ai.cv_evaluator_service.evaluate", new=AsyncMock(return_value=fake_eval)):
+    with patch(
+        "app.routers.ai.cv_evaluator_service.evaluate", new=AsyncMock(return_value=fake_eval)
+    ):
         resp = client.post(
             "/ai/evaluate",
             headers=headers,
@@ -176,7 +182,9 @@ def test_evaluate_cv_document_endpoint(client: TestClient, db_session: Session):
 
 
 def test_roadmap_cv_document_endpoint(client: TestClient, db_session: Session):
-    headers = _register_and_login(client, "cand_issue8_road@example.com", "Password123!", role="candidate")
+    headers = _register_and_login(
+        client, "cand_issue8_road@example.com", "Password123!", role="candidate"
+    )
     user = db_session.query(User).filter(User.email == "cand_issue8_road@example.com").first()
     assert user is not None
 
@@ -209,7 +217,9 @@ def test_roadmap_cv_document_endpoint(client: TestClient, db_session: Session):
         ],
     )
 
-    with patch("app.routers.ai.roadmap_suggest_service.suggest", new=AsyncMock(return_value=fake_roadmap)):
+    with patch(
+        "app.routers.ai.roadmap_suggest_service.suggest", new=AsyncMock(return_value=fake_roadmap)
+    ):
         resp = client.post(
             "/ai/roadmap",
             headers=headers,
@@ -222,7 +232,9 @@ def test_roadmap_cv_document_endpoint(client: TestClient, db_session: Session):
 
 
 def test_recommend_jobs_cv_document_endpoint(client: TestClient, db_session: Session):
-    headers = _register_and_login(client, "cand_issue8_rec@example.com", "Password123!", role="candidate")
+    headers = _register_and_login(
+        client, "cand_issue8_rec@example.com", "Password123!", role="candidate"
+    )
     user = db_session.query(User).filter(User.email == "cand_issue8_rec@example.com").first()
     assert user is not None
 

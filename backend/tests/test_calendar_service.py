@@ -86,10 +86,20 @@ def test_format_ics_datetime():
 def test_calendar_service_unit(db_session: Session, client: TestClient):
     """Test calendar generation with mock interview round."""
     emp_headers = _register_and_login(
-        client, db_session, "emp_cal@test.com", "Password123!", role="employer", company_name="TechCorp"
+        client,
+        db_session,
+        "emp_cal@test.com",
+        "Password123!",
+        role="employer",
+        company_name="TechCorp",
     )
     cand_headers = _register_and_login(
-        client, db_session, "cand_cal@test.com", "Password123!", role="candidate", full_name="Nguyen Van A"
+        client,
+        db_session,
+        "cand_cal@test.com",
+        "Password123!",
+        role="candidate",
+        full_name="Nguyen Van A",
     )
 
     job_id = _create_job(client, emp_headers)
@@ -151,13 +161,28 @@ def test_calendar_service_unit(db_session: Session, client: TestClient):
 def test_calendar_endpoints_api(db_session: Session, client: TestClient):
     """Test GET /calendar.ics and GET /calendar-links endpoints with authorization."""
     emp_headers = _register_and_login(
-        client, db_session, "emp_api@test.com", "Password123!", role="employer", company_name="AI Corp"
+        client,
+        db_session,
+        "emp_api@test.com",
+        "Password123!",
+        role="employer",
+        company_name="AI Corp",
     )
     cand_headers = _register_and_login(
-        client, db_session, "cand_api@test.com", "Password123!", role="candidate", full_name="Tran Thi B"
+        client,
+        db_session,
+        "cand_api@test.com",
+        "Password123!",
+        role="candidate",
+        full_name="Tran Thi B",
     )
     other_headers = _register_and_login(
-        client, db_session, "other_cand@test.com", "Password123!", role="candidate", full_name="Lê Van C"
+        client,
+        db_session,
+        "other_cand@test.com",
+        "Password123!",
+        role="candidate",
+        full_name="Lê Van C",
     )
 
     job_id = _create_job(client, emp_headers)

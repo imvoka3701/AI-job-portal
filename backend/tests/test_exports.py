@@ -34,7 +34,9 @@ def _register_and_login(
             user.is_active = True
             db_session.commit()
 
-    login_resp = client.post("/auth/login", json={"email": email, "password": password}, headers=headers)
+    login_resp = client.post(
+        "/auth/login", json={"email": email, "password": password}, headers=headers
+    )
     assert login_resp.status_code == 200, login_resp.text
     return {"Authorization": f"Bearer {login_resp.json()['access_token']}"}, user_id
 
@@ -42,7 +44,12 @@ def _register_and_login(
 def test_export_candidates_csv_flow(client: TestClient, db_session: Session) -> None:
     # 1. Setup Employer and Candidate
     hr_headers, _hr_id = _register_and_login(
-        client, db_session, "hr_export@vng.vn", full_name="Trần Thảo (HR)", role="employer", company_name="VNG Corp"
+        client,
+        db_session,
+        "hr_export@vng.vn",
+        full_name="Trần Thảo (HR)",
+        role="employer",
+        company_name="VNG Corp",
     )
     cand_headers, _cand_id = _register_and_login(
         client, db_session, "cand_export@gmail.com", full_name="Nguyễn Văn A", role="candidate"
@@ -95,19 +102,28 @@ def test_export_candidates_csv_flow(client: TestClient, db_session: Session) -> 
     assert "Chờ duyệt" in content
 
     # 5. Export with filters
-    filter_resp = client.get(f"/employer/exports/candidates.csv?job_id={job_id}&status=pending", headers=hr_headers)
+    filter_resp = client.get(
+        f"/employer/exports/candidates.csv?job_id={job_id}&status=pending", headers=hr_headers
+    )
     assert filter_resp.status_code == 200
     assert "Nguyễn Văn A" in filter_resp.text
 
     # Negative filter (no match)
-    no_match_resp = client.get(f"/employer/exports/candidates.csv?job_id={job_id}&status=rejected", headers=hr_headers)
+    no_match_resp = client.get(
+        f"/employer/exports/candidates.csv?job_id={job_id}&status=rejected", headers=hr_headers
+    )
     assert no_match_resp.status_code == 200
     assert "Nguyễn Văn A" not in no_match_resp.text
 
 
 def test_export_pipeline_metrics_csv(client: TestClient, db_session: Session) -> None:
     hr_headers, _ = _register_and_login(
-        client, db_session, "metrics_hr@fpt.com", full_name="Lê Minh (HR Director)", role="employer", company_name="FPT Corp"
+        client,
+        db_session,
+        "metrics_hr@fpt.com",
+        full_name="Lê Minh (HR Director)",
+        role="employer",
+        company_name="FPT Corp",
     )
 
     metrics_resp = client.get("/employer/exports/pipeline-metrics.csv", headers=hr_headers)

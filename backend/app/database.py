@@ -21,10 +21,7 @@ if not settings.DATABASE_URL.startswith("sqlite"):
     engine_kwargs["pool_size"] = 10
     engine_kwargs["max_overflow"] = 20
 
-engine = create_engine(
-    settings.DATABASE_URL,
-    **engine_kwargs
-)
+engine = create_engine(settings.DATABASE_URL, **engine_kwargs)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 

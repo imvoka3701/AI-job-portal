@@ -182,7 +182,9 @@ class AIMatchingService:
             strengths = [str(s) for s in data.get("strengths", []) if s]
             gaps = [str(g) for g in data.get("gaps", []) if g]
             deal_breakers = [str(d) for d in data.get("deal_breakers", []) if d]
-            explanation = str(data.get("explanation") or f"Độ tương thích tổng thể: {base_cosine_score:.1f}%")
+            explanation = str(
+                data.get("explanation") or f"Độ tương thích tổng thể: {base_cosine_score:.1f}%"
+            )
             interview_questions = [str(q) for q in data.get("interview_questions", []) if q]
 
             # Weighted Formula: 35% Vector Semantic + 40% Hard Skills + 25% Experience Level
@@ -208,7 +210,9 @@ class AIMatchingService:
                 interview_questions=interview_questions,
             )
         except Exception as exc:
-            logger.warning("Deep rubric matching failed, falling back to base cosine score: %s", exc)
+            logger.warning(
+                "Deep rubric matching failed, falling back to base cosine score: %s", exc
+            )
             return AIMatchResponse(
                 score=base_cosine_score,
                 explanation=f"AI matching score based on cosine similarity: {base_cosine_score:.1f}%",
@@ -506,15 +510,19 @@ class AIMatchingService:
             else:
                 reason = "Có một số điểm tương đồng về kinh nghiệm và kỹ năng."
 
-            recommendations.append({
-                "job_id": r["job_id"],
-                "title": r["title"],
-                "company_name": company_map.get(r["company_id"]) if r.get("company_id") else None,
-                "location": r["location"],
-                "experience_level": r["experience_level"],
-                "match_score": score,
-                "match_reason": reason,
-            })
+            recommendations.append(
+                {
+                    "job_id": r["job_id"],
+                    "title": r["title"],
+                    "company_name": company_map.get(r["company_id"])
+                    if r.get("company_id")
+                    else None,
+                    "location": r["location"],
+                    "experience_level": r["experience_level"],
+                    "match_score": score,
+                    "match_reason": reason,
+                }
+            )
 
         return {
             "resume_id": resume.id,
@@ -585,15 +593,19 @@ class AIMatchingService:
             else:
                 reason = "Có một số điểm tương đồng về kinh nghiệm và kỹ năng."
 
-            recommendations.append({
-                "job_id": r["job_id"],
-                "title": r["title"],
-                "company_name": company_map.get(r["company_id"]) if r.get("company_id") else None,
-                "location": r["location"],
-                "experience_level": r["experience_level"],
-                "match_score": score,
-                "match_reason": reason,
-            })
+            recommendations.append(
+                {
+                    "job_id": r["job_id"],
+                    "title": r["title"],
+                    "company_name": company_map.get(r["company_id"])
+                    if r.get("company_id")
+                    else None,
+                    "location": r["location"],
+                    "experience_level": r["experience_level"],
+                    "match_score": score,
+                    "match_reason": reason,
+                }
+            )
 
         return {
             "cv_document_id": cv_document.id,
@@ -604,4 +616,3 @@ class AIMatchingService:
 
 
 ai_matching_service = AIMatchingService()
-

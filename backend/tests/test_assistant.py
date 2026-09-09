@@ -32,7 +32,9 @@ def test_assistant_chat_security_limits(client: TestClient):
     """Test message length > 2000 chars and history > 20 messages are rejected."""
     # 1. Message exceeding 2000 characters
     long_msg = "A" * 2001
-    resp = client.post("/ai/assistant/chat", json={"messages": [{"role": "user", "content": long_msg}]})
+    resp = client.post(
+        "/ai/assistant/chat", json={"messages": [{"role": "user", "content": long_msg}]}
+    )
     assert resp.status_code == 422
 
     # 2. History exceeding 20 messages
@@ -117,3 +119,61 @@ def test_assistant_chat_banana_pivot_and_guest_cta(mock_create_chat, client: Tes
     assert "chuối" in data["reply"]
     # Auto-attached guest conversion card for guest user asking off-topic/banana
     assert any(c.get("url") == "/register" for c in data["suggested_cards"])
+
+
+def test_contextual_knowledge_slicing():
+    """Test get_contextual_knowledge correctly slices domain knowledge according to role and query."""
+    from app.services.assistant_knowledge import (
+        get_contextual_knowledge,
+    )
+
+    # 1. Employer query gets employer knowledge
+    emp_slice = get_contextual_knowledge(
+        role="employer", current_path="/employer/dashboard", user_query="Làm sao phân quyền?"
+    )
+    assert "RBAC 5 ROLES" in emp_slice
+    assert "KANBAN" in emp_slice
+
+    # 2. Candidate query gets candidate knowledge
+    cand_slice = get_contextual_knowledge(
+        role="candidate", current_path="/cv", user_query="Cách tạo CV?"
+    )
+    assert "CV BUILDER" in cand_slice
+    assert "MBTI" in cand_slice
+
+    # 3. Troubleshooting query gets troubleshooting FAQs
+    trouble_slice = get_contextual_knowledge(
+        role="employer",
+        current_path="/employer/candidates",
+        user_query="Tại sao xuất Excel bị lỗi font?",
+    )
+    assert "Byte Order Mark" in trouble_slice or "UTF-8" in trouble_slice
+
+
+@patch(
+    "app.services.assistant_service.deepseek_client.create_chat_completion", new_callable=AsyncMock
+)
+def test_employer_solutions_engineer_cards(mock_create_chat, client: TestClient):
+    """Test employer asking about team RBAC automatically receives /employer/team action card."""
+    mock_create_chat.return_value = {
+        "choices": [
+            {
+                "message": {
+                    "content": '{"reply": "Để phân quyền cho Tech Lead chỉ chấm điểm phỏng vấn, bạn vào mục Quản lý Đội ngũ và gán quyền Interviewer.", "suggested_cards": [], "suggested_followups": ["Xem chi tiết quyền hạn"]}'
+                }
+            }
+        ]
+    }
+
+    payload = {
+        "messages": [
+            {"role": "user", "content": "Làm thế nào để phân quyền thành viên trong team?"}
+        ],
+        "context": {"current_path": "/employer/dashboard", "role": "employer"},
+    }
+
+    resp = client.post("/ai/assistant/chat", json=payload)
+    assert resp.status_code == 200
+    data = resp.json()
+    # Check that /employer/team card was auto-attached
+    assert any(c.get("url") == "/employer/team" for c in data["suggested_cards"])

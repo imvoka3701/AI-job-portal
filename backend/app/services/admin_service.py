@@ -191,4 +191,3 @@ def set_company_verification(
         company_size=company_obj.company_size,
         member_count=len(company_obj.memberships) if company_obj.memberships else 1,
     )
-

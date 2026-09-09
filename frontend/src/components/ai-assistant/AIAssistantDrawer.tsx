@@ -161,14 +161,39 @@ export function AIAssistantDrawer() {
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <h3 className="truncate text-sm font-bold text-gray-900 tracking-tight">JobPortal AI Advisor</h3>
-                <span className="inline-flex items-center rounded-full bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
-                  24/7 Live
+                <h3 className="truncate text-sm font-bold text-gray-900 tracking-tight">
+                  {user?.role === "employer" || location.pathname.startsWith("/employer")
+                    ? "JobPortal Solutions Engineer"
+                    : user?.role === "candidate"
+                    ? "JobPortal Career Mentor"
+                    : "JobPortal AI Copilot"}
+                </h3>
+                <span
+                  className={cn(
+                    "inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold border",
+                    user?.role === "employer" || location.pathname.startsWith("/employer")
+                      ? "bg-emerald-50 border-emerald-200 text-emerald-700"
+                      : user?.role === "candidate"
+                      ? "bg-purple-50 border-purple-200 text-purple-700"
+                      : "bg-blue-50 border-blue-200 text-primary"
+                  )}
+                >
+                  {user?.role === "employer" || location.pathname.startsWith("/employer")
+                    ? "B2B Copilot"
+                    : user?.role === "candidate"
+                    ? "Career AI"
+                    : "24/7 Live"}
                 </span>
               </div>
               <div className="flex items-center gap-2 mt-0.5">
                 <NeuralWaveform isTyping={isTyping} />
-                <span className="text-[11px] text-gray-500 font-medium">Cố vấn Tuyển dụng & Sự nghiệp</span>
+                <span className="text-[11px] text-gray-500 font-medium">
+                  {user?.role === "employer" || location.pathname.startsWith("/employer")
+                    ? "Kỹ sư Giải pháp Tuyển dụng B2B"
+                    : user?.role === "candidate"
+                    ? "Cố vấn Sự nghiệp & Hướng dẫn Nền tảng"
+                    : "Hệ thống Trợ lý Giải pháp Toàn diện"}
+                </span>
               </div>
             </div>
           </div>
@@ -551,9 +576,24 @@ function DiplomaticMessageItem({
                 className="group flex w-full items-center justify-between rounded-xl border border-gray-200 bg-white p-3 text-left hover:border-primary hover:bg-primary-light/10 transition-all shadow-xs"
               >
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary-light text-primary shadow-2xs group-hover:scale-105 transition-transform">
+                  <div
+                    className={cn(
+                      "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl shadow-2xs group-hover:scale-105 transition-transform",
+                      card.card_type === "job"
+                        ? "bg-primary-light text-primary"
+                        : card.card_type === "action"
+                        ? "bg-amber-50 text-amber-600 border border-amber-200/60"
+                        : card.url.includes("/employer")
+                        ? "bg-emerald-50 text-emerald-700 border border-emerald-200/60"
+                        : "bg-purple-50 text-purple-700 border border-purple-200/60"
+                    )}
+                  >
                     {card.card_type === "job" ? (
                       <Briefcase className="h-4 w-4" />
+                    ) : card.card_type === "action" ? (
+                      <Sparkles className="h-4 w-4" />
+                    ) : card.url.includes("/employer") ? (
+                      <Building2 className="h-4 w-4" />
                     ) : card.card_type === "tool" ? (
                       <Compass className="h-4 w-4" />
                     ) : (
@@ -561,16 +601,38 @@ function DiplomaticMessageItem({
                     )}
                   </div>
                   <div className="min-w-0">
-                    <p className="truncate text-xs font-bold text-gray-900 group-hover:text-primary transition-colors">
-                      {card.title}
-                    </p>
+                    <div className="flex items-center gap-1.5">
+                      <span
+                        className={cn(
+                          "rounded-md px-1.5 py-0.2 text-[9px] font-bold uppercase tracking-wider",
+                          card.card_type === "job"
+                            ? "bg-primary/10 text-primary"
+                            : card.card_type === "action"
+                            ? "bg-amber-100 text-amber-800"
+                            : card.url.includes("/employer")
+                            ? "bg-emerald-100 text-emerald-800"
+                            : "bg-purple-100 text-purple-800"
+                        )}
+                      >
+                        {card.card_type === "job"
+                          ? "Việc làm"
+                          : card.card_type === "action"
+                          ? "Đăng ký"
+                          : card.url.includes("/employer")
+                          ? "B2B Solutions"
+                          : "Công cụ"}
+                      </span>
+                      <p className="truncate text-xs font-bold text-gray-900 group-hover:text-primary transition-colors">
+                        {card.title}
+                      </p>
+                    </div>
                     {card.subtitle && (
                       <p className="truncate text-[11px] text-gray-500 mt-0.5">{card.subtitle}</p>
                     )}
                   </div>
                 </div>
                 <div className="flex items-center gap-1 text-xs font-semibold text-primary group-hover:translate-x-0.5 transition-transform shrink-0">
-                  <span>Xem ngay</span>
+                  <span>Truy cập</span>
                   <ChevronRight className="h-4 w-4" />
                 </div>
               </button>

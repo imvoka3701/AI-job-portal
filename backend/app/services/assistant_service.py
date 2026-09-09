@@ -19,6 +19,7 @@ from app.schemas.assistant import (
     ChatMessage,
     EmbeddedCard,
 )
+from app.services.assistant_knowledge import get_contextual_knowledge
 from app.services.deepseek_client import deepseek_client
 from app.services.prompt_loader import HARDCODED_FALLBACK_PROMPTS, get_system_prompt
 
@@ -95,7 +96,7 @@ class AssistantService:
             re.DOTALL,
         )
         if reply_match:
-            reply = reply_match.group(1).replace(r'\"', '"').replace(r"\n", "\n").strip()
+            reply = reply_match.group(1).replace(r"\"", '"').replace(r"\n", "\n").strip()
         elif not cleaned.startswith("{"):
             reply = cleaned
 
@@ -165,14 +166,28 @@ class AssistantService:
             else "Hiện không có tin tuyển dụng nào trực tiếp phù hợp."
         )
 
-        system_prompt_template = get_system_prompt(AIFeature.ASSISTANT_CHAT, db=db)
-        system_prompt = system_prompt_template.format(
-            role_desc=role_desc,
-            current_path=current_path,
-            job_context=job_context,
-            candidate_context=candidate_context,
-            jobs_data=jobs_data,
+        system_knowledge = get_contextual_knowledge(
+            role=role, current_path=current_path, user_query=last_user_message
         )
+        system_prompt_template = get_system_prompt(AIFeature.ASSISTANT_CHAT, db=db)
+
+        format_dict = {
+            "role_desc": role_desc,
+            "current_path": current_path,
+            "job_context": job_context,
+            "candidate_context": candidate_context,
+            "jobs_data": jobs_data,
+            "system_knowledge": system_knowledge,
+        }
+        try:
+            system_prompt = system_prompt_template.format(**format_dict)
+        except (KeyError, IndexError):
+            system_prompt = system_prompt_template
+            for k, v in format_dict.items():
+                system_prompt = system_prompt.replace(f"{{{k}}}", str(v))
+
+        if system_knowledge and system_knowledge not in system_prompt:
+            system_prompt += f"\n\n---\n\nTRI THỨC CHUYÊN SÂU HỆ THỐNG:\n{system_knowledge}"
 
         payload_messages = [{"role": "system", "content": system_prompt}]
         for m in messages[-8:]:
@@ -203,10 +218,141 @@ class AssistantService:
                         )
                     )
 
-            # Auto-attach relevant cards if user asks about jobs or assessments
+            # Smart Auto-attach Cards based on User Role & Query
+            query_lower = last_user_message.lower()
+
+            # A. Employer Solutions Engineering Cards
+            if role == "employer" or "/employer" in current_path:
+                if any(
+                    w in query_lower
+                    for w in [
+                        "team",
+                        "nhóm",
+                        "phân quyền",
+                        "rbac",
+                        "thành viên",
+                        "interviewer",
+                        "lead",
+                        "viewer",
+                    ]
+                ):
+                    if not any(c.url == "/employer/team" for c in cards):
+                        cards.append(
+                            EmbeddedCard(
+                                card_type="tool",
+                                title="Quản lý Đội ngũ & Phân quyền RBAC",
+                                subtitle="Phân quyền 5 cấp bậc: Owner, HR, Lead, Interviewer, Viewer",
+                                url="/employer/team",
+                            )
+                        )
+                if any(
+                    w in query_lower
+                    for w in ["jd", "đăng tin", "tạo tin", "tuyển dụng mới", "mô tả"]
+                ):
+                    if not any(c.url == "/employer/jobs/new" for c in cards):
+                        cards.append(
+                            EmbeddedCard(
+                                card_type="tool",
+                                title="Soạn Thảo Tin Tuyển Dụng (AI JD)",
+                                subtitle="AI sinh JD chuẩn SEO & ATS theo tên vị trí trong 5s",
+                                url="/employer/jobs/new",
+                            )
+                        )
+                if any(
+                    w in query_lower
+                    for w in ["ứng viên", "ats", "kanban", "excel", "csv", "bom", "sàng lọc"]
+                ):
+                    if not any(c.url == "/employer/candidates" for c in cards):
+                        cards.append(
+                            EmbeddedCard(
+                                card_type="tool",
+                                title="Quản trị ATS Kanban & Xuất Excel UTF-8 BOM",
+                                subtitle="5 giai đoạn phễu tuyển dụng · Bộ lọc AI Match · Xuất CSV không vỡ font",
+                                url="/employer/candidates",
+                            )
+                        )
+                if any(
+                    w in query_lower for w in ["phỏng vấn", "lịch", "interview", "ics", "calendar"]
+                ):
+                    if not any(c.url == "/employer/interviews" for c in cards):
+                        cards.append(
+                            EmbeddedCard(
+                                card_type="tool",
+                                title="Quản lý Lịch Phỏng Vấn Doanh Nghiệp",
+                                subtitle="Đồng bộ tự động Google Calendar & Tải file .ics chuẩn RFC 5545",
+                                url="/employer/interviews",
+                            )
+                        )
+                if any(
+                    w in query_lower
+                    for w in ["tích xanh", "xác minh", "verified", "gpkd", "cài đặt"]
+                ):
+                    if not any(c.url == "/employer/settings" for c in cards):
+                        cards.append(
+                            EmbeddedCard(
+                                card_type="tool",
+                                title="Cài đặt Doanh Nghiệp & Xác Minh GPKD",
+                                subtitle="Tải Giấy phép kinh doanh để nhận Tích xanh Doanh nghiệp uy tín",
+                                url="/employer/settings",
+                            )
+                        )
+
+            # B. Candidate Career Cards
+            if any(w in query_lower for w in ["cv", "hồ sơ", "resume", "mẫu cv", "cv builder"]):
+                if not any(c.url in ["/cv-builder", "/cv", "/cv/new"] for c in cards):
+                    cards.append(
+                        EmbeddedCard(
+                            card_type="tool",
+                            title="Interactive CV Builder (5 Mẫu ATS)",
+                            subtitle="Chuẩn ATS quốc tế · AI gợi ý kỹ năng · Xuất PDF vector",
+                            url="/cv-builder",
+                        )
+                    )
+            if any(w in query_lower for w in ["mbti", "tính cách"]):
+                if not any(c.url == "/tools/mbti" for c in cards):
+                    cards.append(
+                        EmbeddedCard(
+                            card_type="tool",
+                            title="Trắc Nghiệm Tính Cách MBTI",
+                            subtitle="40 câu hỏi chuẩn hóa · 16 nhóm tính cách & văn hóa công ty",
+                            url="/tools/mbti",
+                        )
+                    )
+            if any(w in query_lower for w in ["mi", "đa trí tuệ", "thông minh"]):
+                if not any(c.url == "/tools/mi" for c in cards):
+                    cards.append(
+                        EmbeddedCard(
+                            card_type="tool",
+                            title="Trắc Nghiệm Đa Trí Tuệ MI",
+                            subtitle="Phân loại 8 loại hình thông minh & ngành nghề phù hợp",
+                            url="/tools/mi",
+                        )
+                    )
+            if any(w in query_lower for w in ["lộ trình", "roadmap"]):
+                if not any(c.url == "/ai/roadmap" for c in cards):
+                    cards.append(
+                        EmbeddedCard(
+                            card_type="tool",
+                            title="AI Career Roadmap (Lộ Trình Sự Nghiệp)",
+                            subtitle="Vạch rõ từng bước học tập & kỹ năng cần trau dồi theo tháng",
+                            url="/ai/roadmap",
+                        )
+                    )
+            if any(w in query_lower for w in ["matching", "so khớp", "điểm match"]):
+                if not any(c.url in ["/ai/matching", "/ai/match"] for c in cards):
+                    cards.append(
+                        EmbeddedCard(
+                            card_type="tool",
+                            title="AI CV Matching Engine",
+                            subtitle="So khớp ngữ nghĩa vector CV và JD · Điểm 3 trục & Deal-breakers",
+                            url="/ai/matching",
+                        )
+                    )
+
+            # Relevant Jobs card fallback
             if not cards and any(
-                w in last_user_message.lower()
-                for w in ["việc", "job", "tuyển", "lương", "react", "python", "dev"]
+                w in query_lower
+                for w in ["việc", "job", "tuyển", "lương", "react", "python", "dev", "làm"]
             ):
                 for j in relevant_jobs[:2]:
                     cards.append(
@@ -221,62 +367,36 @@ class AssistantService:
                             },
                         )
                     )
-            elif not cards and any(
-                w in last_user_message.lower()
-                for w in ["mbti", "tính cách", "trí tuệ", "mi", "hướng nghiệp"]
-            ):
-                cards.append(
-                    EmbeddedCard(
-                        card_type="tool",
-                        title="Trắc Nghiệm Tính Cách MBTI",
-                        subtitle="40 câu hỏi chuẩn hóa · Khám phá thế mạnh tính cách",
-                        url="/tools/mbti",
-                    )
-                )
-                cards.append(
-                    EmbeddedCard(
-                        card_type="tool",
-                        title="Trắc Nghiệm Đa Trí Tuệ MI",
-                        subtitle="Phân loại 8 loại hình thông minh & nghề phù hợp",
-                        url="/tools/mi",
-                    )
-                )
-            elif not cards and any(
-                w in last_user_message.lower() for w in ["cv", "hồ sơ", "resume", "mẫu cv"]
-            ):
-                cards.append(
-                    EmbeddedCard(
-                        card_type="tool",
-                        title="Interactive CV Builder",
-                        subtitle="5 mẫu chuẩn ATS quốc tế · AI gợi ý kỹ năng",
-                        url="/cv-builder",
-                    )
-                )
 
-            # Guest conversion: Soft CTA Register Card
-            if (not current_user or role == "guest") and not any(c.url == "/register" for c in cards):
-                if any(
-                    w in last_user_message.lower()
-                    for w in [
-                        "đăng ký",
-                        "tài khoản",
-                        "lưu",
-                        "save",
-                        "đăng nhập",
-                        "chuối",
-                        "mua",
-                        "bán",
-                        "bắt đầu",
-                        "miễn phí",
-                        "giá",
-                        "tiền",
-                    ]
-                ) or not cards:
+            # C. Guest Conversion Card
+            if (not current_user or role == "guest") and not any(
+                c.url == "/register" for c in cards
+            ):
+                if (
+                    any(
+                        w in query_lower
+                        for w in [
+                            "đăng ký",
+                            "tài khoản",
+                            "lưu",
+                            "save",
+                            "đăng nhập",
+                            "chuối",
+                            "mua",
+                            "bán",
+                            "bắt đầu",
+                            "miễn phí",
+                            "giá",
+                            "tiền",
+                        ]
+                    )
+                    or not cards
+                ):
                     cards.append(
                         EmbeddedCard(
                             card_type="action",
                             title="Đăng ký tài khoản miễn phí (30s)",
-                            subtitle="Lưu trữ CV chuẩn ATS & Kết quả bài test trắc nghiệm",
+                            subtitle="Lưu trữ CV chuẩn ATS & Kết quả bài test trắc nghiệm vĩnh viễn",
                             url="/register",
                         )
                     )
@@ -301,7 +421,9 @@ class AssistantService:
                         )
                     )
 
-            if (not current_user or role == "guest") and not any(c.url == "/register" for c in fallback_cards):
+            if (not current_user or role == "guest") and not any(
+                c.url == "/register" for c in fallback_cards
+            ):
                 fallback_cards.append(
                     EmbeddedCard(
                         card_type="action",
@@ -320,24 +442,24 @@ class AssistantService:
             if not current_user or role == "guest":
                 fallback_followups.insert(0, "Đăng ký tài khoản nhận tư vấn miễn phí")
 
-            user_topic = (
-                last_user_message[:60].strip() if last_user_message else "tư vấn việc làm"
-            )
+            user_topic = last_user_message[:60].strip() if last_user_message else "tư vấn việc làm"
             fallback_reply = (
-                f"Chào bạn! Tôi là **JobPortal AI Advisor**. Tôi đã ghi nhận yêu cầu của bạn về: **'{user_topic}'**.\n\n"
+                f"Chào bạn! Tôi là **JobPortal AI Copilot & Solutions Engineer**. Tôi đã ghi nhận yêu cầu của bạn về: **'{user_topic}'**.\n\n"
                 "Hệ thống phân tích AI đang tạm thời có lượng truy cập cao trong giây lát. "
-                "Trong lúc đó, bạn có thể tham khảo ngay các cơ hội và tiện ích dưới đây:\n"
-                "- 🔍 **Tìm kiếm việc làm:** Khám phá hàng trăm vị trí hot đang tuyển dụng trên [Sàn việc làm](/jobs).\n"
-                "- 📄 **Thiết kế CV chuẩn ATS:** Tạo hồ sơ xin việc chuyên nghiệp miễn phí với [CV Builder](/cv-builder).\n"
+                "Trong lúc đó, bạn có thể truy cập nhanh các tính năng cốt lõi dưới đây:\n"
+                "- 🔍 **Sàn việc làm:** Khám phá hàng trăm vị trí hot đang tuyển dụng trên [Sàn việc làm](/jobs).\n"
+                "- 📄 **Thiết kế CV chuẩn ATS:** Tạo hồ sơ chuyên nghiệp miễn phí với 5 mẫu quốc tế tại [CV Builder](/cv-builder).\n"
                 "- 🧭 **Khám phá bản thân:** Làm bài trắc nghiệm tính cách [MBTI](/tools/mbti) và [Đa trí tuệ MI](/tools/mi).\n"
-                "- 🏢 **Tuyển dụng B2B:** Khám phá giải pháp sàng lọc ATS tự động qua [Cổng Nhà tuyển dụng](/employer).\n\n"
+                "- 🏢 **Giải pháp Doanh nghiệp:** Quản trị phễu tuyển dụng tự động qua [Cổng Nhà tuyển dụng](/employer).\n\n"
             )
             if not current_user or role == "guest":
                 fallback_reply += (
                     "💡 **Mẹo nhỏ:** Bạn có thể dành 30 giây [Đăng ký tài khoản miễn phí](/register) "
                     "để lưu vĩnh viễn hồ sơ và nhận thông báo việc làm phù hợp tự động nhé!\n\n"
                 )
-            fallback_reply += "Bạn có thể gửi lại câu hỏi hoặc chọn một trong các gợi ý bên dưới để tiếp tục!"
+            fallback_reply += (
+                "Bạn có thể gửi lại câu hỏi hoặc chọn một trong các gợi ý bên dưới để tiếp tục!"
+            )
 
             return AssistantChatResponse(
                 reply=fallback_reply,
@@ -348,53 +470,58 @@ class AssistantService:
     def get_quick_suggestions(
         self, path: str, role: Optional[str]
     ) -> List[AssistantQuickSuggestion]:
-        """Return context-sensitive diplomatic prompt chips."""
+        """Return context-sensitive diplomatic & solutions engineer prompt chips."""
         if role == "employer" or "/employer" in path:
             return [
                 AssistantQuickSuggestion(
-                    label="Soạn thảo JD chuẩn thu hút",
+                    label="Soạn JD tuyển dụng thông minh (AI JD)",
                     prompt="Tôi muốn đăng tuyển vị trí mới. Bạn hãy giúp tôi soạn thảo một bản mô tả công việc (JD) thu hút và chuẩn SEO nhé.",
                     category="employer_jd",
                 ),
                 AssistantQuickSuggestion(
-                    label="Bộ câu hỏi phỏng vấn kỹ thuật",
-                    prompt="Gợi ý giúp tôi 5 câu hỏi phỏng vấn chuyên môn và tình huống thực tế để đánh giá năng lực ứng viên.",
+                    label="Cách phân quyền Tech Lead phỏng vấn (RBAC)?",
+                    prompt="Làm thế nào để phân quyền cho Tech Lead vào xem CV và chấm điểm phỏng vấn nhưng không được sửa tin tuyển dụng hay xóa ứng viên?",
                     category="interview",
                 ),
                 AssistantQuickSuggestion(
-                    label="Tối ưu chi phí & thời gian tuyển",
-                    prompt="Làm thế nào để hệ thống AI Matching và ATS của JobPortal giúp doanh nghiệp tôi tiết kiệm 70% thời gian tuyển dụng?",
+                    label="Xuất danh sách ứng viên ATS Excel không lỗi font",
+                    prompt="Làm sao để xuất danh sách ứng viên từ bảng Kanban ra file Excel trên máy tính Windows mà không bị vỡ font Tiếng Việt?",
                     category="general",
                 ),
                 AssistantQuickSuggestion(
-                    label="Trải nghiệm Sandbox tuyển dụng",
-                    prompt="Tôi muốn tìm hiểu các gói dịch vụ và trải nghiệm tính năng quản trị tuyển dụng của JobPortal.",
+                    label="Cơ chế tính điểm AI CV Matching & Deal-breakers?",
+                    prompt="Hệ thống AI Matching so khớp CV và JD dựa trên những tiêu chí nào và tính điểm 3 trụ cột ra sao?",
+                    category="general",
+                ),
+                AssistantQuickSuggestion(
+                    label="Quy trình xin cấp Tích xanh Verified",
+                    prompt="Doanh nghiệp của tôi cần chuẩn bị giấy tờ gì và làm theo các bước nào tại mục Cài đặt để được cấp Tích xanh Đã xác minh?",
                     category="general",
                 ),
             ]
-        elif "/tools" in path or "mbti" in path or "mi" in path:
+        elif any(p in path for p in ["/cv", "/tools", "mbti", "mi"]):
             return [
                 AssistantQuickSuggestion(
-                    label="Tại sao nên test MBTI trước khi tìm việc?",
-                    prompt="Bài trắc nghiệm MBTI giúp tôi định vị thế mạnh và tìm kiếm môi trường văn hóa doanh nghiệp phù hợp như thế nào?",
-                    category="tools",
-                ),
-                AssistantQuickSuggestion(
-                    label="Ứng dụng Đa trí tuệ vào chọn nghề",
-                    prompt="Làm sao để biết mình thuộc nhóm trí thông minh nào và ứng dụng vào việc chọn đúng ngành nghề?",
-                    category="tools",
-                ),
-                AssistantQuickSuggestion(
-                    label="Tạo CV chuẩn ATS trong 5 phút",
-                    prompt="Hướng dẫn tôi các bước sử dụng CV Builder để tạo một bản CV ấn tượng, vượt qua bộ lọc ATS.",
+                    label="Bí quyết tạo CV đạt trên 85 điểm ATS",
+                    prompt="Hướng dẫn tôi các bước sử dụng CV Builder để tạo một bản CV chuẩn ATS, tối ưu từ khóa kỹ năng và xuất file PDF sắc nét.",
                     category="cv_help",
+                ),
+                AssistantQuickSuggestion(
+                    label="Ứng dụng kết quả MBTI vào chọn việc",
+                    prompt="Sau khi làm trắc nghiệm MBTI ra nhóm tính cách của mình, làm thế nào để tìm công việc có môi trường văn hóa phù hợp?",
+                    category="tools",
+                ),
+                AssistantQuickSuggestion(
+                    label="Xem lộ trình phát triển kỹ năng AI",
+                    prompt="Làm sao để sử dụng tính năng Career Roadmap vạch ra lộ trình học tập và hoàn thiện kỹ năng theo mục tiêu nghề nghiệp?",
+                    category="tools",
                 ),
             ]
         elif "/jobs" in path:
             return [
                 AssistantQuickSuggestion(
-                    label="Gợi ý việc làm đang tuyển gấp",
-                    prompt="Gợi ý cho tôi các công việc có chế độ đãi ngộ tốt và đang có nhu cầu tuyển dụng cao nhất trên hệ thống.",
+                    label="Gợi ý việc làm phù hợp nhất",
+                    prompt="Gợi ý cho tôi các công việc có chế độ đãi ngộ tốt và đang có nhu cầu tuyển dụng cao nhất trên sàn việc làm.",
                     category="job_search",
                 ),
                 AssistantQuickSuggestion(
@@ -403,32 +530,32 @@ class AssistantService:
                     category="interview",
                 ),
                 AssistantQuickSuggestion(
-                    label="Cách viết CV cho người ít kinh nghiệm",
-                    prompt="Nếu tôi mới ra trường hoặc chưa có nhiều năm kinh nghiệm, làm thế nào để CV của tôi vẫn nổi bật và thu hút nhà tuyển dụng?",
+                    label="Cách viết thư ứng tuyển (Cover Letter) AI",
+                    prompt="Hệ thống có tính năng hỗ trợ tôi tự động tạo một bức thư ứng tuyển (Cover Letter) cá nhân hóa cho công việc này không?",
                     category="cv_help",
                 ),
             ]
         else:
-            # Universal diplomatic suggestions
+            # Universal diplomatic suggestions for Guests & General Users
             return [
                 AssistantQuickSuggestion(
-                    label="Tư vấn việc làm phù hợp",
-                    prompt="Chào bạn! Tôi muốn tìm kiếm cơ hội việc làm phù hợp với bản thân, bạn có thể tư vấn giúp tôi không?",
-                    category="job_search",
+                    label="Hệ sinh thái JobPortal có gì vượt trội?",
+                    prompt="Giới thiệu cho tôi những tính năng đột phá của nền tảng AI Job Portal dành cho Ứng viên và Doanh nghiệp tuyển dụng.",
+                    category="general",
                 ),
                 AssistantQuickSuggestion(
-                    label="Tạo CV chuẩn ATS miễn phí",
-                    prompt="Tôi muốn tạo một bản CV chuyên nghiệp. Hệ thống CV Builder của JobPortal có những điểm gì vượt trội?",
+                    label="Tạo CV chuẩn ATS miễn phí (5 mẫu)",
+                    prompt="Tôi muốn tạo một bản CV chuyên nghiệp. Hệ thống CV Builder của JobPortal hỗ trợ những mẫu nào và có miễn phí không?",
                     category="cv_help",
                 ),
                 AssistantQuickSuggestion(
-                    label="Khám phá MBTI & Đa trí tuệ",
-                    prompt="Giới thiệu cho tôi về bộ công cụ trắc nghiệm tính cách MBTI và Đa trí tuệ MI trên sàn.",
+                    label="Trắc nghiệm MBTI & Đa trí tuệ MI",
+                    prompt="Bộ công cụ trắc nghiệm tính cách MBTI và Đa trí tuệ MI trên sàn giúp tôi khám phá tiềm năng bản thân như thế nào?",
                     category="tools",
                 ),
                 AssistantQuickSuggestion(
-                    label="Giải pháp tuyển dụng Doanh nghiệp",
-                    prompt="Doanh nghiệp của tôi đang có nhu cầu tuyển dụng nhân sự chất lượng cao, JobPortal có những giải pháp gì?",
+                    label="Giải pháp tuyển dụng Doanh nghiệp B2B",
+                    prompt="Doanh nghiệp của tôi đang cần tuyển dụng nhân tài công nghệ, JobPortal có giải pháp ATS và AI Matching như thế nào?",
                     category="general",
                 ),
             ]

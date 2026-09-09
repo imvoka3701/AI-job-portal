@@ -170,4 +170,3 @@ class TestCriteriaScores:
         # 3. Verify round.score is reset to None
         db_session.refresh(r1)
         assert r1.score is None, f"Expected round.score to be None, got {r1.score}"
-

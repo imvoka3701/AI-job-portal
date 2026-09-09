@@ -63,8 +63,12 @@ class InvitationEmailService:
         try:
             smtp_class = smtplib.SMTP_SSL if settings.SMTP_USE_SSL else smtplib.SMTP
             # Enterprise Guard: Suppress real internet network calls in test mode if unmocked
-            if (settings.TESTING or os.getenv("PYTEST_CURRENT_TEST")) and getattr(smtp_class, "__module__", "") == "smtplib":
-                logger.warning("[TEST GUARD] Blocked real SMTP delivery in test mode to %s", invitation.email)
+            if (settings.TESTING or os.getenv("PYTEST_CURRENT_TEST")) and getattr(
+                smtp_class, "__module__", ""
+            ) == "smtplib":
+                logger.warning(
+                    "[TEST GUARD] Blocked real SMTP delivery in test mode to %s", invitation.email
+                )
                 return InvitationDeliveryResult(
                     InvitationDeliveryStatus.SENT,
                     message_id=message_id,

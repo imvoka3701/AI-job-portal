@@ -113,7 +113,9 @@ class TestJDGenerator:
         assert data["experience_level"] == "senior"
         assert data["suggested_category_id"] == cat.id
 
-    def test_generate_jd_with_mocked_llm(self, client: TestClient, db_session: Session, monkeypatch):
+    def test_generate_jd_with_mocked_llm(
+        self, client: TestClient, db_session: Session, monkeypatch
+    ):
         """Verify proper parsing when DeepSeek returns valid JSON response."""
         from app.services.deepseek_client import deepseek_client
 
@@ -122,7 +124,12 @@ class TestJDGenerator:
             "description": "• Hoạch định chiến lược tiếp thị đa kênh...\n• Quản lý ngân sách 500 triệu/tháng.",
             "requirements": "• Có 5+ năm kinh nghiệm quản lý Marketing...\n• Thành thạo Google Ads, SEO.",
             "benefits": "• Thu nhập 40 - 60 triệu VND...\n• ESOP và du lịch châu Âu.",
-            "suggested_skills": ["Digital Marketing", "SEO Strategy", "Google Ads", "B2B Marketing"],
+            "suggested_skills": [
+                "Digital Marketing",
+                "SEO Strategy",
+                "Google Ads",
+                "B2B Marketing",
+            ],
             "salary_min": 40000000,
             "salary_max": 60000000,
         }
@@ -130,9 +137,7 @@ class TestJDGenerator:
         import json
 
         mock_create = AsyncMock(
-            return_value={
-                "choices": [{"message": {"content": json.dumps(mock_content)}}]
-            }
+            return_value={"choices": [{"message": {"content": json.dumps(mock_content)}}]}
         )
         monkeypatch.setattr(deepseek_client, "create_chat_completion", mock_create)
 

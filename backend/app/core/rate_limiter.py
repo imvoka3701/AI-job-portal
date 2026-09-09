@@ -42,10 +42,7 @@ class SlidingWindowRateLimiter:
 
     def _cleanup_locked(self, cutoff: float) -> int:
         """Internal helper for cleanup while lock is held."""
-        stale_keys = [
-            k for k, q in self._requests.items()
-            if not q or q[-1] <= cutoff
-        ]
+        stale_keys = [k for k, q in self._requests.items() if not q or q[-1] <= cutoff]
         for k in stale_keys:
             del self._requests[k]
         return len(stale_keys)
@@ -94,11 +91,11 @@ rate_limiter_store = SlidingWindowRateLimiter()
 
 # Preset rate limit configurations: (max_requests, window_seconds)
 RATE_LIMIT_PRESETS: dict[str, tuple[int, int]] = {
-    "ai_expensive": (10, 60),      # 10 requests / 60 seconds (Evaluate, Summarize, Roadmap, Email)
-    "ai_interactive": (20, 60),    # 20 requests / 60 seconds (Skills suggest, Experience rewrite)
-    "ai_matching": (30, 60),       # 30 requests / 60 seconds (Vector matching requests)
-    "auth_login": (5, 60),         # 5 requests / 60 seconds (Login attempts)
-    "auth_register": (3, 60),      # 3 requests / 60 seconds (Registration attempts)
+    "ai_expensive": (10, 60),  # 10 requests / 60 seconds (Evaluate, Summarize, Roadmap, Email)
+    "ai_interactive": (20, 60),  # 20 requests / 60 seconds (Skills suggest, Experience rewrite)
+    "ai_matching": (30, 60),  # 30 requests / 60 seconds (Vector matching requests)
+    "auth_login": (5, 60),  # 5 requests / 60 seconds (Login attempts)
+    "auth_register": (3, 60),  # 3 requests / 60 seconds (Registration attempts)
 }
 
 
@@ -151,7 +148,9 @@ def rate_limit(preset_name: str = "ai_expensive") -> Callable:
             elif preset_name.startswith("ai_"):
                 detail_msg = f"Bạn đã gửi quá nhiều yêu cầu phân tích AI. Vui lòng thử lại sau {retry_after} giây."
             else:
-                detail_msg = f"Bạn đã gửi quá nhiều yêu cầu. Vui lòng thử lại sau {retry_after} giây."
+                detail_msg = (
+                    f"Bạn đã gửi quá nhiều yêu cầu. Vui lòng thử lại sau {retry_after} giây."
+                )
 
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,

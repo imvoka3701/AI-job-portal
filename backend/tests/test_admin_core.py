@@ -244,4 +244,3 @@ def test_company_verify_toggle_and_audit(client: TestClient, db_session: Session
     )
     assert revoke_resp.status_code == 200
     assert revoke_resp.json()["is_verified"] is False
-

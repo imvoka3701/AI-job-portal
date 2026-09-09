@@ -296,9 +296,7 @@ def _resolve_resume_file_path(file_url: str | None) -> str | None:
         candidate_paths.append(os.path.join("uploads", clean))
     elif not clean.startswith("uploads/resumes") and not clean.startswith("uploads\\resumes"):
         sub = (
-            clean[len("uploads/") :]
-            if clean.startswith("uploads/")
-            else clean[len("uploads\\") :]
+            clean[len("uploads/") :] if clean.startswith("uploads/") else clean[len("uploads\\") :]
         )
         candidate_paths.append(os.path.join("uploads", "resumes", sub))
 
@@ -322,9 +320,7 @@ def _check_resume_access(db: Session, resume: Resume, current_user: User) -> Non
 
     # 2. Admin
     role_val = (
-        current_user.role.value
-        if hasattr(current_user.role, "value")
-        else str(current_user.role)
+        current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)
     )
     if role_val == "admin":
         return

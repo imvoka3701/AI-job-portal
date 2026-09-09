@@ -771,9 +771,7 @@ async def summarize_cv(
             db=db,
         )
     except Exception as exc:
-        logger.exception(
-            "CV summarization failed for %s, job %s", source_summary, data.job_id
-        )
+        logger.exception("CV summarization failed for %s, job %s", source_summary, data.job_id)
         raise ai_http_exception(exc)
 
 

@@ -239,6 +239,7 @@ class TestResumeCRUD:
         )
 
         import os
+
         monkeypatch.setattr(os.path, "exists", lambda p: True)
         monkeypatch.setattr(os.path, "isfile", lambda p: True)
 
@@ -375,7 +376,9 @@ class TestResumeAccessControl:
         emp_unrelated_headers = _register_and_login(
             client, db_session, "emp_unrelated@t.com", "p", role="employer", company_name="Corp X"
         )
-        resp_emp_unrelated = client.get(f"/resumes/{resume_id}/content", headers=emp_unrelated_headers)
+        resp_emp_unrelated = client.get(
+            f"/resumes/{resume_id}/content", headers=emp_unrelated_headers
+        )
         assert resp_emp_unrelated.status_code == 403
 
         # Employer with application allowed
@@ -417,5 +420,3 @@ class TestResumeAccessControl:
         )
         resp_admin = client.get(f"/resumes/{resume_id}/content", headers=admin_headers)
         assert resp_admin.status_code == 200
-
-

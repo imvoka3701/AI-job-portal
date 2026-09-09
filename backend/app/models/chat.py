@@ -25,9 +25,7 @@ class Conversation(Base):
         ForeignKey("companies.id", ondelete="SET NULL"), index=True, nullable=True
     )
 
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
@@ -41,7 +39,9 @@ class Conversation(Base):
     candidate: Mapped["User"] = relationship(foreign_keys=[candidate_id])  # type: ignore[name-defined]  # noqa: F821
     company: Mapped["Company | None"] = relationship()  # type: ignore[name-defined]  # noqa: F821
     messages: Mapped[list["ChatMessage"]] = relationship(
-        back_populates="conversation", cascade="all, delete-orphan", order_by="ChatMessage.created_at"
+        back_populates="conversation",
+        cascade="all, delete-orphan",
+        order_by="ChatMessage.created_at",
     )
 
     def __repr__(self) -> str:

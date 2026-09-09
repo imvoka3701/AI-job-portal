@@ -61,10 +61,5 @@ def list_contact_leads(
     db: Session = Depends(get_db),
 ) -> list[ContactLead]:
     """Retrieve consultation leads ordered by most recent."""
-    stmt = (
-        select(ContactLead)
-        .order_by(ContactLead.created_at.desc())
-        .offset(skip)
-        .limit(limit)
-    )
+    stmt = select(ContactLead).order_by(ContactLead.created_at.desc()).offset(skip).limit(limit)
     return list(db.execute(stmt).scalars().all())

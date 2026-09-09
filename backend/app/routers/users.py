@@ -67,4 +67,3 @@ def get_user(
     if current_user.id == user.id or current_user.role == UserRole.ADMIN:
         return UserRead.model_validate(user)
     return PublicUserRead.model_validate(user)
-

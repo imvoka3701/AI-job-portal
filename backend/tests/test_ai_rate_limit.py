@@ -117,8 +117,12 @@ def test_rate_limit_user_isolation():
 
     client = TestClient(test_app)
 
-    token_user1 = jwt.encode({"sub": "1001", "role": "candidate"}, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
-    token_user2 = jwt.encode({"sub": "1002", "role": "candidate"}, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+    token_user1 = jwt.encode(
+        {"sub": "1001", "role": "candidate"}, settings.SECRET_KEY, algorithm=settings.ALGORITHM
+    )
+    token_user2 = jwt.encode(
+        {"sub": "1002", "role": "candidate"}, settings.SECRET_KEY, algorithm=settings.ALGORITHM
+    )
 
     # User 1 exhausts their quota
     for _ in range(10):

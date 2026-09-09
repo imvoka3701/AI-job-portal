@@ -160,7 +160,9 @@ async def custom_http_exception_handler(request: Request, exc: HTTPException):
     headers = getattr(exc, "headers", None)
     if isinstance(exc.detail, dict):
         # If detail is already a dict (e.g. custom structured error), use it directly as error
-        return JSONResponse(status_code=exc.status_code, content={"error": exc.detail}, headers=headers)
+        return JSONResponse(
+            status_code=exc.status_code, content={"error": exc.detail}, headers=headers
+        )
 
     return JSONResponse(
         status_code=exc.status_code,

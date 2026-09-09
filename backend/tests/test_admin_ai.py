@@ -114,7 +114,6 @@ class TestUpdatePrompt:
         assert audit.target_type == "ai_prompt"
         assert audit.target_label == "cv_evaluate"
 
-
     def test_update_creates_record_if_missing(self, client, db_session):
         admin = _create_user(db_session, email="admin-new@ai-test.example.com", role=UserRole.ADMIN)
         headers = _login(client, admin.email)

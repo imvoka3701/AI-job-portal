@@ -87,7 +87,9 @@ class TestProfileCRUD:
         assert resp.status_code == 200
         assert resp.json()["email"] == "pu3@t.com"
 
-    def test_get_user_by_id_as_other_user_redacts_pii(self, client: TestClient, db_session: Session):
+    def test_get_user_by_id_as_other_user_redacts_pii(
+        self, client: TestClient, db_session: Session
+    ):
         """Viewing another user's profile returns PublicUserRead without email or phone."""
         user_a_headers = _register_and_login(client, db_session, "user_a@t.com", "p", "User A")
         user_b_headers = _register_and_login(client, db_session, "user_b@t.com", "p", "User B")
@@ -107,7 +109,6 @@ class TestProfileCRUD:
         headers = _register_and_login(client, db_session, "pu4@t.com", "p", "Public 4")
         resp = client.get("/users/99999", headers=headers)
         assert resp.status_code == 404
-
 
 
 class TestIsActiveGate:

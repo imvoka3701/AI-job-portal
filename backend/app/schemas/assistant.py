@@ -18,7 +18,9 @@ class ChatContext(BaseModel):
         default=None, description="Current job ID if viewing a job detail page"
     )
     role: Optional[str] = Field(
-        default=None, max_length=50, description="User role if authenticated: candidate, employer, admin"
+        default=None,
+        max_length=50,
+        description="User role if authenticated: candidate, employer, admin",
     )
 
 
