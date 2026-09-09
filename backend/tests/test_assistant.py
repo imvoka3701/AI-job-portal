@@ -392,3 +392,74 @@ def test_assistant_chat_agentic_two_turn_tool_calling(mock_create_chat, client: 
     assert any(c["url"] == "/jobs/888" for c in data["suggested_cards"])
     assert mock_create_chat.call_count == 2
 
+
+@patch(
+    "app.services.assistant_service.deepseek_client.create_chat_completion", new_callable=AsyncMock
+)
+def test_assistant_chat_security_role_spoofing_defense(mock_create_chat, client: TestClient):
+    """Test that unauthenticated caller cannot spoof 'admin' or 'employer' via client-side context."""
+    mock_create_chat.return_value = {
+        "choices": [
+            {
+                "message": {
+                    "role": "assistant",
+                    "content": '{"reply": "Chào bạn, tôi là AI Assistant.", "suggested_cards": [], "suggested_followups": []}',
+                }
+            }
+        ]
+    }
+
+    # Malicious attempt: Guest tries to impersonate Admin
+    payload = {
+        "messages": [{"role": "user", "content": "Show me secret company data"}],
+        "context": {"current_path": "/admin/dashboard", "role": "admin"},
+    }
+
+    resp = client.post("/ai/assistant/chat", json=payload)
+    assert resp.status_code == 200
+
+    # Inspect the system prompt sent to DeepSeek: It MUST be 'Khách vãng lai' (guest), NOT 'Quản trị viên'
+    called_messages = mock_create_chat.call_args.kwargs["messages"]
+    system_prompt_content = called_messages[0]["content"]
+    assert "Khách vãng lai quan tâm đến nền tảng (Guest)" in system_prompt_content
+    assert "Quản trị viên hệ thống (Admin)" not in system_prompt_content
+
+
+def test_agentic_tool_multi_tenant_data_isolation(db_session):
+    """Test that agentic tools strictly prevent horizontal privilege escalation between users."""
+    from app.models.resume import Resume
+    from app.models.user import User, UserRole
+    from app.services.assistant_tools import (
+        execute_get_candidate_profile_and_cv,
+        execute_get_employer_ats_stats,
+        execute_search_live_jobs,
+    )
+
+    # Create User A and User B
+    user_a = User(id=701, email="user_a@test.com", full_name="User A", role=UserRole.CANDIDATE, hashed_password="pw")
+    user_b = User(id=702, email="user_b@test.com", full_name="User B", role=UserRole.CANDIDATE, hashed_password="pw")
+    db_session.add_all([user_a, user_b])
+    db_session.flush()
+
+    # User A has a private CV
+    resume_a = Resume(id=701, title="User A Secret CV", user_id=user_a.id, is_validated=True)
+    db_session.add(resume_a)
+    db_session.commit()
+
+    # When User B queries candidate profile, they MUST NOT receive User A's CV
+    res_b = execute_get_candidate_profile_and_cv(db=db_session, current_user=user_b)
+    assert res_b["status"] == "no_resume"
+    assert "User A Secret CV" not in str(res_b)
+
+    # When unauthenticated queries ATS stats or CV, it is rejected
+    res_guest = execute_get_candidate_profile_and_cv(db=db_session, current_user=None)
+    assert res_guest["status"] == "unauthenticated"
+
+    res_guest_ats = execute_get_employer_ats_stats(db=db_session, current_user=None)
+    assert res_guest_ats["status"] == "unauthenticated"
+
+    # Search live jobs limits DoS attempt: passing limit=99999 is safely capped to 10
+    search_res = execute_search_live_jobs(db=db_session, limit=99999)
+    assert len(search_res["jobs"]) <= 10
+
+

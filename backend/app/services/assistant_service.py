@@ -130,11 +130,14 @@ class AssistantService:
         """Process chat message with diplomatic persona & contextual knowledge."""
         last_user_message = next((m.content for m in reversed(messages) if m.role == "user"), "")
 
-        role = (
-            context.role
-            if context and context.role
-            else (current_user.role if current_user else "guest")
-        )
+        # Security hardening: Role is cryptographically bound to verified JWT identity
+        if current_user:
+            role = current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)
+        else:
+            # Unauthenticated callers can only be "guest" or preview "candidate", never "employer" or "admin"
+            requested_role = context.role if context and context.role else "guest"
+            role = requested_role if requested_role == "candidate" else "guest"
+
         role_map = {
             "candidate": "Ứng viên tìm việc (Candidate)",
             "employer": "Nhà tuyển dụng / Đại diện Doanh nghiệp (Employer)",

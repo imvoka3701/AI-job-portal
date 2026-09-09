@@ -164,7 +164,8 @@ def execute_search_live_jobs(
         except ValueError:
             pass
 
-    query = query.order_by(desc(Job.created_at)).limit(limit)
+    safe_limit = max(1, min(int(limit), 10))
+    query = query.order_by(desc(Job.created_at)).limit(safe_limit)
     results = db.execute(query).scalars().all()
 
     jobs_list = []
@@ -261,12 +262,13 @@ def execute_get_candidate_applications(
             "message": "Người dùng chưa đăng nhập. Cần đăng nhập để xem tiến độ ứng tuyển.",
         }
 
+    safe_limit = max(1, min(int(limit), 10))
     apps = (
         db.query(Application)
         .options(joinedload(Application.job).joinedload(Job.company))
         .filter(Application.candidate_id == current_user.id)
         .order_by(desc(Application.applied_at))
-        .limit(limit)
+        .limit(safe_limit)
         .all()
     )
 
@@ -404,9 +406,14 @@ def execute_get_employer_ats_stats(
 
 def execute_get_job_detail_by_id(db: Session, job_id: int) -> Dict[str, Any]:
     """Retrieve full detail of a specific job by ID."""
-    job = db.query(Job).options(joinedload(Job.company)).filter(Job.id == job_id).first()
+    job = (
+        db.query(Job)
+        .options(joinedload(Job.company))
+        .filter(Job.id == job_id, Job.is_active.is_(True))
+        .first()
+    )
     if not job:
-        return {"status": "not_found", "message": f"Không tìm thấy công việc với ID #{job_id}."}
+        return {"status": "not_found", "message": f"Không tìm thấy công việc với ID #{job_id} hoặc tin đã đóng."}
 
     return {
         "status": "found",
