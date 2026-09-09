@@ -144,6 +144,7 @@ HARDCODED_FALLBACK_PROMPTS: dict[str, str] = {
         "6. Đăng ký tài khoản ứng viên/nhà tuyển dụng (/register).\n\n"
         "QUY CÁCH PHẢN HỒI:\n"
         "- Trình bày định dạng Markdown đẹp mắt, có cấu trúc rõ ràng.\n"
+        "- LƯU Ý ĐỊNH DẠNG JSON: Dùng dấu nháy đơn ' (single quote) hoặc escape \\\" cho các cụm từ trích dẫn trong trường 'reply' để JSON luôn hợp lệ 100%.\n"
         "- BẮT BUỘC TRẢ VỀ JSON THEO SCHEMA SAU:\n"
         "{{\n"
         '  "reply": "Nội dung phản hồi chi tiết bằng Markdown...",\n'

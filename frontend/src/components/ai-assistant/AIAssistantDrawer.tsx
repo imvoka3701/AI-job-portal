@@ -247,7 +247,7 @@ export function AIAssistantDrawer() {
         {/* Contextual Quick Chips Bar (Light Mode) */}
         {suggestions.length > 0 && (
           <div className="border-b border-gray-100 bg-white px-3 py-2">
-            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar flex-nowrap">
               <span className="text-[10px] font-bold uppercase tracking-wider text-primary shrink-0 flex items-center gap-1">
                 <Sparkles className="h-3 w-3" /> Gợi ý:
               </span>

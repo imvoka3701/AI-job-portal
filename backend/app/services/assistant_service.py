@@ -61,6 +61,64 @@ def _get_relevant_jobs(db: Session, query_text: str, limit: int = 4) -> List[Job
 
 
 class AssistantService:
+    @staticmethod
+    def _parse_response(content_str: str) -> tuple[str, list, list]:
+        """Robustly parse JSON response from DeepSeek, handling unescaped quotes/newlines/markdown."""
+        cleaned = content_str.strip()
+        if cleaned.startswith("```"):
+            cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned)
+            cleaned = re.sub(r"\s*```$", "", cleaned)
+
+        # 1. Try standard JSON parsing with strict=False (handles unescaped control chars like newlines)
+        try:
+            data = json.loads(cleaned, strict=False)
+            if isinstance(data, dict):
+                return (
+                    str(data.get("reply") or "").strip(),
+                    data.get("suggested_cards", []) or [],
+                    data.get("suggested_followups", []) or [],
+                )
+        except Exception as json_err:
+            logger.warning(
+                "Standard json.loads failed on assistant response (%s). Attempting regex fallback.",
+                json_err,
+            )
+
+        # 2. Regex fallback for unescaped quotes in reply string
+        reply = ""
+        cards: list = []
+        followups: list = []
+
+        reply_match = re.search(
+            r'"reply"\s*:\s*"(.*?)(?:"\s*,\s*"suggested_cards"|"\s*,\s*"suggested_followups"|"\s*\}\s*$)',
+            cleaned,
+            re.DOTALL,
+        )
+        if reply_match:
+            reply = reply_match.group(1).replace(r'\"', '"').replace(r"\n", "\n").strip()
+        elif not cleaned.startswith("{"):
+            reply = cleaned
+
+        cards_match = re.search(r'"suggested_cards"\s*:\s*(\[.*?\])', cleaned, re.DOTALL)
+        if cards_match:
+            try:
+                cards = json.loads(cards_match.group(1), strict=False)
+            except Exception:
+                cards = []
+
+        followups_match = re.search(r'"suggested_followups"\s*:\s*(\[.*?\])', cleaned, re.DOTALL)
+        if followups_match:
+            try:
+                followups = json.loads(followups_match.group(1), strict=False)
+            except Exception:
+                followups = []
+
+        # 3. Final fallback: If reply is still empty, clean raw text directly
+        if not reply and len(cleaned) > 10:
+            reply = re.sub(r'^\s*\{\s*"reply"\s*:\s*"?', "", cleaned).rstrip('"} \n\r')
+
+        return reply or "Tôi có thể hỗ trợ gì thêm cho bạn?", cards, followups
+
     async def process_chat(
         self,
         messages: List[ChatMessage],
@@ -130,11 +188,7 @@ class AssistantService:
                 db=db,
             )
             content_str = raw_response["choices"][0]["message"]["content"]
-            parsed_data = json.loads(content_str)
-
-            reply = parsed_data.get("reply", "Tôi có thể hỗ trợ gì thêm cho bạn?")
-            suggested_cards_raw = parsed_data.get("suggested_cards", [])
-            suggested_followups = parsed_data.get("suggested_followups", [])
+            reply, suggested_cards_raw, suggested_followups = self._parse_response(content_str)
 
             cards: List[EmbeddedCard] = []
             for c in suggested_cards_raw:
@@ -266,21 +320,24 @@ class AssistantService:
             if not current_user or role == "guest":
                 fallback_followups.insert(0, "Đăng ký tài khoản nhận tư vấn miễn phí")
 
+            user_topic = (
+                last_user_message[:60].strip() if last_user_message else "tư vấn việc làm"
+            )
             fallback_reply = (
-                "Kính chào bạn! Tôi là **JobPortal AI Advisor** — Cố vấn Tuyển dụng & Phát triển Sự nghiệp 24/7. "
-                "Rất hân hạnh được đồng hành cùng bạn.\n\n"
-                "Bạn đang quan tâm đến:\n"
-                "- 🔍 **Tìm kiếm cơ hội việc làm** phù hợp với năng lực và mức lương kỳ vọng.\n"
-                "- 📄 **Thiết kế CV chuẩn ATS** hoàn toàn miễn phí với [CV Builder](/cv-builder).\n"
-                "- 🧭 **Khám phá bản thân** qua trắc nghiệm tính cách [MBTI](/tools/mbti) và [Đa trí tuệ MI](/tools/mi).\n"
-                "- 🏢 **Giải pháp tuyển dụng tối ưu cho Doanh nghiệp** qua [Cổng Nhà tuyển dụng](/employer).\n\n"
+                f"Chào bạn! Tôi là **JobPortal AI Advisor**. Tôi đã ghi nhận yêu cầu của bạn về: **'{user_topic}'**.\n\n"
+                "Hệ thống phân tích AI đang tạm thời có lượng truy cập cao trong giây lát. "
+                "Trong lúc đó, bạn có thể tham khảo ngay các cơ hội và tiện ích dưới đây:\n"
+                "- 🔍 **Tìm kiếm việc làm:** Khám phá hàng trăm vị trí hot đang tuyển dụng trên [Sàn việc làm](/jobs).\n"
+                "- 📄 **Thiết kế CV chuẩn ATS:** Tạo hồ sơ xin việc chuyên nghiệp miễn phí với [CV Builder](/cv-builder).\n"
+                "- 🧭 **Khám phá bản thân:** Làm bài trắc nghiệm tính cách [MBTI](/tools/mbti) và [Đa trí tuệ MI](/tools/mi).\n"
+                "- 🏢 **Tuyển dụng B2B:** Khám phá giải pháp sàng lọc ATS tự động qua [Cổng Nhà tuyển dụng](/employer).\n\n"
             )
             if not current_user or role == "guest":
                 fallback_reply += (
                     "💡 **Mẹo nhỏ:** Bạn có thể dành 30 giây [Đăng ký tài khoản miễn phí](/register) "
-                    "để lưu vĩnh viễn mẫu CV chuẩn ATS, theo dõi trạng thái ứng tuyển và lưu lại kết quả bài test tính cách nhé!\n\n"
+                    "để lưu vĩnh viễn hồ sơ và nhận thông báo việc làm phù hợp tự động nhé!\n\n"
                 )
-            fallback_reply += "Hãy chia sẻ mong muốn của bạn, tôi sẽ đưa ra giải pháp phù hợp nhất!"
+            fallback_reply += "Bạn có thể gửi lại câu hỏi hoặc chọn một trong các gợi ý bên dưới để tiếp tục!"
 
             return AssistantChatResponse(
                 reply=fallback_reply,
