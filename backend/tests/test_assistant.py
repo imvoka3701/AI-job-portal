@@ -177,3 +177,218 @@ def test_employer_solutions_engineer_cards(mock_create_chat, client: TestClient)
     data = resp.json()
     # Check that /employer/team card was auto-attached
     assert any(c.get("url") == "/employer/team" for c in data["suggested_cards"])
+
+
+def test_agentic_tools_live_execution(db_session):
+    """Test individual Agentic Tool executions directly against the test database."""
+    import json
+
+    from app.models.application import Application, ApplicationStatus
+    from app.models.company import Company
+    from app.models.job import ExperienceLevel, Job, JobType
+    from app.models.resume import Resume
+    from app.models.user import User, UserRole
+    from app.services.assistant_tools import (
+        dispatch_tool_call,
+        execute_get_candidate_applications,
+        execute_get_candidate_profile_and_cv,
+        execute_get_employer_ats_stats,
+        execute_search_live_jobs,
+    )
+
+    # 1. Seed Employer & Company
+    emp = User(
+        id=901,
+        email="recruiter@ai-portal.test",
+        full_name="HR Director",
+        role=UserRole.EMPLOYER,
+        hashed_password="hash",
+        is_active=True,
+    )
+    db_session.add(emp)
+    db_session.flush()
+
+    comp = Company(
+        id=901,
+        name="TechCorp AI",
+        created_by_user_id=emp.id,
+        is_active=True,
+        is_verified=True,
+    )
+    db_session.add(comp)
+    db_session.flush()
+
+    # 2. Seed Job
+    j = Job(
+        id=901,
+        title="Senior Python Backend Developer",
+        description="Build high-performance AI services.",
+        requirements="Python 3.12, FastAPI, PostgreSQL.",
+        salary_min=25,
+        salary_max=40,
+        location="Hà Nội",
+        is_active=True,
+        employer_id=emp.id,
+        company_id=comp.id,
+        job_type=JobType.FULL_TIME,
+        experience_level=ExperienceLevel.SENIOR,
+    )
+    db_session.add(j)
+
+    # 3. Seed Candidate & Resume
+    cand = User(
+        id=902,
+        email="candidate@test.com",
+        full_name="Lê Văn Dev",
+        role=UserRole.CANDIDATE,
+        hashed_password="hash",
+        is_active=True,
+    )
+    db_session.add(cand)
+    db_session.flush()
+
+    res = Resume(
+        id=901,
+        title="Python Fullstack Resume",
+        parsed_skills=json.dumps(["Python", "FastAPI", "Docker"]),
+        parsed_experience_level="senior",
+        ai_evaluation_json=json.dumps({"overall_score": 90, "strengths": ["Strong Python foundation"]}),
+        is_validated=True,
+        user_id=cand.id,
+    )
+    db_session.add(res)
+
+    # 4. Seed Application
+    app = Application(
+        id=901,
+        candidate_id=cand.id,
+        job_id=j.id,
+        status=ApplicationStatus.INTERVIEW,
+        ai_matching_score=92.0,
+    )
+    db_session.add(app)
+    db_session.commit()
+
+    # Test Tool: search_live_jobs
+    search_res = execute_search_live_jobs(db=db_session, keyword="Python", limit=5)
+    assert search_res["found_count"] >= 1
+    assert search_res["jobs"][0]["title"] == "Senior Python Backend Developer"
+    assert search_res["jobs"][0]["company"] == "TechCorp AI"
+
+    # Test Tool: get_candidate_profile_and_cv
+    cv_res = execute_get_candidate_profile_and_cv(db=db_session, current_user=cand)
+    assert cv_res["status"] == "found"
+    assert cv_res["ai_score"] == 90
+    assert "Python" in cv_res["skills"]
+
+    # Test Tool: get_candidate_applications
+    apps_res = execute_get_candidate_applications(db=db_session, current_user=cand)
+    assert apps_res["status"] == "success"
+    assert apps_res["total_applications"] >= 1
+    assert apps_res["applications"][0]["job_title"] == "Senior Python Backend Developer"
+    assert apps_res["applications"][0]["status"] == "interview"
+
+    # Test Tool: get_employer_ats_stats
+    stats_res = execute_get_employer_ats_stats(db=db_session, current_user=emp)
+    assert stats_res["status"] == "success"
+    assert stats_res["company_name"] == "TechCorp AI"
+    assert stats_res["active_jobs"] >= 1
+    assert stats_res["total_applications"] >= 1
+    assert stats_res["stage_breakdown"].get("interview", 0) >= 1
+
+    # Test Dispatcher
+    disp_res = dispatch_tool_call(
+        tool_name="search_live_jobs",
+        tool_args={"keyword": "Python"},
+        db=db_session,
+        current_user=cand,
+    )
+    assert disp_res["found_count"] >= 1
+
+
+@patch(
+    "app.services.assistant_service.deepseek_client.create_chat_completion", new_callable=AsyncMock
+)
+def test_assistant_chat_agentic_two_turn_tool_calling(mock_create_chat, client: TestClient, db_session):
+    """Test that DeepSeek can execute a tool call on Turn 1 and synthesize final JSON on Turn 2."""
+    from app.models.company import Company
+    from app.models.job import ExperienceLevel, Job, JobType
+    from app.models.user import User, UserRole
+
+    # Seed a live job
+    emp = User(id=888, email="hr@test.com", full_name="HR", role=UserRole.EMPLOYER, hashed_password="pw")
+    db_session.add(emp)
+    db_session.flush()
+    comp = Company(id=888, name="Fintech Vietnam", created_by_user_id=888)
+    db_session.add(comp)
+    db_session.flush()
+    job = Job(
+        id=888,
+        title="Golang Backend Architect",
+        description="High throughput microservices",
+        salary_min=40,
+        salary_max=60,
+        location="TP.HCM",
+        is_active=True,
+        employer_id=888,
+        company_id=888,
+        job_type=JobType.FULL_TIME,
+        experience_level=ExperienceLevel.SENIOR,
+    )
+    db_session.add(job)
+    db_session.commit()
+
+    # Turn 1: Model calls search_live_jobs
+    turn1_response = {
+        "choices": [
+            {
+                "message": {
+                    "role": "assistant",
+                    "content": "",
+                    "tool_calls": [
+                        {
+                            "id": "call_12345",
+                            "type": "function",
+                            "function": {
+                                "name": "search_live_jobs",
+                                "arguments": '{"keyword": "Golang"}',
+                            },
+                        }
+                    ],
+                }
+            }
+        ]
+    }
+
+    # Turn 2: Model synthesizes final response based on tool results
+    turn2_response = {
+        "choices": [
+            {
+                "message": {
+                    "role": "assistant",
+                    "content": (
+                        '{"reply": "Tôi tìm thấy 1 việc làm Golang tuyệt vời: Golang Backend Architect tại Fintech Vietnam (40 - 60 triệu VNĐ).", '
+                        '"suggested_cards": [{"card_type": "job", "title": "Golang Backend Architect", "subtitle": "Fintech Vietnam • 40-60M", "url": "/jobs/888"}], '
+                        '"suggested_followups": ["Xem chi tiết vị trí này", "Yêu cầu tuyển dụng là gì?"]}'
+                    ),
+                }
+            }
+        ]
+    }
+
+    mock_create_chat.side_effect = [turn1_response, turn2_response]
+
+    payload = {
+        "messages": [{"role": "user", "content": "Tìm cho tôi việc làm Golang lương trên 40 triệu"}],
+        "context": {"current_path": "/jobs", "role": "candidate"},
+    }
+
+    resp = client.post("/ai/assistant/chat", json=payload)
+    assert resp.status_code == 200
+    data = resp.json()
+
+    # Assert Turn 2 synthesis succeeded
+    assert "Golang Backend Architect" in data["reply"]
+    assert any(c["url"] == "/jobs/888" for c in data["suggested_cards"])
+    assert mock_create_chat.call_count == 2
+

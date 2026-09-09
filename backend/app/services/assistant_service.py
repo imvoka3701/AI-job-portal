@@ -193,30 +193,100 @@ class AssistantService:
         for m in messages[-8:]:
             payload_messages.append({"role": m.role, "content": m.content})
 
+        # Agentic Tool Definitions & Dispatcher
+        from app.services.assistant_tools import ASSISTANT_TOOLS_DEFINITIONS, dispatch_tool_call
+
         try:
+            # Turn 1: Call DeepSeek with tools enabled (response_format=None to permit tool_calls)
             raw_response = await deepseek_client.create_chat_completion(
                 messages=payload_messages,
                 model=settings.LLM_MODEL,
-                response_format={"type": "json_object"},
+                response_format=None,
+                tools=ASSISTANT_TOOLS_DEFINITIONS,
+                tool_choice="auto",
                 feature=AIFeature.ASSISTANT_CHAT,
                 user_id=current_user.id if current_user else None,
                 db=db,
             )
-            content_str = raw_response["choices"][0]["message"]["content"]
+
+            choice_msg = raw_response["choices"][0]["message"]
+            tool_calls = choice_msg.get("tool_calls")
+            cards: List[EmbeddedCard] = []
+
+            if tool_calls:
+                payload_messages.append(choice_msg)
+                for tc in tool_calls:
+                    fn_name = tc.get("function", {}).get("name", "")
+                    fn_args_raw = tc.get("function", {}).get("arguments", "{}")
+                    try:
+                        fn_args = json.loads(fn_args_raw) if isinstance(fn_args_raw, str) else fn_args_raw
+                    except Exception:
+                        fn_args = {}
+
+                    tool_res = dispatch_tool_call(
+                        tool_name=fn_name,
+                        tool_args=fn_args,
+                        db=db,
+                        current_user=current_user,
+                    )
+
+                    # Auto-construct real job cards if search_live_jobs was called
+                    if fn_name == "search_live_jobs" and isinstance(tool_res, dict) and "jobs" in tool_res:
+                        for j in tool_res["jobs"][:3]:
+                            cards.append(
+                                EmbeddedCard(
+                                    card_type="job",
+                                    title=j["title"],
+                                    subtitle=f"{j['company']} • {j['location']} • {j['salary']}",
+                                    url=j["url"],
+                                    meta=j,
+                                )
+                            )
+                    elif fn_name == "get_candidate_applications" and isinstance(tool_res, dict) and "applications" in tool_res:
+                        for a in tool_res["applications"][:3]:
+                            cards.append(
+                                EmbeddedCard(
+                                    card_type="info",
+                                    title=f"Đơn: {a['job_title']}",
+                                    subtitle=f"{a['company']} • Trạng thái: {a['status_display']}",
+                                    url=a["url"],
+                                    meta=a,
+                                )
+                            )
+
+                    payload_messages.append({
+                        "role": "tool",
+                        "tool_call_id": tc.get("id"),
+                        "content": json.dumps(tool_res, ensure_ascii=False),
+                    })
+
+                # Turn 2: Synthesize final answer in JSON format
+                turn2_resp = await deepseek_client.create_chat_completion(
+                    messages=payload_messages,
+                    model=settings.LLM_MODEL,
+                    response_format={"type": "json_object"},
+                    feature=AIFeature.ASSISTANT_CHAT,
+                    user_id=current_user.id if current_user else None,
+                    db=db,
+                )
+                content_str = turn2_resp["choices"][0]["message"]["content"]
+            else:
+                content_str = choice_msg.get("content", "")
+
             reply, suggested_cards_raw, suggested_followups = self._parse_response(content_str)
 
-            cards: List[EmbeddedCard] = []
             for c in suggested_cards_raw:
                 if isinstance(c, dict) and "title" in c and "url" in c:
-                    cards.append(
-                        EmbeddedCard(
-                            card_type=c.get("card_type", "info"),
-                            title=c.get("title", ""),
-                            subtitle=c.get("subtitle"),
-                            url=c.get("url", ""),
-                            meta=c.get("meta"),
+                    if not any(existing.url == c.get("url") for existing in cards):
+                        cards.append(
+                            EmbeddedCard(
+                                card_type=c.get("card_type", "info"),
+                                title=c.get("title", ""),
+                                subtitle=c.get("subtitle"),
+                                url=c.get("url", ""),
+                                meta=c.get("meta"),
+                            )
                         )
-                    )
 
             # Smart Auto-attach Cards based on User Role & Query
             query_lower = last_user_message.lower()

@@ -7,6 +7,7 @@ Việc ghi log được bọc trong try/except riêng — KHÔNG bao giờ làm 
 import asyncio
 import logging
 import time
+from typing import Any
 
 import httpx
 
@@ -54,21 +55,27 @@ class DeepseekClient:
 
     async def create_chat_completion(
         self,
-        messages: list[dict[str, str]],
+        messages: list[dict[str, Any]],
         model: str,
         response_format: dict | None = {"type": "json_object"},
         *,
+        tools: list[dict[str, Any]] | None = None,
+        tool_choice: str | dict[str, Any] | None = None,
         feature: str | None = None,
         user_id: int | None = None,
         related_id: int | None = None,
         db=None,  # sqlalchemy Session — optional, skipped if None
     ) -> dict:
-        payload = {
+        payload: dict[str, Any] = {
             "model": model,
             "messages": messages,
         }
         if response_format is not None:
             payload["response_format"] = response_format
+        if tools is not None:
+            payload["tools"] = tools
+            if tool_choice is not None:
+                payload["tool_choice"] = tool_choice
 
         client = self._get_client()
         start_ms = time.monotonic()

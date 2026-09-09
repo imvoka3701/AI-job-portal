@@ -629,10 +629,36 @@ function DiplomaticMessageItem({
                     {card.subtitle && (
                       <p className="truncate text-[11px] text-gray-500 mt-0.5">{card.subtitle}</p>
                     )}
+                    {/* Rich Meta Tags */}
+                    {card.meta && (
+                      <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                        {Boolean(card.meta.salary) && (
+                          <span className="inline-flex items-center rounded bg-emerald-50 px-1.5 py-0.2 text-[10px] font-semibold text-emerald-700 border border-emerald-200/50">
+                            💰 {String(card.meta.salary)}
+                          </span>
+                        )}
+                        {Boolean(card.meta.location) && (
+                          <span className="inline-flex items-center rounded bg-gray-100 px-1.5 py-0.2 text-[10px] font-medium text-gray-600">
+                            📍 {String(card.meta.location)}
+                          </span>
+                        )}
+                        {Boolean(card.meta.status_display) && (
+                          <span className="inline-flex items-center rounded bg-blue-50 px-1.5 py-0.2 text-[10px] font-semibold text-blue-700 border border-blue-200/50">
+                            ⚡ {String(card.meta.status_display)}
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
-                <div className="flex items-center gap-1 text-xs font-semibold text-primary group-hover:translate-x-0.5 transition-transform shrink-0">
-                  <span>Truy cập</span>
+                <div className="flex items-center gap-1 text-xs font-semibold text-primary group-hover:translate-x-0.5 transition-transform shrink-0 ml-2">
+                  <span>
+                    {card.card_type === "job"
+                      ? "Xem Job"
+                      : card.card_type === "action"
+                      ? "Đăng ký"
+                      : "Chi tiết"}
+                  </span>
                   <ChevronRight className="h-4 w-4" />
                 </div>
               </button>
