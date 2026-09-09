@@ -12,6 +12,7 @@ import {
   Sparkles,
   ChevronRight,
   UserRound,
+  MessageSquare,
 } from "lucide-react";
 import { getInitials, cn } from "@/lib/utils";
 import type { ApplicationStatus, EmployerApplication } from "@/types/application";
@@ -25,6 +26,7 @@ export interface EmployerKanbanBoardProps {
   onStatusChange: (applicationId: number, status: ApplicationStatus) => Promise<void>;
   onPreviewResume: (url: string) => void;
   onPreviewBuilder: (application: EmployerApplication) => void;
+  onOpenChat?: (application: EmployerApplication) => void;
   canManagePipeline: boolean;
 }
 
@@ -130,6 +132,7 @@ export function EmployerKanbanBoard({
   onStatusChange,
   onPreviewResume,
   onPreviewBuilder,
+  onOpenChat,
   canManagePipeline,
 }: EmployerKanbanBoardProps) {
   const [updatingId, setUpdatingId] = useState<number | null>(null);
@@ -285,6 +288,22 @@ export function EmployerKanbanBoard({
                             </button>
                           ) : (
                             <span className="text-[11px] text-slate-400 italic">Không có CV</span>
+                          )}
+
+                          {/* Chat action */}
+                          {onOpenChat && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onOpenChat(app);
+                              }}
+                              className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-600 hover:text-emerald-600 transition-colors cursor-pointer"
+                              title="Nhắn tin với ứng viên"
+                            >
+                              <MessageSquare className="w-3 h-3 text-slate-400 group-hover:text-emerald-500" />
+                              <span>Chat</span>
+                            </button>
                           )}
 
                           {/* Quick next stage button */}

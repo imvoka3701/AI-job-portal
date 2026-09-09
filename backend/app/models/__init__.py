@@ -3,6 +3,7 @@ from app.models.ai_call_log import AICallLog, AICallStatus, AIFeature  # noqa: F
 from app.models.ai_prompt_config import AIPromptConfig  # noqa: F401
 from app.models.application import Application  # noqa: F401
 from app.models.assessment import AssessmentAttempt  # noqa: F401
+from app.models.chat import ChatMessage, Conversation  # noqa: F401
 from app.models.company import (  # noqa: F401
     Company,
     CompanyInvitation,

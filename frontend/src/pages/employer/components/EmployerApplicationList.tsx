@@ -58,6 +58,7 @@ interface EmployerApplicationListProps {
   onGenerateEmail: (app: EmployerApplication) => void;
   onEvaluate: (app: EmployerApplication) => void;
   onOpenRounds: (app: EmployerApplication) => void;
+  onOpenChat?: (app: EmployerApplication) => void;
   canManagePipeline: boolean;
   canRecommend: boolean;
   onStatusChange: (applicationId: number, status: ApplicationStatus, decisionReason?: string) => Promise<void>;
@@ -97,6 +98,7 @@ export function EmployerApplicationList({
   onGenerateEmail,
   onEvaluate,
   onOpenRounds,
+  onOpenChat,
   canManagePipeline,
   canRecommend,
   onStatusChange,
@@ -586,6 +588,7 @@ export function EmployerApplicationList({
                   }}
                   onPreviewResume={onPreviewResume}
                   onPreviewBuilder={onPreviewBuilder}
+                  onOpenChat={onOpenChat}
                   canManagePipeline={canManagePipeline}
                 />
               )}
@@ -857,9 +860,22 @@ export function EmployerApplicationList({
                                 <h4 className="text-sm font-semibold text-gray-900">Pipeline tuyển dụng</h4>
                                 <p className="text-xs text-gray-500">Theo dõi tiến độ phỏng vấn của ứng viên.</p>
                               </div>
-                              <Button variant="outline" size="sm" onClick={() => onOpenRounds(selectedApplication)}>
-                                Mở timeline
-                              </Button>
+                              <div className="flex items-center gap-2">
+                                {onOpenChat && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                                    onClick={() => onOpenChat(selectedApplication)}
+                                    leftIcon={<MessageSquare className="w-3.5 h-3.5 text-emerald-600" />}
+                                  >
+                                    Nhắn tin
+                                  </Button>
+                                )}
+                                <Button variant="outline" size="sm" onClick={() => onOpenRounds(selectedApplication)}>
+                                  Mở timeline
+                                </Button>
+                              </div>
                             </div>
                             <div className="mt-4">
                               <PipelineStepper rounds={roundsMap[selectedApplication.id] ?? null} loading={appsLoading} />

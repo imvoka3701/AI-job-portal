@@ -29,6 +29,7 @@ import { EmployerCandidateRadarChart } from "./components/EmployerCandidateRadar
 import { EmployerApplicationList } from "./components/EmployerApplicationList";
 import { InterviewQuestionsModal } from "./components/modals/InterviewQuestionsModal";
 import { EmailDraftModal } from "./components/modals/EmailDraftModal";
+import { DirectChatModal } from "@/components/chat/DirectChatModal";
 import type { Job } from "@/types/job";
 import type { EmployerApplication } from "@/types/application";
 import type {
@@ -96,6 +97,7 @@ export function EmployerCandidatesPage() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [builderPreview, setBuilderPreview] = useState<CvDocument | null>(null);
   const [roundsTarget, setRoundsTarget] = useState<{ applicationId: number; candidateName: string } | null>(null);
+  const [chatTarget, setChatTarget] = useState<EmployerApplication | null>(null);
 
   useEffect(() => {
     if (!user && tokenStorage.get()) {
@@ -540,6 +542,7 @@ export function EmployerCandidatesPage() {
           onGenerateEmail={handleGenerateEmail}
           onEvaluate={handleEvaluate}
           onOpenRounds={handleOpenRounds}
+          onOpenChat={(app) => setChatTarget(app)}
           canManagePipeline={hasPermission("pipeline:manage")}
           canRecommend={hasPermission("candidate:recommend")}
           onStatusChange={async (applicationId, status, decisionReason) => {
@@ -927,6 +930,15 @@ export function EmployerCandidatesPage() {
         {builderPreview && <CVPreview content={builderPreview.content_json} template={builderPreview.template_key} />}
       </Modal>
       <CVPreviewModal url={previewUrl} onClose={() => setPreviewUrl(null)} />
+
+      {/* Direct Chat HR <-> Candidate */}
+      <DirectChatModal
+        isOpen={chatTarget !== null}
+        onClose={() => setChatTarget(null)}
+        applicationId={chatTarget?.id}
+        candidateName={chatTarget?.candidate?.full_name}
+        jobTitle={selectedJobTitle}
+      />
     </PageTransition>
   );
 }

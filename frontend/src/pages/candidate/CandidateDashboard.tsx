@@ -34,12 +34,14 @@ import {
   Layers,
   Plus,
   AlertTriangle,
+  MessageSquare,
 } from "lucide-react";
 import { CVCard } from "./components/CVCard";
 import { CVPreviewModal } from "./components/CVPreviewModal";
 import { AICVReviewModal, type CVEvaluationResponse } from "./components/AICVReviewModal";
 import { RadarChartWidget } from "./components/RadarChartWidget";
 import { RecommendedJobs } from "./components/RecommendedJobs";
+import { DirectChatModal } from "@/components/chat/DirectChatModal";
 
 // ─── Constants ──────────────────────────────────────────────────────────────────
 const ALLOWED_TYPES = ["application/pdf"];
@@ -70,6 +72,7 @@ export const CandidateDashboard = () => {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewResumeId, setPreviewResumeId] = useState<number | null>(null);
   const [previewResumeTitle, setPreviewResumeTitle] = useState<string>("");
+  const [chatTargetApp, setChatTargetApp] = useState<Application | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
 
@@ -663,6 +666,17 @@ export const CandidateDashboard = () => {
                             </div>
                           ) : null}
 
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setChatTargetApp(app)}
+                            className="rounded-full text-xs font-bold border-emerald-200 text-emerald-700 hover:bg-emerald-50 whitespace-nowrap px-3.5 gap-1.5 shrink-0"
+                            title="Nhắn tin trực tiếp với nhà tuyển dụng"
+                          >
+                            <MessageSquare size={13} className="text-emerald-600" />
+                            <span>Nhắn tin HR</span>
+                          </Button>
+
                           <Link to={`/jobs/${app.job_id}`} className="shrink-0">
                             <Button size="sm" variant="outline" className="rounded-full text-xs font-bold border-slate-200 hover:border-emerald-300 hover:bg-emerald-50/50 whitespace-nowrap px-3.5">
                               Xem JD <ChevronRight size={13} className="ml-1 shrink-0" />
@@ -934,6 +948,15 @@ export const CandidateDashboard = () => {
           onClose={() => setReviewModalData(null)}
         />
       )}
+
+      {/* Direct Chat with Employer */}
+      <DirectChatModal
+        isOpen={chatTargetApp !== null}
+        onClose={() => setChatTargetApp(null)}
+        applicationId={chatTargetApp?.id}
+        title={chatTargetApp?.job?.employer?.company_name || chatTargetApp?.job?.employer?.full_name || "Nhà tuyển dụng"}
+        jobTitle={chatTargetApp?.job?.title}
+      />
     </div>
   );
 };
