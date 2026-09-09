@@ -9,6 +9,7 @@ from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app.config import settings
+from app.models.ai_call_log import AIFeature
 from app.models.job import Job
 from app.models.user import User
 from app.schemas.assistant import (
@@ -19,76 +20,11 @@ from app.schemas.assistant import (
     EmbeddedCard,
 )
 from app.services.deepseek_client import deepseek_client
+from app.services.prompt_loader import HARDCODED_FALLBACK_PROMPTS, get_system_prompt
 
 logger = logging.getLogger(__name__)
 
-DIPLOMATIC_SYSTEM_PROMPT = """Bạn là "JobPortal AI Advisor" — Cố vấn Tuyển dụng & Phát triển Sự nghiệp 24/7 cao cấp của nền tảng "AI Job Portal".
-
-TÔN CHỈ & BẢN SẮC ỨNG XỬ (DIPLOMATIC PERSONA & IDENTITY):
-1. TRUNG THỰC & ĐĨNH ĐẠC: Bạn là Trí tuệ Nhân tạo chuyên nghiệp, không giả danh con người một cách khiên cưỡng. Bạn giao tiếp với phong thái của một "Nhà Ngoại Giao Số" — ấm áp, thấu cảm, lịch thiệp, tôn trọng và sắc bén về chuyên môn nhân sự.
-2. SỨ MỆNH KÉP:
-   - Am tường 100% nghiệp vụ và công nghệ của AI Job Portal (AI Matching qua Vector pgvector, CV Builder 5 mẫu chuẩn ATS, bộ trắc nghiệm MBTI & MI 80 câu, hệ thống ATS phân quyền B2B).
-   - Tư vấn giải pháp, tạo giá trị thực tế và GIỮ CHÂN KHÁCH HÀNG (Customer Retention & Value Delivery).
-
-NGHIỆP VỤ ỨNG XỬ THEO 3 NHÓM ĐỐI TƯỢNG:
-A. VỚI KHÁCH VÃNG LAI (GUEST / POTENTIAL CLIENTS):
-   - Chào đón ân cần, gỡ bỏ sự e ngại ban đầu.
-   - Nhấn mạnh vào giá trị trải nghiệm miễn phí: làm test MBTI/MI 0 đồng, tạo CV chuẩn ATS trực tuyến không giới hạn.
-   - Khéo léo mời đăng ký tài khoản để lưu trữ dữ liệu lâu dài chỉ với 30 giây (không chèo kéo, luôn tôn trọng quyền lựa chọn).
-
-B. VỚI ỨNG VIÊN (CANDIDATE / JOB SEEKERS):
-   - Đóng vai trò như Cố vấn Sự nghiệp (Career Mentor): thấu hiểu nỗi lo rớt CV, thiếu kinh nghiệm, hoặc bế tắc tìm việc.
-   - Hướng dẫn cụ thể: tối ưu từ khóa ATS, mẹo đàm phán lương khéo léo, bí quyết trả lời phỏng vấn theo phương pháp STAR.
-   - Trích dẫn công việc thực tế đang mở trên sàn để ứng viên tự tin nộp hồ sơ.
-
-C. VỚI NHÀ TUYỂN DỤNG & DOANH NGHIỆP (EMPLOYER / ENTERPRISE):
-   - Giao tiếp với vị thế đối tác B2B (HR Tech Consultant): thấu hiểu nỗi đau chi phí tuyển dụng cao, mất thời gian lọc CV rác.
-   - Hướng dẫn tận tình: viết JD chuẩn SEO & thu hút nhân tài, sử dụng hệ thống ATS phân quyền 5 cấp độ (Owner, HR, Trưởng bộ phận, PV, Viewer), chấm điểm AI Match tự động.
-   - Giới thiệu trải nghiệm Sandbox và các gói dịch vụ linh hoạt (Khởi nghiệp, Tăng trưởng, Doanh nghiệp).
-
-NGHỆ THUẬT NGOẠI GIAO TRƯỚC TÌNH HUỐNG HÓC BÚA:
-- Khi bị so sánh với nền tảng khác (TopCV, VietnamWorks, LinkedIn): Công nhận điểm mạnh của đối thủ một cách lịch thiệp, sau đó chỉ ra thế mạnh độc bản của AI Job Portal (AI Matching sâu bằng vector embedding ngữ nghĩa, tích hợp trắc nghiệm tâm lý hướng nghiệp MBTI/MI chuẩn khoa học).
-- Khi khách hàng phàn nàn / chưa hài lòng: Lắng nghe chân thành, không tranh cãi, không đổ lỗi, đưa ra giải pháp khắc phục ngay lập tức và ghi nhận phản hồi để nâng cấp.
-- Khi gặp câu hỏi đùa cợt / ngoài lề: Đối đáp hóm hỉnh, thông minh, sau đó khéo léo dẫn dắt câu chuyện quay lại chủ đề công việc và phát triển sự nghiệp.
-
-THÔNG TIN NGƯỜI DÙNG & NGỮ CẢNH HIỆN TẠI:
-- Vai trò người dùng: {role_desc}
-- Trang đang xem: {current_path}
-{job_context}
-{candidate_context}
-
-DANH SÁCH VIỆC LÀM THỰC TẾ ĐANG MỞ TRÊN SÀN (NẾU CÓ):
-{jobs_data}
-
-HỆ SINH THÁI CÔNG CỤ CỦA NỀN TẢNG:
-1. CV Builder (/cv-builder): 5 template chuẩn quốc tế, tự động lưu, AI gợi ý kỹ năng.
-2. Trắc nghiệm MBTI (/tools/mbti): 40 câu hỏi phân tích 4 nhóm tính cách và gợi ý việc làm.
-3. Trắc nghiệm Đa trí tuệ MI (/tools/mi): 40 câu hỏi phân tích 8 loại hình thông minh.
-4. Lịch sử bài test (/tools/assessments/history).
-5. Khám phá việc làm (/jobs).
-6. Cổng Nhà tuyển dụng (/employer và /employer/dashboard).
-
-QUY CÁCH PHẢN HỒI:
-- Trình bày định dạng Markdown đẹp mắt, có cấu trúc: [Lời chào & Thấu cảm] -> [Giải pháp / Lời khuyên chuyên môn] -> [Hành động tiếp theo / Thẻ liên kết] -> [Câu hỏi mở duyên dáng].
-- BẮT BUỘC TRẢ VỀ JSON THEO SCHEMA SAU:
-{{
-  "reply": "Nội dung phản hồi chi tiết bằng Markdown...",
-  "suggested_cards": [
-    {{
-      "card_type": "job" hoặc "tool" hoặc "action",
-      "title": "Tiêu đề thẻ",
-      "subtitle": "Mô tả phụ hoặc mức lương / địa điểm",
-      "url": "Đường dẫn URL liên quan (ví dụ: /jobs/12 hoặc /tools/mbti)",
-      "meta": {{ "key": "value" }}
-    }}
-  ],
-  "suggested_followups": [
-    "Câu hỏi gợi ý thông minh 1",
-    "Câu hỏi gợi ý thông minh 2",
-    "Câu hỏi gợi ý thông minh 3"
-  ]
-}}
-"""
+DIPLOMATIC_SYSTEM_PROMPT = HARDCODED_FALLBACK_PROMPTS.get(AIFeature.ASSISTANT_CHAT, "")
 
 
 def _get_relevant_jobs(db: Session, query_text: str, limit: int = 4) -> List[Job]:
@@ -157,9 +93,7 @@ class AssistantService:
 
         candidate_context = ""
         if current_user and current_user.role == "candidate":
-            candidate_context = (
-                f"- Tên ứng viên: {current_user.full_name}, Email: {current_user.email}."
-            )
+            candidate_context = f"- Tên ứng viên: {current_user.full_name}."
 
         relevant_jobs = _get_relevant_jobs(db, last_user_message, limit=4)
         jobs_data_lines = []
@@ -173,7 +107,8 @@ class AssistantService:
             else "Hiện không có tin tuyển dụng nào trực tiếp phù hợp."
         )
 
-        system_prompt = DIPLOMATIC_SYSTEM_PROMPT.format(
+        system_prompt_template = get_system_prompt(AIFeature.ASSISTANT_CHAT, db=db)
+        system_prompt = system_prompt_template.format(
             role_desc=role_desc,
             current_path=current_path,
             job_context=job_context,
@@ -190,6 +125,9 @@ class AssistantService:
                 messages=payload_messages,
                 model=settings.LLM_MODEL,
                 response_format={"type": "json_object"},
+                feature=AIFeature.ASSISTANT_CHAT,
+                user_id=current_user.id if current_user else None,
+                db=db,
             )
             content_str = raw_response["choices"][0]["message"]["content"]
             parsed_data = json.loads(content_str)
@@ -261,6 +199,34 @@ class AssistantService:
                     )
                 )
 
+            # Guest conversion: Soft CTA Register Card
+            if (not current_user or role == "guest") and not any(c.url == "/register" for c in cards):
+                if any(
+                    w in last_user_message.lower()
+                    for w in [
+                        "đăng ký",
+                        "tài khoản",
+                        "lưu",
+                        "save",
+                        "đăng nhập",
+                        "chuối",
+                        "mua",
+                        "bán",
+                        "bắt đầu",
+                        "miễn phí",
+                        "giá",
+                        "tiền",
+                    ]
+                ) or not cards:
+                    cards.append(
+                        EmbeddedCard(
+                            card_type="action",
+                            title="Đăng ký tài khoản miễn phí (30s)",
+                            subtitle="Lưu trữ CV chuẩn ATS & Kết quả bài test trắc nghiệm",
+                            url="/register",
+                        )
+                    )
+
             return AssistantChatResponse(
                 reply=reply,
                 suggested_cards=cards,
@@ -281,6 +247,25 @@ class AssistantService:
                         )
                     )
 
+            if (not current_user or role == "guest") and not any(c.url == "/register" for c in fallback_cards):
+                fallback_cards.append(
+                    EmbeddedCard(
+                        card_type="action",
+                        title="Đăng ký tài khoản miễn phí (30s)",
+                        subtitle="Lưu trữ CV chuẩn ATS & Kết quả bài test trắc nghiệm",
+                        url="/register",
+                    )
+                )
+
+            fallback_followups = [
+                "Gợi ý việc làm phù hợp với tôi",
+                "Hướng dẫn tạo CV chuẩn ATS",
+                "Khám phá bài test MBTI & MI",
+                "Tìm hiểu giải pháp tuyển dụng Doanh nghiệp",
+            ]
+            if not current_user or role == "guest":
+                fallback_followups.insert(0, "Đăng ký tài khoản nhận tư vấn miễn phí")
+
             fallback_reply = (
                 "Kính chào bạn! Tôi là **JobPortal AI Advisor** — Cố vấn Tuyển dụng & Phát triển Sự nghiệp 24/7. "
                 "Rất hân hạnh được đồng hành cùng bạn.\n\n"
@@ -289,18 +274,18 @@ class AssistantService:
                 "- 📄 **Thiết kế CV chuẩn ATS** hoàn toàn miễn phí với [CV Builder](/cv-builder).\n"
                 "- 🧭 **Khám phá bản thân** qua trắc nghiệm tính cách [MBTI](/tools/mbti) và [Đa trí tuệ MI](/tools/mi).\n"
                 "- 🏢 **Giải pháp tuyển dụng tối ưu cho Doanh nghiệp** qua [Cổng Nhà tuyển dụng](/employer).\n\n"
-                "Hãy chia sẻ mong muốn của bạn, tôi sẽ đưa ra giải pháp phù hợp nhất!"
             )
+            if not current_user or role == "guest":
+                fallback_reply += (
+                    "💡 **Mẹo nhỏ:** Bạn có thể dành 30 giây [Đăng ký tài khoản miễn phí](/register) "
+                    "để lưu vĩnh viễn mẫu CV chuẩn ATS, theo dõi trạng thái ứng tuyển và lưu lại kết quả bài test tính cách nhé!\n\n"
+                )
+            fallback_reply += "Hãy chia sẻ mong muốn của bạn, tôi sẽ đưa ra giải pháp phù hợp nhất!"
 
             return AssistantChatResponse(
                 reply=fallback_reply,
                 suggested_cards=fallback_cards,
-                suggested_followups=[
-                    "Gợi ý việc làm phù hợp với tôi",
-                    "Hướng dẫn tạo CV chuẩn ATS",
-                    "Khám phá bài test MBTI & MI",
-                    "Tìm hiểu giải pháp tuyển dụng Doanh nghiệp",
-                ],
+                suggested_followups=fallback_followups,
             )
 
     def get_quick_suggestions(

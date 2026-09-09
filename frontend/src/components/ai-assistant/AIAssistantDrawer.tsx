@@ -318,6 +318,12 @@ export function AIAssistantDrawer() {
               onSpeakToggle={() => handleSpeakToggle(msg.id, msg.content)}
               onCardClick={handleCardClick}
               onFollowupClick={handleQuickPrompt}
+              onNavigate={(url) => {
+                navigate(url);
+                if (window.innerWidth < 768) {
+                  setOpen(false);
+                }
+              }}
               disabled={isTyping}
             />
           ))}
@@ -447,6 +453,7 @@ function DiplomaticMessageItem({
   onSpeakToggle,
   onCardClick,
   onFollowupClick,
+  onNavigate,
   disabled,
 }: {
   message: DisplayMessage;
@@ -456,6 +463,7 @@ function DiplomaticMessageItem({
   onSpeakToggle: () => void;
   onCardClick: (card: EmbeddedCard) => void;
   onFollowupClick: (prompt: string) => void;
+  onNavigate?: (url: string) => void;
   disabled?: boolean;
 }) {
   const isUser = message.role === "user";
@@ -492,7 +500,7 @@ function DiplomaticMessageItem({
                 return (
                   <div key={idx} className="flex items-start gap-2 pl-1">
                     <span className="text-primary font-bold">•</span>
-                    <span>{parseRichText(line.substring(2))}</span>
+                    <span>{parseRichText(line.substring(2), onNavigate)}</span>
                   </div>
                 );
               }
@@ -500,14 +508,14 @@ function DiplomaticMessageItem({
                 return (
                   <div key={idx} className="flex items-start gap-2 pl-1">
                     <span className="font-semibold text-primary">{line.match(/^\d+\./)?.[0]}</span>
-                    <span>{parseRichText(line.replace(/^\d+\.\s/, ""))}</span>
+                    <span>{parseRichText(line.replace(/^\d+\.\s/, ""), onNavigate)}</span>
                   </div>
                 );
               }
               if (!line.trim()) {
                 return <div key={idx} className="h-1" />;
               }
-              return <p key={idx}>{parseRichText(line)}</p>;
+              return <p key={idx}>{parseRichText(line, onNavigate)}</p>;
             })}
           </div>
 
@@ -591,7 +599,7 @@ function DiplomaticMessageItem({
   );
 }
 
-function parseRichText(text: string) {
+function parseRichText(text: string, onNavigate?: (url: string) => void) {
   const parts = text.split(/(\*\*[^*]+\*\*|\[[^\]]+\]\([^)]+\))/g);
   return parts.map((part, i) => {
     if (part.startsWith("**") && part.endsWith("**")) {
@@ -607,11 +615,15 @@ function parseRichText(text: string) {
         <a
           key={i}
           href={linkMatch[2]}
-          className="font-semibold text-primary hover:underline underline-offset-2"
+          className="font-semibold text-primary hover:underline underline-offset-2 cursor-pointer"
           onClick={(e) => {
             if (!linkMatch[2].startsWith("http")) {
               e.preventDefault();
-              window.location.href = linkMatch[2];
+              if (onNavigate) {
+                onNavigate(linkMatch[2]);
+              } else {
+                window.location.href = linkMatch[2];
+              }
             }
           }}
         >

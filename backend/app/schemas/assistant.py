@@ -5,18 +5,20 @@ from pydantic import BaseModel, Field
 
 class ChatMessage(BaseModel):
     role: Literal["user", "assistant"]
-    content: str
+    content: str = Field(
+        ..., min_length=1, max_length=2000, description="Chat message content (max 2000 characters)"
+    )
 
 
 class ChatContext(BaseModel):
     current_path: str = Field(
-        default="/", description="URL path of the page the user is currently on"
+        default="/", max_length=200, description="URL path of the page the user is currently on"
     )
     selected_job_id: Optional[int] = Field(
         default=None, description="Current job ID if viewing a job detail page"
     )
     role: Optional[str] = Field(
-        default=None, description="User role if authenticated: candidate, employer, admin"
+        default=None, max_length=50, description="User role if authenticated: candidate, employer, admin"
     )
 
 
@@ -29,7 +31,9 @@ class EmbeddedCard(BaseModel):
 
 
 class AssistantChatRequest(BaseModel):
-    messages: List[ChatMessage]
+    messages: List[ChatMessage] = Field(
+        ..., min_length=1, max_length=20, description="Session message history (max 20)"
+    )
     context: Optional[ChatContext] = None
 
 

@@ -87,10 +87,10 @@ export const useAssistantStore = create<AssistantState>()(
         set({ messages: updatedMessages, isTyping: true, error: null });
 
         try {
-          // Format payload for API
-          const payloadMessages: ChatMessage[] = updatedMessages.map((m) => ({
+          // Format payload for API: send maximum last 10 messages (max 2000 chars each) to keep context concise & secure
+          const payloadMessages: ChatMessage[] = updatedMessages.slice(-10).map((m) => ({
             role: m.role,
-            content: m.content,
+            content: m.content.slice(0, 2000),
           }));
 
           const response = await chatWithAssistant({
@@ -111,8 +111,11 @@ export const useAssistantStore = create<AssistantState>()(
             followups: response.suggested_followups,
           };
 
+          const allMessages = [...updatedMessages, assistantMsg];
+          const prunedMessages = allMessages.length > 50 ? allMessages.slice(-50) : allMessages;
+
           set({
-            messages: [...updatedMessages, assistantMsg],
+            messages: prunedMessages,
             isTyping: false,
             unreadCount: get().isOpen ? 0 : get().unreadCount + 1,
           });

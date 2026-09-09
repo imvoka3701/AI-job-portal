@@ -4,7 +4,6 @@ import { SearchHero } from "./components/SearchHero";
 import { AIMatchBanner } from "./components/AIMatchBanner";
 import { FilterSidebar } from "./components/FilterSidebar";
 import { JobResults } from "./components/JobResults";
-import { AIAssistant } from "./components/AIAssistant";
 import { TopIndustries } from "./components/TopIndustries";
 import { CVBuilderPromo } from "./components/CVBuilderPromo";
 import { PlatformStats } from "./components/PlatformStats";
@@ -144,8 +143,6 @@ export function JobListPage() {
       {/* Footer (Full width) */}
       <Footer />
 
-      {/* Floating AI Assistant */}
-      <AIAssistant />
     </div>
   );
 }
