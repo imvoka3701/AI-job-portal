@@ -11,6 +11,7 @@ import {
 } from "@/lib/api/ai";
 import { getEmployerStats, type EmployerStats } from "@/lib/api/employer";
 import { getRounds, type RoundItem } from "@/lib/api/rounds";
+import { exportCandidatesCSV } from "@/lib/api/exports";
 import { getApiErrorMessage, tokenStorage } from "@/lib/axios";
 import { useAuthStore, useUser } from "@/stores/authStore";
 import {
@@ -22,7 +23,7 @@ import {
   RoundTimeline,
   Spinner,
 } from "@/components/ui";
-import { Sparkles, CheckCircle2, HelpCircle } from "lucide-react";
+import { Sparkles, CheckCircle2, HelpCircle, Download } from "lucide-react";
 import { CVPreviewModal } from "@/pages/candidate/components/CVPreviewModal";
 import { CVPreview } from "@/pages/candidate/cv/CVPreview";
 import { EmployerCandidateRadarChart } from "./components/EmployerCandidateRadarChart";
@@ -98,6 +99,20 @@ export function EmployerCandidatesPage() {
   const [builderPreview, setBuilderPreview] = useState<CvDocument | null>(null);
   const [roundsTarget, setRoundsTarget] = useState<{ applicationId: number; candidateName: string } | null>(null);
   const [chatTarget, setChatTarget] = useState<EmployerApplication | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
+
+  const handleExportCandidates = async () => {
+    try {
+      setIsExporting(true);
+      setExportError(null);
+      await exportCandidatesCSV(selectedJobId);
+    } catch (err) {
+      setExportError(getApiErrorMessage(err) || "Không thể xuất danh sách ứng viên.");
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   useEffect(() => {
     if (!user && tokenStorage.get()) {
@@ -498,6 +513,21 @@ export function EmployerCandidatesPage() {
               </div>
 
               <div className="flex flex-wrap items-center gap-3 shrink-0 pt-2 lg:pt-0">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleExportCandidates}
+                  disabled={isExporting}
+                  className="rounded-xl border-slate-200 bg-white hover:bg-slate-50 text-slate-700 shadow-2xs cursor-pointer flex items-center gap-1.5"
+                  title="Xuất danh sách ứng viên ra file CSV / Excel chuẩn UTF-8"
+                >
+                  {isExporting ? (
+                    <Spinner size="sm" color="blue" />
+                  ) : (
+                    <Download className="w-4 h-4 text-slate-600" />
+                  )}
+                  <span>{isExporting ? "Đang xuất..." : "Xuất CSV"}</span>
+                </Button>
                 <Link to="/employer/jobs/new">
                   <Button variant="primary" size="sm" className="shadow-sm">
                     + Đăng tin mới
@@ -512,6 +542,19 @@ export function EmployerCandidatesPage() {
             </div>
           </div>
         </Card>
+
+        {exportError && (
+          <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-xs text-red-700 flex items-center justify-between shadow-2xs">
+            <span>{exportError}</span>
+            <button
+              type="button"
+              onClick={() => setExportError(null)}
+              className="text-red-500 hover:text-red-700 font-bold ml-2 cursor-pointer"
+            >
+              ✕
+            </button>
+          </div>
+        )}
 
         <EmployerApplicationList
           jobs={jobs}

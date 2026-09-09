@@ -7,6 +7,7 @@ import { Button, Card, EmptyState, ErrorState, PageTransition } from "@/componen
 import { EmployerStatsWidget } from "./components/EmployerStatsWidget";
 import { ActiveJobsTable } from "./components/ActiveJobsTable";
 import { EmployerRoleOverview } from "./components/EmployerRoleOverview";
+import { exportPipelineMetricsCSV } from "@/lib/api/exports";
 import {
   Briefcase,
   AlertCircle,
@@ -15,6 +16,7 @@ import {
   Building2,
   ClipboardList,
   UserPlus,
+  Download,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useEmployerCompany } from "@/contexts/EmployerCompanyContext";
@@ -29,6 +31,18 @@ export function EmployerDashboard() {
   const [stats, setStats] = useState<EmployerStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(false);
   const [statsError, setStatsError] = useState<string | null>(null);
+  const [isExportingMetrics, setIsExportingMetrics] = useState(false);
+
+  const handleExportMetrics = async () => {
+    try {
+      setIsExportingMetrics(true);
+      await exportPipelineMetricsCSV();
+    } catch {
+      // Handled gracefully
+    } finally {
+      setIsExportingMetrics(false);
+    }
+  };
 
   // Auth hydration
   useEffect(() => {
@@ -187,6 +201,21 @@ export function EmployerDashboard() {
                   <span>Đội Ngũ</span>
                 </Button>
               </Link>
+
+              <Button
+                variant="outline"
+                onClick={handleExportMetrics}
+                disabled={isExportingMetrics}
+                className="rounded-full text-xs font-bold px-4 py-2.5 bg-white hover:bg-slate-50 border-slate-200 text-slate-700 cursor-pointer flex items-center gap-1.5 shadow-2xs"
+                title="Xuất báo cáo phễu và hiệu suất tuyển dụng ra CSV chuẩn UTF-8"
+              >
+                {isExportingMetrics ? (
+                  <span className="w-3.5 h-3.5 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Download size={15} className="text-emerald-600" />
+                )}
+                <span>{isExportingMetrics ? "Đang xuất..." : "Báo Cáo (CSV)"}</span>
+              </Button>
             </div>
           </div>
         </section>

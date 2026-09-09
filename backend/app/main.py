@@ -42,6 +42,7 @@ from app.routers import (
     cv_documents,
     email_webhooks,
     employer,
+    exports,
     interview_rounds,
     jobs,
     notifications,
@@ -223,6 +224,7 @@ app.include_router(assessments.router)
 app.include_router(contact.router)
 app.include_router(ws.router)
 app.include_router(chat.router)
+app.include_router(exports.router)
 
 # --- Mount Static Files (Public Avatars only) ---
 Path("uploads/avatars").mkdir(parents=True, exist_ok=True)
