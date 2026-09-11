@@ -50,6 +50,7 @@ from app.routers import (
     interview_rounds,
     jobs,
     notifications,
+    rag,
     recruitment_requests,
     resumes,
     users,
@@ -235,6 +236,7 @@ app.include_router(chat.router)
 app.include_router(exports.router)
 app.include_router(feedback.router)
 app.include_router(admin_feedback.router)
+app.include_router(rag.router)
 
 # --- Mount Static Files (Public Avatars only) ---
 Path("uploads/avatars").mkdir(parents=True, exist_ok=True)
