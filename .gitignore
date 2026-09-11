@@ -121,6 +121,8 @@ Desktop.ini
 *.gif
 *.bmp
 *.ico
+!frontend/public/images/**
+!frontend/src/components/ai-assistant/avatar/**
 docs/screenshots/
 
 # --- Temporary Scratch Files ---

@@ -4,7 +4,8 @@ import { Sparkles, X, ShieldCheck } from "lucide-react";
 import { useAssistantStore } from "@/stores/assistantStore";
 import { AIAssistantDrawer } from "./AIAssistantDrawer";
 import { cn } from "@/lib/utils";
-import botAvatar from "./avatar/avatar_chat_bot.png";
+
+const botAvatar = "/images/avatar_chat_bot.png";
 
 export function AIAssistantWidget() {
   const { isOpen, toggleOpen, unreadCount } = useAssistantStore();

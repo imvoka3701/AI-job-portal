@@ -19,12 +19,13 @@ import {
   Building2,
   GraduationCap,
 } from "lucide-react";
-import botAvatar from "./avatar/avatar_chat_bot.png";
 import { useAssistantStore, type DisplayMessage } from "@/stores/assistantStore";
 import { useUser } from "@/stores/authStore";
 import { Button } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import type { EmbeddedCard } from "@/lib/api/assistant";
+
+const botAvatar = "/images/avatar_chat_bot.png";
 
 type PersonaCategory = "candidate" | "employer" | "tools";
 
