@@ -18,6 +18,8 @@ services:
       - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - aijob-network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-ai_job_portal}"]
       interval: 5s
@@ -65,12 +67,16 @@ services:
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-http://localhost:8000/auth/google/callback}
+      RATE_LIMIT_ENABLED: ${RATE_LIMIT_ENABLED:-true}
+      SEED_RICH_DEMO: ${SEED_RICH_DEMO:-false}
     ports:
       - "8000:8000"
     volumes:
       - ./backend:/app
       - ./backend/uploads:/app/uploads
       - logs:/var/log
+    networks:
+      - aijob-network
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/healthz"]
       interval: 10s
@@ -90,6 +96,18 @@ services:
         condition: service_healthy
     ports:
       - "3000:80"
+    networks:
+      - aijob-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:80/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+networks:
+  aijob-network:
+    driver: bridge
 
 volumes:
   postgres_data:

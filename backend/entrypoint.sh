@@ -83,9 +83,13 @@ if [ -f "seed_demo_accounts.py" ]; then
 fi
 echo "  ✅ Accounts ready"
 
-# --- 5. Seed demo data (only if DB is empty) ---
+# --- 5. Seed demo data (only if DB is empty or SEED_RICH_DEMO=true) ---
 echo "[5/6] Checking for demo data..."
-if [ -f "seed_demo_data.py" ]; then
+if [ "$SEED_RICH_DEMO" = "true" ] && [ -f "reset_and_seed_demo.py" ]; then
+    echo "  🌟 SEED_RICH_DEMO=true: Populating rich live presentation dataset..."
+    python reset_and_seed_demo.py
+    echo "  ✅ Rich demo dataset ready"
+elif [ -f "seed_demo_data.py" ]; then
     python seed_demo_data.py
     echo "  ✅ Demo data check complete"
 else
