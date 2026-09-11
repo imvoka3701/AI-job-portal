@@ -37,6 +37,7 @@ import { Button, Modal, Spinner } from "@/components/ui";
 import { apiClient } from "@/lib/axios";
 import { updateRound } from "@/lib/api/rounds";
 import { cn } from "@/lib/utils";
+import { RAGInterviewPrepPanel } from "./RAGInterviewPrepPanel";
 
 // ─── Interfaces ───────────────────────────────────────────────────────────────
 export interface RubricCriteriaItem {
@@ -61,6 +62,10 @@ export interface InterviewRubricModalProps {
   candidateName: string;
   candidateEmail?: string;
   jobTitle?: string;
+  applicationId?: number;
+  jobId?: number;
+  cvDocumentId?: number | null;
+  resumeId?: number | null;
   onSaveSuccess?: (savedAvgScore: number, newStatus?: string) => void;
 }
 
@@ -221,9 +226,39 @@ export function InterviewRubricModal({
   candidateName,
   candidateEmail,
   jobTitle,
+  applicationId,
+  jobId: propJobId,
+  cvDocumentId: propCvDocId,
+  resumeId: propResumeId,
   onSaveSuccess,
 }: InterviewRubricModalProps) {
   // ── States ──────────────────────────────────────────────────────────────────
+  const [activeTab, setActiveTab] = useState<"rubric" | "rag_prep">("rubric");
+  const [resolvedJobId, setResolvedJobId] = useState<number | undefined>(propJobId);
+  const [resolvedCvDocId, setResolvedCvDocId] = useState<number | null | undefined>(propCvDocId);
+  const [resolvedResumeId, setResolvedResumeId] = useState<number | null | undefined>(propResumeId);
+
+  useEffect(() => {
+    setResolvedJobId(propJobId);
+    setResolvedCvDocId(propCvDocId);
+    setResolvedResumeId(propResumeId);
+  }, [propJobId, propCvDocId, propResumeId]);
+
+  useEffect(() => {
+    if (!resolvedJobId && applicationId && isOpen) {
+      apiClient
+        .get(`/applications/${applicationId}`)
+        .then(({ data }) => {
+          if (data) {
+            if (data.job_id) setResolvedJobId(data.job_id);
+            if (data.cv_document_id) setResolvedCvDocId(data.cv_document_id);
+            if (data.resume_id) setResolvedResumeId(data.resume_id);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [applicationId, resolvedJobId, isOpen]);
+
   const [selectedPreset, setSelectedPreset] = useState<string>(() => {
     if (roundType === "tech") return "tech";
     if (roundType === "hr") return "hr";
@@ -245,6 +280,17 @@ export function InterviewRubricModal({
   // New criteria form state
   const [newCriteriaName, setNewCriteriaName] = useState<string>("");
   const [isAddingCriteria, setIsAddingCriteria] = useState<boolean>(false);
+
+  const handleAddQuestionFromRAG = (questionText: string, category: string) => {
+    setCriteriaList((prev) => [
+      ...prev,
+      {
+        criteria_name: questionText,
+        score: 7,
+        notes: `[Gợi ý RAG: ${category}]`,
+      },
+    ]);
+  };
 
   // ── Fetch existing criteria on mount or roundId change ─────────────────────
   const loadExistingCriteria = useCallback(async () => {
@@ -504,8 +550,61 @@ export function InterviewRubricModal({
           </div>
         </div>
 
-        {/* Preset Switcher Pills */}
-        <div className="space-y-1.5">
+        {/* Navigation Tabs: Rubric Scoring vs RAG Question Prep */}
+        <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
+          <button
+            type="button"
+            onClick={() => setActiveTab("rubric")}
+            className={cn(
+              "flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer",
+              activeTab === "rubric"
+                ? "bg-indigo-600 text-white shadow-xs"
+                : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 border border-slate-200"
+            )}
+          >
+            <Layers className="w-3.5 h-3.5" />
+            <span>Bảng chấm điểm Rubric</span>
+            <span
+              className={cn(
+                "text-[10px] px-1.5 py-0.5 rounded-full font-black",
+                activeTab === "rubric" ? "bg-indigo-500 text-white" : "bg-slate-100 text-slate-700"
+              )}
+            >
+              {criteriaList.length}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab("rag_prep")}
+            className={cn(
+              "flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer",
+              activeTab === "rag_prep"
+                ? "bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-700 text-white shadow-xs"
+                : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 border border-slate-200"
+            )}
+          >
+            <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+            <span>Gợi ý câu hỏi RAG (CV & JD)</span>
+            <span className="text-[9px] uppercase tracking-wider font-extrabold px-1.5 py-0.5 rounded-full bg-amber-400 text-amber-950">
+              AI RAG
+            </span>
+          </button>
+        </div>
+
+        {activeTab === "rag_prep" ? (
+          <RAGInterviewPrepPanel
+            jobId={resolvedJobId}
+            jobTitle={jobTitle}
+            candidateName={candidateName}
+            cvDocumentId={resolvedCvDocId}
+            resumeId={resolvedResumeId}
+            onAddQuestionToRubric={handleAddQuestionFromRAG}
+          />
+        ) : (
+          <>
+            {/* Preset Switcher Pills */}
+            <div className="space-y-1.5">
           <label className="text-xs font-bold text-slate-600 flex items-center gap-1.5">
             <Sliders className="w-3.5 h-3.5 text-slate-400" />
             <span>Bộ tiêu chí đánh giá chuẩn (Rubric Presets):</span>
@@ -762,6 +861,8 @@ export function InterviewRubricModal({
             </span>
           </label>
         </div>
+          </>
+        )}
 
         {/* Error Alert */}
         {errorMsg && (
@@ -777,24 +878,37 @@ export function InterviewRubricModal({
         <Button variant="outline" size="sm" onClick={onClose} disabled={isSaving} className="rounded-xl">
           Hủy bỏ
         </Button>
-        <Button
-          size="sm"
-          onClick={handleSave}
-          disabled={isSaving || criteriaList.length === 0}
-          className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-xs px-5"
-        >
-          {isSaving ? (
-            <span className="flex items-center gap-1.5">
-              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-              <span>Đang lưu...</span>
-            </span>
-          ) : (
-            <span className="flex items-center gap-1.5">
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              <span>Lưu Đánh Giá ({averageScore}/10)</span>
-            </span>
+        <div className="flex items-center gap-2">
+          {activeTab === "rag_prep" && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setActiveTab("rubric")}
+              className="text-xs font-bold rounded-xl border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+            >
+              Chuyển sang Bảng điểm ({criteriaList.length} tiêu chí) →
+            </Button>
           )}
-        </Button>
+          <Button
+            size="sm"
+            onClick={handleSave}
+            disabled={isSaving || criteriaList.length === 0}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-xs px-5"
+          >
+            {isSaving ? (
+              <span className="flex items-center gap-1.5">
+                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                <span>Đang lưu...</span>
+              </span>
+            ) : (
+              <span className="flex items-center gap-1.5">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                <span>Lưu Đánh Giá ({averageScore}/10)</span>
+              </span>
+            )}
+          </Button>
+        </div>
       </div>
     </Modal>
   );

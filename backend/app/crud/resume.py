@@ -38,6 +38,11 @@ class CRUDResume:
     def delete(self, db: Session, *, resume_id: int) -> None:
         resume = db.get(Resume, resume_id)
         if resume:
+            from app.crud.document_chunk import crud_document_chunk
+
+            crud_document_chunk.delete_chunks_for_document(
+                db, document_type="resume", document_id=resume_id
+            )
             db.delete(resume)
             db.commit()
 

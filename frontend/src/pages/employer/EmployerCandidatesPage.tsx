@@ -32,6 +32,7 @@ import { SkillGapPanel } from "./components/SkillGapPanel";
 import { InterviewQuestionsModal } from "./components/modals/InterviewQuestionsModal";
 import { EmailDraftModal } from "./components/modals/EmailDraftModal";
 import { DirectChatModal } from "@/components/chat/DirectChatModal";
+import { CVCopilotDrawer } from "@/components/rag/CVCopilotDrawer";
 import type { Job } from "@/types/job";
 import type { EmployerApplication } from "@/types/application";
 import type {
@@ -98,8 +99,16 @@ export function EmployerCandidatesPage() {
 
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [builderPreview, setBuilderPreview] = useState<CvDocument | null>(null);
-  const [roundsTarget, setRoundsTarget] = useState<{ applicationId: number; candidateName: string } | null>(null);
+  const [roundsTarget, setRoundsTarget] = useState<{
+    applicationId: number;
+    candidateName: string;
+    candidateEmail?: string;
+    jobId?: number;
+    cvDocumentId?: number | null;
+    resumeId?: number | null;
+  } | null>(null);
   const [chatTarget, setChatTarget] = useState<EmployerApplication | null>(null);
+  const [copilotApp, setCopilotApp] = useState<EmployerApplication | null>(null);
   const [skillGapTarget, setSkillGapTarget] = useState<{
     candidateName: string;
     jobId: number;
@@ -351,7 +360,14 @@ export function EmployerCandidatesPage() {
   }, []);
 
   const handleOpenRounds = useCallback((app: EmployerApplication) => {
-    setRoundsTarget({ applicationId: app.id, candidateName: app.candidate?.full_name ?? "" });
+    setRoundsTarget({
+      applicationId: app.id,
+      candidateName: app.candidate?.full_name ?? "",
+      candidateEmail: app.candidate?.email,
+      jobId: app.job_id,
+      cvDocumentId: app.cv_document_id,
+      resumeId: app.resume_id,
+    });
   }, []);
 
   const handleCloseSummarize = () => {
@@ -604,6 +620,7 @@ export function EmployerCandidatesPage() {
           onOpenRounds={handleOpenRounds}
           onOpenChat={(app) => setChatTarget(app)}
           onSkillGap={handleSkillGap}
+          onOpenCopilot={(app) => setCopilotApp(app)}
           canManagePipeline={hasPermission("pipeline:manage")}
           canRecommend={hasPermission("candidate:recommend")}
           onStatusChange={async (applicationId, status, decisionReason) => {
@@ -981,7 +998,11 @@ export function EmployerCandidatesPage() {
           <RoundTimeline
             applicationId={roundsTarget.applicationId}
             candidateName={roundsTarget.candidateName}
+            candidateEmail={roundsTarget.candidateEmail}
             jobTitle={selectedJobTitle}
+            jobId={roundsTarget.jobId}
+            cvDocumentId={roundsTarget.cvDocumentId}
+            resumeId={roundsTarget.resumeId}
           />
         )}
         <div className="mt-6 pt-4 border-t border-gray-100 flex justify-end">
@@ -1027,6 +1048,16 @@ export function EmployerCandidatesPage() {
         applicationId={chatTarget?.id}
         candidateName={chatTarget?.candidate?.full_name}
         jobTitle={selectedJobTitle}
+      />
+
+      {/* RAG CV Copilot Grounded Drawer */}
+      <CVCopilotDrawer
+        isOpen={Boolean(copilotApp)}
+        onClose={() => setCopilotApp(null)}
+        candidateName={copilotApp?.candidate?.full_name}
+        documentTitle={copilotApp?.cv_document?.title || `${copilotApp?.candidate?.full_name ?? "Ứng viên"} - CV`}
+        cvDocumentId={copilotApp?.cv_document_id}
+        resumeId={copilotApp?.resume_id}
       />
     </PageTransition>
   );

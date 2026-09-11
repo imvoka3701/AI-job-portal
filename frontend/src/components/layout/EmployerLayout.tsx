@@ -14,6 +14,7 @@ import {
   ClipboardList,
   PanelLeftClose,
   PanelLeftOpen,
+  Sparkles,
 } from "lucide-react";
 import { useAuthStore, useUser } from "@/stores/authStore";
 import { getInitials, getFileUrl, cn } from "@/lib/utils";
@@ -25,6 +26,7 @@ const NAV_ITEMS = [
   { label: "Tổng quan", href: "/employer/dashboard", icon: LayoutDashboard, permission: "analytics:view" },
   { label: "Quản lý tin đăng", href: "/employer/jobs", icon: Briefcase, permission: "job:view" },
   { label: "Ứng viên (Pipeline)", href: "/employer/candidates", icon: Users, permission: "application:view" },
+  { label: "Tìm kiếm nhân tài AI", href: "/employer/talent-search", icon: Sparkles, permission: "application:view", badge: "AI RAG" },
   { label: "Lịch phỏng vấn", href: "/employer/interviews", icon: Calendar, permission: "application:view" },
   { label: "Nhu cầu tuyển dụng", href: "/employer/recruitment-requests", icon: ClipboardList, permission: "recruitment_request:view" },
   { label: "Đội ngũ & phân quyền", href: "/employer/team", icon: UserCog, permission: "team:view" },
@@ -147,6 +149,16 @@ function EmployerLayoutContent() {
                     )}
                   />
                   <span className={cn("truncate", isCollapsed && "lg:hidden")}>{item.label}</span>
+                  {item.badge && (
+                    <span
+                      className={cn(
+                        "ml-auto text-[9px] font-black px-1.5 py-0.5 rounded-md bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-2xs shrink-0",
+                        isCollapsed && "lg:hidden"
+                      )}
+                    >
+                      {item.badge}
+                    </span>
+                  )}
                 </>
               )}
             </NavLink>

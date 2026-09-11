@@ -12,7 +12,13 @@ from app.crud.document_chunk import crud_document_chunk
 from app.crud.job import crud_job
 from app.crud.resume import crud_resume
 from app.models.ai_call_log import AIFeature
+from app.models.cv_document import CvDocument
+from app.models.job import Job
+from app.models.resume import Resume
+from app.models.user import User
 from app.schemas.rag import (
+    RAGCVChatRequest,
+    RAGCVChatResponse,
     RAGInterviewQuestionItem,
     RAGInterviewQuestionsRequest,
     RAGInterviewQuestionsResponse,
@@ -129,7 +135,7 @@ class RAGService:
         except Exception as exc:
             logger.warning("Embedding generation failed for query, using fallback: %s", exc)
 
-        return crud_document_chunk.hybrid_search(
+        results = crud_document_chunk.hybrid_search(
             db,
             query_text=request.query,
             query_vector=query_vector,
@@ -139,6 +145,47 @@ class RAGService:
             limit=request.limit,
             min_score=request.min_score,
         )
+
+        if not results:
+            return results
+
+        # Batch enrich candidate names and document titles
+        user_ids = {r.user_id for r in results if r.user_id}
+        cv_doc_ids = {r.document_id for r in results if r.document_type == "cv_document"}
+        resume_ids = {r.document_id for r in results if r.document_type == "resume"}
+        job_ids = {r.document_id for r in results if r.document_type == "job"}
+
+        users_map = {}
+        if user_ids:
+            users = db.query(User).filter(User.id.in_(user_ids)).all()
+            users_map = {u.id: (u.full_name or u.email) for u in users}
+
+        cv_titles_map = {}
+        if cv_doc_ids:
+            docs = db.query(CvDocument).filter(CvDocument.id.in_(cv_doc_ids)).all()
+            cv_titles_map = {d.id: d.title for d in docs}
+
+        resume_titles_map = {}
+        if resume_ids:
+            resumes = db.query(Resume).filter(Resume.id.in_(resume_ids)).all()
+            resume_titles_map = {r.id: (r.file_name or f"CV đính kèm #{r.id}") for r in resumes}
+
+        job_titles_map = {}
+        if job_ids:
+            jobs = db.query(Job).filter(Job.id.in_(job_ids)).all()
+            job_titles_map = {j.id: j.title for j in jobs}
+
+        for r in results:
+            if r.user_id and r.user_id in users_map:
+                r.candidate_name = users_map[r.user_id]
+            if r.document_type == "cv_document":
+                r.document_title = cv_titles_map.get(r.document_id)
+            elif r.document_type == "resume":
+                r.document_title = resume_titles_map.get(r.document_id)
+            elif r.document_type == "job":
+                r.document_title = job_titles_map.get(r.document_id)
+
+        return results
 
     async def generate_grounded_interview_questions(
         self,
@@ -316,6 +363,183 @@ class RAGService:
                 ],
                 referenced_chunks=referenced_results,
             )
+
+    async def chat_with_cv(
+        self,
+        db: Session,
+        request: RAGCVChatRequest,
+    ) -> RAGCVChatResponse:
+        """Grounded CV Copilot — Answers queries regarding candidate profile with exact chunk citations."""
+        if not request.cv_document_id and not request.resume_id:
+            raise ValueError("Bắt buộc phải cung cấp cv_document_id hoặc resume_id.")
+
+        candidate_chunks = []
+        candidate_name = None
+        document_title = None
+
+        if request.cv_document_id:
+            candidate_chunks = crud_document_chunk.get_chunks_for_document(
+                db, document_type="cv_document", document_id=request.cv_document_id
+            )
+            if not candidate_chunks:
+                self.index_document(db, document_type="cv_document", document_id=request.cv_document_id)
+                candidate_chunks = crud_document_chunk.get_chunks_for_document(
+                    db, document_type="cv_document", document_id=request.cv_document_id
+                )
+            cv_doc = crud_cv_document.get_by_id(db, document_id=request.cv_document_id)
+            if cv_doc:
+                document_title = cv_doc.title
+                if cv_doc.user:
+                    candidate_name = cv_doc.user.full_name or cv_doc.user.email
+
+        elif request.resume_id:
+            candidate_chunks = crud_document_chunk.get_chunks_for_document(
+                db, document_type="resume", document_id=request.resume_id
+            )
+            if not candidate_chunks:
+                self.index_document(db, document_type="resume", document_id=request.resume_id)
+                candidate_chunks = crud_document_chunk.get_chunks_for_document(
+                    db, document_type="resume", document_id=request.resume_id
+                )
+            resume = crud_resume.get_by_id(db, resume_id=request.resume_id)
+            if resume:
+                document_title = resume.file_name or f"CV đính kèm #{resume.id}"
+                if resume.user:
+                    candidate_name = resume.user.full_name or resume.user.email
+
+        if not candidate_chunks:
+            return RAGCVChatResponse(
+                answer="Không tìm thấy nội dung phân đoạn nào trong hồ sơ này để phân tích.",
+                candidate_name=candidate_name,
+                document_title=document_title,
+                cited_chunk_ids=[],
+                referenced_chunks=[],
+            )
+
+        # Retrieve relevant chunks using vector similarity if available
+        selected_chunks = candidate_chunks[:8]
+        try:
+            query_vector = generate_embedding(request.query)
+            if query_vector:
+                scored_chunks = []
+                for c in candidate_chunks:
+                    if c.embedding is not None:
+                        dot = sum(a * b for a, b in zip(query_vector, c.embedding))
+                        scored_chunks.append((dot, c))
+                    else:
+                        scored_chunks.append((0.0, c))
+                scored_chunks.sort(key=lambda x: x[0], reverse=True)
+                selected_chunks = [c for _, c in scored_chunks[:7]]
+        except Exception as exc:
+            logger.warning("Failed to calculate vector similarity for chat query: %s", exc)
+
+        referenced_results: list[RAGSearchResult] = []
+        context_blocks = []
+        for c in selected_chunks:
+            safe_text = sanitize_pii(c.content)
+            context_blocks.append(f"[Chunk #{c.id} - Phân đoạn: {c.section_type}]:\n{safe_text}")
+            referenced_results.append(
+                RAGSearchResult(
+                    chunk_id=c.id,
+                    document_type=c.document_type,
+                    document_id=c.document_id,
+                    company_id=c.company_id,
+                    user_id=c.user_id,
+                    candidate_name=candidate_name,
+                    document_title=document_title,
+                    section_type=c.section_type,
+                    chunk_index=c.chunk_index,
+                    content=safe_text,
+                    metadata=c.metadata_dict,
+                    dense_score=1.0,
+                    sparse_score=1.0,
+                    hybrid_score=1.0,
+                )
+            )
+
+        grounded_context = "\n\n".join(context_blocks)
+
+        system_prompt = (
+            "Bạn là CV Copilot AI — Trợ lý phân tích hồ sơ ứng viên cao cấp dựa trên RAG. "
+            f"Bạn đang hỗ trợ Nhà tuyển dụng hoặc Ứng viên phân tích hồ sơ của: {candidate_name or 'Ứng viên'}. "
+            "\nNGUYÊN TẮC BẮT BUỘC:\n"
+            "1. Căn cứ trả lời TUYỆT ĐỐI dựa trên các phân đoạn văn bản [Chunk #...] được cung cấp bên dưới.\n"
+            "2. Tuyệt đối KHÔNG bịa đặt kinh nghiệm hoặc công nghệ mà ứng viên chưa từng đề cập.\n"
+            "3. Khi đề cập đến một thông tin, hãy trích dẫn mã chunk tương ứng trong dấu ngoặc vuông (Ví dụ: [Chunk #12]).\n"
+            "4. Nếu trong hồ sơ không có thông tin về câu hỏi của người dùng, hãy trả lời rõ ràng, trung thực rằng hồ sơ không đề cập đến nội dung này."
+        )
+
+        messages: list[dict[str, str]] = [
+            {"role": "system", "content": system_prompt},
+            {
+                "role": "user",
+                "content": f"DƯỚI ĐÂY LÀ CÁC TRÍCH ĐOẠN TỪ HỒ SƠ ỨNG VIÊN:\n\n{grounded_context}\n\nLỊCH SỬ HỘI THOẠI TRƯỚC ĐÓ:"
+            }
+        ]
+
+        for prev in request.chat_history[-6:]:
+            messages.append({"role": prev.role, "content": prev.content})
+
+        messages.append({
+            "role": "user",
+            "content": f"Câu hỏi hiện tại: {request.query}"
+        })
+
+        try:
+            llm_response = await deepseek_client.create_chat_completion(
+                messages=messages,
+                model=settings.LLM_MODEL,
+                response_format=None,
+                feature=AIFeature.COPILOT if hasattr(AIFeature, "COPILOT") else AIFeature.CV_EVALUATE,
+                db=db,
+            )
+            answer = llm_response.get("choices", [])[0].get("message", {}).get("content", "")
+        except Exception as exc:
+            logger.exception("DeepSeek chat completion failed: %s", exc)
+            answer = f"Không thể xử lý phản hồi từ mô hình AI: {str(exc)}"
+
+        cited_ids = set()
+        for match in re.finditer(r"\[Chunk #(\d+)\]", answer):
+            try:
+                cited_ids.add(int(match.group(1)))
+            except ValueError:
+                pass
+
+        if not cited_ids and referenced_results:
+            cited_ids = {r.chunk_id for r in referenced_results[:3]}
+
+        return RAGCVChatResponse(
+            answer=answer,
+            candidate_name=candidate_name,
+            document_title=document_title,
+            cited_chunk_ids=sorted(list(cited_ids)),
+            referenced_chunks=referenced_results,
+        )
+
+    def index_document_background(self, document_type: str, document_id: int) -> int:
+        """Safely index a document in a background task using its own isolated database session."""
+        from app.database import SessionLocal
+
+        db = SessionLocal()
+        try:
+            count = self.index_document(db, document_type=document_type, document_id=document_id)
+            logger.info(
+                "Background RAG indexed %s #%s successfully (%s chunks)",
+                document_type,
+                document_id,
+                count,
+            )
+            return count
+        except Exception as exc:
+            logger.warning(
+                "Background RAG indexing failed for %s #%s: %s",
+                document_type,
+                document_id,
+                exc,
+            )
+            return 0
+        finally:
+            db.close()
 
 
 rag_service = RAGService()

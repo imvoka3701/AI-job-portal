@@ -47,6 +47,9 @@ class RAGSearchResult(BaseModel):
     document_type: str
     document_id: int
     company_id: int | None = None
+    user_id: int | None = None
+    candidate_name: str | None = None
+    document_title: str | None = None
     section_type: str
     chunk_index: int
     content: str
@@ -91,4 +94,24 @@ class RAGInterviewQuestionsResponse(BaseModel):
     job_title: str
     candidate_name: str | None = None
     questions: list[RAGInterviewQuestionItem]
+    referenced_chunks: list[RAGSearchResult] = Field(default_factory=list)
+
+
+class RAGCVChatMessage(BaseModel):
+    role: str = Field(..., description="'user' | 'assistant'")
+    content: str = Field(..., min_length=1)
+
+
+class RAGCVChatRequest(BaseModel):
+    query: str = Field(..., min_length=1, max_length=2000, description="Câu hỏi dành cho AI về hồ sơ ứng viên")
+    cv_document_id: int | None = None
+    resume_id: int | None = None
+    chat_history: list[RAGCVChatMessage] = Field(default_factory=list)
+
+
+class RAGCVChatResponse(BaseModel):
+    answer: str
+    candidate_name: str | None = None
+    document_title: str | None = None
+    cited_chunk_ids: list[int] = Field(default_factory=list)
     referenced_chunks: list[RAGSearchResult] = Field(default_factory=list)

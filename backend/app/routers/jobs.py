@@ -2,7 +2,7 @@
 
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 
 logger = logging.getLogger(__name__)
 from sqlalchemy.orm import Session
@@ -14,11 +14,13 @@ from app.core.company_permissions import (
     require_job_scope,
 )
 from app.crud.company import crud_company
+from app.crud.document_chunk import crud_document_chunk
 from app.crud.job import crud_job
 from app.database import get_db
 from app.models.job import ExperienceLevel, JobType
 from app.schemas.job import JobCreate, JobListResponse, JobRead, JobUpdate
 from app.services.embedding_service import generate_embedding
+from app.services.rag_service import rag_service
 from app.services.recruitment_request_service import recruitment_request_service
 from app.utils.locations import parse_locations_param
 
@@ -87,6 +89,7 @@ def get_job(job_id: int, db: Session = Depends(get_db)) -> JobRead:
 )
 def create_job(
     data: JobCreate,
+    background_tasks: BackgroundTasks = BackgroundTasks(),
     context: CompanyContext = Depends(require_company_permission(CompanyPermission.JOB_MANAGE)),
     db: Session = Depends(get_db),
 ) -> JobRead:
@@ -125,9 +128,6 @@ def create_job(
     )
 
     # Generate embedding from concatenated JD text.
-    # Runs synchronously before returning the response (~100-200ms on CPU).
-    # This guarantees every job ALWAYS has an embedding — no race condition
-    # where a candidate matches against a job that hasn't been embedded yet.
     jd_text = " ".join(
         part for part in [data.title, data.description, data.requirements, data.benefits] if part
     )
@@ -149,6 +149,7 @@ def create_job(
             actor=context.user,
         )
 
+    background_tasks.add_task(rag_service.index_document_background, document_type="job", document_id=job.id)
     return JobRead.model_validate(job)
 
 
@@ -156,6 +157,7 @@ def create_job(
 def update_job(
     job_id: int,
     data: JobUpdate,
+    background_tasks: BackgroundTasks = BackgroundTasks(),
     context: CompanyContext = Depends(require_company_permission(CompanyPermission.JOB_MANAGE)),
     db: Session = Depends(get_db),
 ) -> JobRead:
@@ -196,6 +198,7 @@ def update_job(
             except Exception:
                 logger.exception("Failed to regenerate embedding for updated job %s", updated.id)
 
+    background_tasks.add_task(rag_service.index_document_background, document_type="job", document_id=updated.id)
     return JobRead.model_validate(updated)
 
 
@@ -211,3 +214,4 @@ def delete_job(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
     require_job_scope(db, context=context, job=job)
     crud_job.delete(db, job_id=job_id)
+    crud_document_chunk.delete_chunks_for_document(db, document_type="job", document_id=job_id)

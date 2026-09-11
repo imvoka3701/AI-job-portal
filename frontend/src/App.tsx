@@ -30,6 +30,7 @@ const CVEditorPage = lazy(() => import("@/pages/candidate/cv/CVEditorPage").then
 
 const EmployerDashboard = lazy(() => import("@/pages/employer/EmployerDashboard").then(m => ({ default: m.EmployerDashboard })));
 const EmployerCandidatesPage = lazy(() => import("@/pages/employer/EmployerCandidatesPage").then(m => ({ default: m.EmployerCandidatesPage })));
+const EmployerTalentSearch = lazy(() => import("@/pages/employer/EmployerTalentSearch").then(m => ({ default: m.EmployerTalentSearch })));
 const InterviewsPage = lazy(() => import("@/pages/employer/InterviewsPage").then(m => ({ default: m.InterviewsPage })));
 const EmployerJobsPage = lazy(() => import("@/pages/employer/jobs/EmployerJobsPage").then(m => ({ default: m.EmployerJobsPage })));
 const NewJobPage = lazy(() => import("@/pages/employer/jobs/NewJobPage").then(m => ({ default: m.NewJobPage })));
@@ -165,6 +166,10 @@ function App() {
               <Route 
                 path="/employer/candidates" 
                 element={<ProtectedRoute allowedRoles={["employer"]}><EmployerCandidatesPage /></ProtectedRoute>} 
+              />
+              <Route 
+                path="/employer/talent-search" 
+                element={<ProtectedRoute allowedRoles={["employer"]}><EmployerTalentSearch /></ProtectedRoute>} 
               />
               <Route 
                 path="/employer/interviews" 

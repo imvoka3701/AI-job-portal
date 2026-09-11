@@ -4,7 +4,7 @@ import logging
 import os
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile, status
 from fastapi.responses import FileResponse
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -18,6 +18,7 @@ from app.schemas.resume import ResumeCreate, ResumeRead
 from app.services.ai_errors import ai_http_exception
 from app.services.cv_evaluator import cv_evaluator_service
 from app.services.embedding_service import generate_embedding
+from app.services.rag_service import rag_service
 from app.utils.file_upload import (
     MIN_EXTRACTED_TEXT_LENGTH,
     extract_text_from_pdf,
@@ -45,6 +46,7 @@ ALLOWED_CONTENT_TYPES = {"application/pdf"}
 )
 async def upload_resume(
     file: UploadFile = File(..., description="Resume file (PDF only, max 5 MB)"),
+    background_tasks: BackgroundTasks = BackgroundTasks(),
     current_user: User = Depends(require_role(UserRole.CANDIDATE)),
     db: Session = Depends(get_db),
 ) -> ResumeRead:
@@ -149,6 +151,7 @@ async def upload_resume(
         industry_category_id=category_id,
     )
     resume = crud_resume.create(db, obj_in=resume_in, user_id=current_user.id)
+    background_tasks.add_task(rag_service.index_document_background, document_type="resume", document_id=resume.id)
     logger.info(
         "Resume created: id=%s user=%s file=%s text_len=%s validated=True industry=%s",
         resume.id,
@@ -168,6 +171,7 @@ async def upload_resume(
 )
 async def create_resume(
     data: ResumeCreate,
+    background_tasks: BackgroundTasks = BackgroundTasks(),
     current_user: User = Depends(require_role(UserRole.CANDIDATE)),
     db: Session = Depends(get_db),
 ) -> ResumeRead:
@@ -211,6 +215,7 @@ async def create_resume(
                 )
 
     resume = crud_resume.create(db, obj_in=data, user_id=current_user.id)
+    background_tasks.add_task(rag_service.index_document_background, document_type="resume", document_id=resume.id)
     return ResumeRead.model_validate(resume)
 
 

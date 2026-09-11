@@ -26,10 +26,22 @@ const STATUS_ICONS: Record<string, string> = {
 interface Props {
   applicationId: number;
   candidateName?: string;
+  candidateEmail?: string;
   jobTitle?: string;
+  jobId?: number;
+  cvDocumentId?: number | null;
+  resumeId?: number | null;
 }
 
-export function RoundTimeline({ applicationId, candidateName, jobTitle }: Props) {
+export function RoundTimeline({
+  applicationId,
+  candidateName,
+  candidateEmail,
+  jobTitle,
+  jobId,
+  cvDocumentId,
+  resumeId,
+}: Props) {
   const [rounds, setRounds] = useState<RoundItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -340,7 +352,12 @@ export function RoundTimeline({ applicationId, candidateName, jobTitle }: Props)
           roundNumber={rubricRound.round_number}
           roundType={rubricRound.round_type}
           candidateName={candidateName || "Ứng viên"}
+          candidateEmail={candidateEmail}
           jobTitle={jobTitle}
+          applicationId={applicationId}
+          jobId={jobId}
+          cvDocumentId={cvDocumentId}
+          resumeId={resumeId}
           onSaveSuccess={(savedAvgScore, newStatus) => {
             setRounds((prev) =>
               prev.map((item) =>

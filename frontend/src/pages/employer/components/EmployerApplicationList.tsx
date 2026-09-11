@@ -62,6 +62,7 @@ interface EmployerApplicationListProps {
   onOpenRounds: (app: EmployerApplication) => void;
   onOpenChat?: (app: EmployerApplication) => void;
   onSkillGap?: (app: EmployerApplication) => void;
+  onOpenCopilot?: (app: EmployerApplication) => void;
   canManagePipeline: boolean;
   canRecommend: boolean;
   onStatusChange: (applicationId: number, status: ApplicationStatus, decisionReason?: string) => Promise<void>;
@@ -103,6 +104,7 @@ export function EmployerApplicationList({
   onOpenRounds,
   onOpenChat,
   onSkillGap,
+  onOpenCopilot,
   canManagePipeline,
   canRecommend,
   onStatusChange,
@@ -455,6 +457,7 @@ export function EmployerApplicationList({
                     onGenerateEmail={onGenerateEmail}
                     onEvaluate={onEvaluate}
                     onSkillGap={onSkillGap}
+                    onOpenCopilot={onOpenCopilot}
                   />
                 )}
               </div>

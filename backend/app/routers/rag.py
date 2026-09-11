@@ -14,6 +14,8 @@ from app.models.job import Job
 from app.models.resume import Resume
 from app.models.user import User, UserRole
 from app.schemas.rag import (
+    RAGCVChatRequest,
+    RAGCVChatResponse,
     RAGInterviewQuestionsRequest,
     RAGInterviewQuestionsResponse,
     RAGQueryRequest,
@@ -37,8 +39,8 @@ def hybrid_search(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> Any:
-    # If user is employer, automatically enforce tenant boundary to their company_id
-    if current_user.role == UserRole.EMPLOYER:
+    # If user is employer and searching jobs, enforce tenant boundary to their company_id
+    if current_user.role == UserRole.EMPLOYER and payload.document_type == "job":
         membership = db.query(CompanyMembership).filter(CompanyMembership.user_id == current_user.id).first()
         if membership:
             payload.company_id = membership.company_id
@@ -98,6 +100,45 @@ async def generate_interview_questions(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Không thể tạo câu hỏi phỏng vấn RAG: {str(exc)}",
+        )
+
+
+@router.post(
+    "/chat-cv",
+    response_model=RAGCVChatResponse,
+    summary="CV Copilot RAG Chat",
+    description="Hỏi đáp thông minh về hồ sơ ứng viên với trích dẫn chứng cứ chính xác từ các đoạn phân đoạn.",
+)
+async def chat_with_cv(
+    payload: RAGCVChatRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Any:
+    # Security: If user is candidate, verify they own the resume/cv_document
+    if current_user.role == UserRole.CANDIDATE:
+        if payload.cv_document_id:
+            cv = db.query(CvDocument).filter(CvDocument.id == payload.cv_document_id).first()
+            if not cv or cv.user_id != current_user.id:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Bạn không có quyền truy vấn hồ sơ này.",
+                )
+        elif payload.resume_id:
+            res = db.query(Resume).filter(Resume.id == payload.resume_id).first()
+            if not res or res.user_id != current_user.id:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Bạn không có quyền truy vấn hồ sơ này.",
+                )
+
+    try:
+        response = await rag_service.chat_with_cv(db, payload)
+        return response
+    except Exception as exc:
+        logger.exception("Error in CV Copilot chat: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Không thể xử lý hội thoại CV Copilot: {str(exc)}",
         )
 
 

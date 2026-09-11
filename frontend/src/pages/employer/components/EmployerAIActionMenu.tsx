@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, FileText, Mail, MessageSquareText, Radar, Zap } from "lucide-react";
+import { ChevronDown, FileText, Mail, MessageSquareText, Radar, Sparkles, Zap } from "lucide-react";
 import { Button } from "@/components/ui";
 import type { EmployerApplication } from "@/types/application";
 import { cn } from "@/lib/utils";
@@ -11,6 +11,7 @@ interface EmployerAIActionMenuProps {
   onGenerateEmail: (app: EmployerApplication) => void;
   onEvaluate: (app: EmployerApplication) => void;
   onSkillGap?: (app: EmployerApplication) => void;
+  onOpenCopilot?: (app: EmployerApplication) => void;
   disabled?: boolean;
 }
 
@@ -21,6 +22,7 @@ export function EmployerAIActionMenu({
   onGenerateEmail,
   onEvaluate,
   onSkillGap,
+  onOpenCopilot,
   disabled = false,
 }: EmployerAIActionMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -102,6 +104,16 @@ export function EmployerAIActionMenu({
             >
               <Zap className="w-4 h-4 text-amber-500" />
               <span>Phân tích Skill Gap</span>
+            </button>
+          )}
+          {onOpenCopilot && (
+            <button
+              type="button"
+              onClick={() => handleAction(onOpenCopilot)}
+              className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm font-semibold text-indigo-700 bg-indigo-50/40 hover:bg-indigo-50 border-t border-indigo-100"
+            >
+              <Sparkles className="w-4 h-4 text-amber-500" />
+              <span>Hỏi CV Copilot (RAG)</span>
             </button>
           )}
         </div>

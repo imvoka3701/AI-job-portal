@@ -20,6 +20,7 @@ from app.crud.document_chunk import crud_document_chunk
 from app.models.cv_document import CvDocument
 from app.models.document_chunk import DocumentChunk
 from app.models.job import Job
+from app.models.user import User, UserRole
 from app.schemas.rag import (
     DocumentChunkCreate,
     RAGInterviewQuestionsRequest,
@@ -312,4 +313,104 @@ def test_rag_index_api_endpoint(client: TestClient, db_session: Session):
         data = response.json()
         assert data["status"] == "success"
         assert data["chunks_indexed"] == 4
+
+
+def test_cv_document_create_and_delete_cleans_chunks(client: TestClient, db_session: Session):
+    headers = _login(client, db_session, "auto-clean-owner@example.com", role="candidate")
+
+    # 1. Create CV Document
+    create_res = client.post(
+        "/cv-documents",
+        json={
+            "title": "Fullstack Python React",
+            "template_key": "ats-minimal",
+            "content_json": {
+                "personal": {"full_name": "Nguyen Van B", "headline": "Senior Fullstack"},
+                "skills": ["Python", "FastAPI", "React", "PostgreSQL"],
+            },
+        },
+        headers=headers,
+    )
+    assert create_res.status_code == 201
+    doc_id = create_res.json()["id"]
+
+    # Ingest chunks manually to simulate background task completion
+    rag_service.index_document(db_session, document_type="cv_document", document_id=doc_id)
+    chunks_before = crud_document_chunk.get_chunks_for_document(
+        db_session, document_type="cv_document", document_id=doc_id
+    )
+    assert len(chunks_before) > 0
+
+    # 2. Delete CV Document and verify chunks are automatically deleted
+    delete_res = client.delete(f"/cv-documents/{doc_id}", headers=headers)
+    assert delete_res.status_code == 204
+
+    chunks_after = crud_document_chunk.get_chunks_for_document(
+        db_session, document_type="cv_document", document_id=doc_id
+    )
+    assert len(chunks_after) == 0
+
+
+def test_cv_copilot_chat_endpoint(client: TestClient, db_session: Session):
+    headers = _login(client, db_session, "copilot-recruiter@example.com", role="employer")
+
+    cand = User(
+        email="copilot-cand@example.com",
+        hashed_password="dummy_hashed_password",
+        full_name="Trần Văn C",
+        role=UserRole.CANDIDATE,
+    )
+    db_session.add(cand)
+    db_session.commit()
+    db_session.refresh(cand)
+
+    cv_doc = CvDocument(
+        user_id=cand.id,
+        title="Senior AI Engineer",
+        template_key="ats-minimal",
+        content_json={
+            "personal": {"full_name": "Trần Văn C", "headline": "AI Specialist"},
+            "skills": ["Python", "FastAPI", "DeepSeek", "pgvector"],
+            "experience": [
+                {
+                    "company": "AI Labs",
+                    "position": "Lead AI Engineer",
+                    "description": "Triển khai hệ thống RAG và mô hình LLM DeepSeek tối ưu độ trễ dưới 200ms.",
+                }
+            ],
+        },
+    )
+    db_session.add(cv_doc)
+    db_session.commit()
+    db_session.refresh(cv_doc)
+
+    rag_service.index_document(db_session, document_type="cv_document", document_id=cv_doc.id)
+
+    with patch("app.services.deepseek_client.deepseek_client.create_chat_completion", new_callable=AsyncMock) as mock_llm:
+        mock_llm.return_value = {
+            "choices": [
+                {
+                    "message": {
+                        "content": "Ứng viên Trần Văn C có kinh nghiệm thực chiến triển khai hệ thống RAG và LLM DeepSeek tại AI Labs."
+                    }
+                }
+            ]
+        }
+
+        response = client.post(
+            "/rag/chat-cv",
+            json={
+                "query": "Ứng viên này có kinh nghiệm gì với DeepSeek và RAG?",
+                "cv_document_id": cv_doc.id,
+                "chat_history": [],
+            },
+            headers=headers,
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert "Trần Văn C" in data["candidate_name"]
+        assert "DeepSeek" in data["answer"]
+        assert len(data["referenced_chunks"]) > 0
+
 
