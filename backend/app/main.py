@@ -31,6 +31,9 @@ from app.database import get_db
 from app.routers import (
     admin,
     admin_ai,
+    admin_chat,
+    admin_feedback,
+    admin_rbac,
     ai,
     applications,
     assessments,
@@ -43,6 +46,7 @@ from app.routers import (
     email_webhooks,
     employer,
     exports,
+    feedback,
     interview_rounds,
     jobs,
     notifications,
@@ -222,11 +226,15 @@ app.include_router(email_webhooks.router)
 app.include_router(notifications.router)
 app.include_router(admin.router)
 app.include_router(admin_ai.router)
+app.include_router(admin_chat.router)
+app.include_router(admin_rbac.router)
 app.include_router(assessments.router)
 app.include_router(contact.router)
 app.include_router(ws.router)
 app.include_router(chat.router)
 app.include_router(exports.router)
+app.include_router(feedback.router)
+app.include_router(admin_feedback.router)
 
 # --- Mount Static Files (Public Avatars only) ---
 Path("uploads/avatars").mkdir(parents=True, exist_ok=True)

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { FileText, Trash2, Eye, Loader2, AlertCircle, Zap, Download } from "lucide-react";
-import { Button, Badge, ConfirmDialog } from "@/components/ui";
+import { Button, ConfirmDialog } from "@/components/ui";
 import { apiClient } from "@/lib/axios";
 import type { Resume } from "@/types/resume";
 
@@ -16,7 +16,7 @@ interface CVCardProps {
 export function CVCard({ resume, onDelete, onPreview, onEvaluate, state = "idle", isEvaluating = false }: CVCardProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
-  const isReady = !!resume.ai_evaluation_json;
+  const isReady = Boolean(resume.ai_evaluation_json);
 
   const handleDownload = async () => {
     setIsDownloading(true);
@@ -40,93 +40,116 @@ export function CVCard({ resume, onDelete, onPreview, onEvaluate, state = "idle"
     }
   };
 
+  const displayName = resume.title || `CV #${resume.id}`;
+
   return (
     <>
-      <div className={`relative group p-5 bg-white border rounded-xl transition-all duration-300 shadow-sm
-        ${state === "error" ? "border-red-200 bg-red-50" : "border-gray-200 hover:border-primary hover:shadow-md"}`}>
-        
+      <div
+        className={`relative p-4 sm:p-5 rounded-2xl bg-white border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
+          state === "error"
+            ? "border-rose-200 bg-rose-50/50"
+            : "border-slate-200/90 hover:border-purple-300 hover:shadow-xs"
+        }`}
+      >
         {state === "loading" && (
-          <div className="absolute inset-0 bg-white/60 backdrop-blur-[2px] flex items-center justify-center rounded-xl z-10">
-            <Loader2 className="w-6 h-6 text-primary animate-spin" />
+          <div className="absolute inset-0 bg-white/70 backdrop-blur-[2px] flex items-center justify-center rounded-2xl z-10">
+            <Loader2 className="w-6 h-6 text-purple-600 animate-spin" />
           </div>
         )}
 
-        <div className="flex items-start gap-4">
-          {/* Icon */}
-          <div className={`w-12 h-12 rounded-lg flex items-center justify-center shrink-0 transition-colors
-            ${state === "error" ? "bg-red-100 text-red-600" : "bg-primary-light text-primary-dark group-hover:bg-primary group-hover:text-white"}`}>
-            <FileText className="w-6 h-6" />
+        {/* Info Left */}
+        <div className="flex items-center gap-3.5 min-w-0">
+          <div
+            className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 border transition-colors ${
+              state === "error"
+                ? "bg-rose-100 border-rose-200 text-rose-600"
+                : "bg-purple-50 border-purple-100 text-purple-600"
+            }`}
+          >
+            <FileText size={20} />
           </div>
 
-          {/* Info */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center justify-between gap-2 mb-1">
-              <h3 className="text-[15px] font-semibold text-gray-900 truncate" title={resume.title || `CV #${resume.id}`}>
-                {resume.title || `CV #${resume.id}`}
+          <div className="min-w-0 space-y-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h3 className="text-sm font-black text-slate-900 truncate max-w-[240px] sm:max-w-[320px]" title={displayName}>
+                {displayName}
               </h3>
-              
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
+                PDF
+              </span>
+
               {state === "error" ? (
-                <Badge variant="danger" size="sm" className="shrink-0 flex items-center gap-1">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border bg-rose-50 text-rose-700 border-rose-200 flex items-center gap-1">
                   <AlertCircle className="w-3 h-3" /> Lỗi
-                </Badge>
+                </span>
               ) : isReady ? (
-                <Badge variant="success" size="sm" className="shrink-0">Sẵn sàng AI</Badge>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border bg-emerald-50 text-emerald-700 border-emerald-200">
+                  Sẵn sàng AI
+                </span>
               ) : (
-                <Badge variant="warning" size="sm" className="shrink-0">Đang phân tích...</Badge>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border bg-amber-50 text-amber-700 border-amber-200">
+                  Chờ phân tích
+                </span>
+              )}
+
+              {resume.is_validated && (
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border bg-purple-50 text-purple-700 border-purple-200">
+                  ✓ Verified ATS
+                </span>
               )}
             </div>
-            
-            <p className="text-xs text-gray-500 flex items-center gap-2">
-              <span>Tải lên {new Date(resume.created_at).toLocaleDateString("vi-VN")}</span>
-              {resume.is_validated && (
-                <Badge variant="success" size="sm" className="text-[10px] px-1.5 py-0">✓ Verified</Badge>
-              )}
+
+            <p className="text-[11px] text-slate-400 flex items-center gap-2">
+              <span>Tải lên: {new Date(resume.created_at).toLocaleDateString("vi-VN")}</span>
             </p>
           </div>
         </div>
 
-        {/* Actions */}
-        <div className="mt-5 flex items-center gap-2 pt-4 border-t border-gray-100">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="flex-1 bg-white hover:bg-gray-50 text-gray-700 h-9"
+        {/* Actions Right */}
+        <div className="flex items-center gap-2 shrink-0 flex-wrap sm:flex-nowrap">
+          <Button
+            size="sm"
+            variant="outline"
+            className="rounded-xl text-xs font-bold h-8 px-3 border-slate-200 text-slate-700 hover:bg-slate-50"
             onClick={() => onPreview(resume.id)}
             disabled={state !== "idle" || isEvaluating}
           >
-            <Eye className="w-4 h-4 mr-2 text-gray-500" />
-            Xem CV
+            <Eye className="w-3.5 h-3.5 mr-1.5 text-slate-400" />
+            Xem
           </Button>
+
           <Button
-            variant="outline"
             size="sm"
-            className="w-9 h-9 p-0 text-gray-500 hover:text-primary hover:bg-primary/5 shrink-0"
+            variant="outline"
+            className="rounded-xl text-xs font-bold h-8 px-2.5 border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900"
             onClick={handleDownload}
             disabled={state !== "idle" || isEvaluating || isDownloading}
-            title="Tải CV về máy"
+            title="Tải file PDF về máy"
           >
-            {isDownloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+            {isDownloading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
           </Button>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="flex-1 bg-primary/5 border-primary/20 hover:bg-primary/10 text-primary h-9 font-medium"
+
+          <Button
+            size="sm"
+            variant="outline"
+            className="rounded-xl text-xs font-bold h-8 px-3 border-purple-200 text-purple-600 bg-purple-50/60 hover:bg-purple-100/80 transition-colors"
             onClick={() => onEvaluate(resume.id)}
             isLoading={isEvaluating}
             disabled={state !== "idle" || isEvaluating}
           >
-            {!isEvaluating && <Zap className="w-4 h-4 mr-2 text-primary" />}
+            {!isEvaluating && <Zap className="w-3.5 h-3.5 mr-1.5 text-purple-600" />}
             AI Review
           </Button>
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className="w-9 h-9 p-0 text-gray-400 hover:text-red-600 hover:bg-red-50 shrink-0"
+
+          <Button
+            size="sm"
+            variant="outline"
+            className="rounded-xl text-xs font-bold h-8 px-2.5 border-rose-200 text-rose-600 bg-rose-50/40 hover:bg-rose-100 hover:text-rose-700 hover:border-rose-300 transition-colors cursor-pointer"
             onClick={() => setShowDeleteConfirm(true)}
             disabled={state !== "idle" || isEvaluating}
             title="Xóa CV"
           >
-            <Trash2 className="w-4 h-4" />
+            <Trash2 className="w-3.5 h-3.5" />
           </Button>
         </div>
       </div>
@@ -134,7 +157,7 @@ export function CVCard({ resume, onDelete, onPreview, onEvaluate, state = "idle"
       <ConfirmDialog
         isOpen={showDeleteConfirm}
         title="Xóa hồ sơ CV"
-        description="Bạn có chắc chắn muốn xóa bản CV này khỏi danh sách hồ sơ của bạn? Thao tác này không thể hoàn tác."
+        description={`Bạn có chắc chắn muốn xóa bản CV "${displayName}" khỏi danh sách hồ sơ của bạn? Thao tác này không thể hoàn tác.`}
         confirmLabel="Xóa CV"
         variant="destructive"
         onClose={() => setShowDeleteConfirm(false)}

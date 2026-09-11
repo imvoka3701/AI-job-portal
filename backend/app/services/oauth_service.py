@@ -168,7 +168,9 @@ class OAuthService:
             )
 
         # 4. Issue JWT
-        jwt_token = self._create_access_token(TokenPayload(sub=user.id, role=user.role))
+        jwt_token = self._create_access_token(
+            TokenPayload(sub=user.id, role=user.role, token_version=user.token_version)
+        )
 
         # 5. Frontend redirect URL (using URL fragment to prevent token leak in HTTP logs/Referer)
         role_path = "/employer/dashboard" if user.role == UserRole.EMPLOYER else "/dashboard"
@@ -255,7 +257,12 @@ class OAuthService:
         expire = datetime.now(timezone.utc) + timedelta(
             minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
         )
-        to_encode = {"sub": str(payload.sub), "role": payload.role.value, "exp": expire}
+        to_encode = {
+            "sub": str(payload.sub),
+            "role": payload.role.value,
+            "token_version": payload.token_version,
+            "exp": expire,
+        }
         return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
 

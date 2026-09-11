@@ -11,9 +11,7 @@ import {
   CardHeader,
   EmptyState,
   ErrorState,
-  PageTransition,
 } from "@/components/ui";
-import { AdminTabNavigation } from "./components/AdminTabNavigation";
 import { Calendar, Clock, MapPin, Users, AlertTriangle, CheckCircle2, XCircle, Filter } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -177,24 +175,22 @@ export function AdminInterviewsPage() {
   const activeFilters = (resultFilter !== "all" ? 1 : 0) + (roundTypeFilter !== "all" ? 1 : 0) + (needsReviewOnly ? 1 : 0);
 
   return (
-    <PageTransition className="min-h-screen bg-page-bg px-4 py-10 sm:px-6 lg:px-8">
-      <div className="max-w-7xl mx-auto space-y-6">
-        <div className="flex items-start justify-between">
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <Badge variant="primary" className="flex items-center gap-1.5 text-xs font-semibold">
-                <Users className="w-3.5 h-3.5" />
-                Interview Oversight
-              </Badge>
-            </div>
-            <h1 className="text-3xl font-semibold text-gray-900">Quản lý vòng phỏng vấn</h1>
-            <p className="text-sm text-gray-500 mt-1">
-              Giám sát toàn bộ vòng phỏng vấn, feedback và đánh dấu cần rà soát
-            </p>
+    <div className="space-y-6 max-w-[1600px] mx-auto font-sans">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-slate-200/80">
+        <div>
+          <div className="flex items-center gap-2 mb-1.5">
+            <span className="text-xs font-mono font-bold text-violet-700 uppercase tracking-wider">
+              Giám sát Vòng Tuyển dụng
+            </span>
           </div>
+          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+            Quản lý Vòng Phỏng vấn & Đánh giá
+          </h1>
+          <p className="text-sm text-slate-500 mt-1">
+            Giám sát toàn bộ tiến độ phỏng vấn, scorecard và đánh dấu can thiệp
+          </p>
         </div>
-
-        <AdminTabNavigation />
+      </div>
 
         <Card className="border-gray-200 shadow-sm">
           <CardHeader>
@@ -490,6 +486,5 @@ export function AdminInterviewsPage() {
           </CardContent>
         </Card>
       </div>
-    </PageTransition>
   );
 }

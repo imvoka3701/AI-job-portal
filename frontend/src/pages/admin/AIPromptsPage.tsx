@@ -22,7 +22,6 @@ import {
 import { Badge, Button, Skeleton } from "@/components/ui";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
-import { AdminTabNavigation } from "./components/AdminTabNavigation";
 import { SEOMeta } from "@/components/seo/SEOMeta";
 import {
   getAIPrompts,
@@ -189,29 +188,27 @@ export function AIPromptsPage() {
 
   return (
     <>
-      <SEOMeta title="Quản lý AI Prompt — Admin" description="Chỉnh sửa system prompt cho các tính năng AI" />
-      <div className="min-h-screen bg-[#F8FAFC] font-sans px-4 py-8 sm:px-6 lg:px-8">
-        <div className="max-w-4xl mx-auto space-y-5">
-
-          {/* Hero Header */}
-          <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-3xl p-6 sm:p-7 text-white relative overflow-hidden shadow-xl">
-            <div className="absolute inset-0 opacity-[0.04]" style={{ backgroundImage: "linear-gradient(#fff 1px,transparent 1px),linear-gradient(90deg,#fff 1px,transparent 1px)", backgroundSize: "40px 40px" }} />
-            <div className="absolute -top-16 -right-16 w-60 h-60 bg-purple-500/20 rounded-full blur-3xl pointer-events-none" />
-            <div className="relative flex items-center gap-3">
-              <div className="w-10 h-10 bg-purple-500/20 border border-purple-400/30 rounded-xl flex items-center justify-center flex-shrink-0">
-                <Sparkles className="w-5 h-5 text-purple-400" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2 mb-0.5">
-                  <span className="text-xs font-bold text-purple-400 uppercase tracking-widest">Admin · AI Engine</span>
-                </div>
-                <h1 className="text-2xl sm:text-3xl font-extrabold text-white">Quản lý AI Prompt</h1>
-                <p className="text-slate-400 text-sm mt-0.5">Chỉnh sửa system prompt cho từng tính năng AI. Hệ thống tự động dùng lại prompt gốc nếu bạn để trống.</p>
-              </div>
+      <SEOMeta
+        title="Quản lý AI Prompts | Admin Console"
+        description="Chỉnh sửa system prompt và cấu hình kịch bản cho các tính năng AI"
+      />
+      <div className="space-y-6 max-w-[1600px] mx-auto font-sans">
+        {/* Page Header (Enterprise Standard) */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-slate-200/80">
+          <div>
+            <div className="flex items-center gap-2 mb-1.5">
+              <span className="text-xs font-mono font-bold text-pink-700 uppercase tracking-wider">
+                Hạ tầng & Trí tuệ Nhân tạo
+              </span>
             </div>
+            <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+              Quản lý AI System Prompts
+            </h1>
+            <p className="text-sm text-slate-500 mt-1">
+              Chỉnh sửa kịch bản hệ thống, biến môi trường và quy tắc phản hồi cho các tính năng AI Copilot
+            </p>
           </div>
-
-          <AdminTabNavigation />
+        </div>
 
           {/* Loading */}
           {loading && (
@@ -341,7 +338,6 @@ export function AIPromptsPage() {
               })}
             </div>
           )}
-        </div>
       </div>
     </>
   );

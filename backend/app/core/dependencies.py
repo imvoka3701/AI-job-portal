@@ -28,13 +28,27 @@ def get_current_user(
         from jose import jwt
 
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-        token_data = TokenPayload(sub=int(payload["sub"]), role=payload["role"])
+        token_ver = payload.get("token_version")
+        token_data = TokenPayload(
+            sub=int(payload["sub"]),
+            role=payload["role"],
+            token_version=token_ver if token_ver is not None else 1,
+        )
     except (JWTError, KeyError, ValueError):
         raise credentials_exception
 
     user = crud_user.get_by_id(db, user_id=token_data.sub)
     if user is None:
         raise credentials_exception
+
+    # Immediate token revocation / invalidation check (e.g. role changed, forced logout)
+    if token_ver is not None and token_ver != user.token_version:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Phiên đăng nhập đã hết hiệu lực do quyền hạn thay đổi. Vui lòng đăng nhập lại.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
     if not user.is_active:
         if user.role == UserRole.EMPLOYER:
             raise HTTPException(
@@ -60,6 +74,25 @@ def require_role(*roles: UserRole):
         return current_user
 
     return role_checker
+
+
+def require_permission(permission_code: str):
+    """Dependency factory requiring user to have a specific admin permission."""
+
+    def permission_checker(current_user: User = Depends(get_current_user)) -> User:
+        if current_user.role != UserRole.ADMIN:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Quyền truy cập chỉ dành cho Quản trị viên hệ thống (Admin).",
+            )
+        if not current_user.has_permission(permission_code):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Tài khoản thiếu quyền hạn thực hiện thao tác này: [{permission_code}].",
+            )
+        return current_user
+
+    return permission_checker
 
 
 oauth2_scheme_optional = OAuth2PasswordBearer(tokenUrl="/auth/login", auto_error=False)

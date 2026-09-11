@@ -24,7 +24,6 @@ import {
 import { Skeleton } from "@/components/ui";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
-import { AdminTabNavigation } from "./components/AdminTabNavigation";
 import { SEOMeta } from "@/components/seo/SEOMeta";
 import {
   getAICallLogs,
@@ -262,47 +261,48 @@ export function AdminAILogsPage() {
 
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] font-sans">
-      <SEOMeta title="AI Call Logs — Admin" description="Theo dõi lịch sử gọi AI, chi phí và tỉ lệ lỗi theo tính năng" />
+    <>
+      <SEOMeta
+        title="AI Logs & Chi phí Token | Admin Console"
+        description="Theo dõi lịch sử gọi AI, độ trễ và chi phí token theo từng tính năng"
+      />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-5">
+      <div className="space-y-6 max-w-[1600px] mx-auto font-sans">
+        {/* Page Header (Enterprise Standard) */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-slate-200/80">
+          <div>
+            <div className="flex items-center gap-2 mb-1.5">
+              <span className="text-xs font-mono font-bold text-violet-700 uppercase tracking-wider">
+                Hạ tầng & Giám sát AI
+              </span>
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+              AI Call Logs & Chi Phí Token
+            </h1>
+            <p className="text-sm text-slate-500 mt-1">
+              Theo dõi độ trễ, lưu lượng token và chi phí vận hành DeepSeek API theo từng tính năng
+            </p>
+          </div>
 
-        {/* Hero Header */}
-        <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-3xl p-6 sm:p-7 text-white relative overflow-hidden shadow-xl">
-          <div className="absolute inset-0 opacity-[0.04]" style={{ backgroundImage: "linear-gradient(#fff 1px,transparent 1px),linear-gradient(90deg,#fff 1px,transparent 1px)", backgroundSize: "40px 40px" }} />
-          <div className="absolute -top-16 -right-16 w-60 h-60 bg-violet-500/20 rounded-full blur-3xl pointer-events-none" />
-          <div className="relative flex items-start justify-between gap-4 flex-wrap">
-            <div>
-              <div className="flex items-center gap-2 mb-2.5">
-                <div className="w-7 h-7 bg-violet-500/20 border border-violet-400/30 rounded-lg flex items-center justify-center">
-                  <Activity className="w-3.5 h-3.5 text-violet-400" />
-                </div>
-                <span className="text-xs font-bold text-violet-400 uppercase tracking-widest">Admin · AI Control</span>
+          <div className="flex items-center gap-3 flex-wrap">
+            {stats && (
+              <div className="px-3.5 py-2 bg-white border border-slate-200 rounded-xl flex items-center gap-2.5 text-xs shadow-xs">
+                <span className="text-slate-500">Chi phí tháng này:</span>
+                <span className="font-mono font-bold text-[#00995C]">
+                  ${stats.total_cost_month_usd.toFixed(2)}
+                </span>
               </div>
-              <h1 className="text-2xl sm:text-3xl font-extrabold text-white">AI Call Logs</h1>
-              <p className="text-slate-400 text-sm mt-1.5">Theo dõi lịch sử gọi AI, latency và chi phí theo từng tính năng</p>
-            </div>
-            <div className="flex items-center gap-3 flex-shrink-0">
-              {stats && (
-                <div className="text-right">
-                  <p className="text-2xl font-extrabold text-white tabular-nums">${stats.total_cost_month_usd.toFixed(2)}</p>
-                  <p className="text-slate-400 text-xs mt-0.5">Chi phí tháng này</p>
-                </div>
-              )}
-              <button
-                id="btn-refresh-ai-logs"
-                onClick={handleRefresh}
-                className="flex items-center gap-2 px-4 py-2.5 bg-white/10 hover:bg-white/20 border border-white/20 text-white text-sm font-bold rounded-xl transition-all"
-              >
-                <RefreshCw className="w-4 h-4" />
-                Làm mới
-              </button>
-            </div>
+            )}
+            <button
+              id="btn-refresh-ai-logs"
+              onClick={handleRefresh}
+              className="flex items-center gap-2 px-3.5 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-semibold rounded-xl shadow-xs transition-colors"
+            >
+              <RefreshCw className="w-3.5 h-3.5 text-slate-500" />
+              <span>Làm mới</span>
+            </button>
           </div>
         </div>
-
-        {/* Tab Navigation */}
-        <AdminTabNavigation />
 
         {/* KPI Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -463,8 +463,7 @@ export function AdminAILogsPage() {
             </div>
           )}
         </div>
-
       </div>
-    </div>
+    </>
   );
 }

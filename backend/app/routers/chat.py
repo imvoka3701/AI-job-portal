@@ -18,6 +18,7 @@ from app.schemas.chat import (
     ChatMessageOut,
     ConversationDetailOut,
     ConversationOut,
+    ConversationReportRequest,
 )
 from app.services.notification_dispatcher import create_and_dispatch_notification
 from app.services.websocket_manager import ws_manager
@@ -35,6 +36,13 @@ def _format_conversation_out(conv: Conversation, user_id: int, db: Session) -> d
     candidate_avatar = conv.candidate.avatar_url if conv.candidate else None
     job_title = conv.job.title if conv.job else None
     company_name = conv.company.name if conv.company else None
+    company_logo = conv.company.logo_url if conv.company else None
+
+    employer_name = None
+    employer_avatar = None
+    if conv.job and conv.job.employer:
+        employer_name = conv.job.employer.full_name or conv.job.employer.email
+        employer_avatar = conv.job.employer.avatar_url
 
     return {
         "id": conv.id,
@@ -46,9 +54,15 @@ def _format_conversation_out(conv: Conversation, user_id: int, db: Session) -> d
         "candidate_avatar": candidate_avatar,
         "company_id": conv.company_id,
         "company_name": company_name,
+        "company_logo": company_logo,
+        "employer_id": conv.job.employer_id if conv.job else None,
+        "employer_name": employer_name,
+        "employer_avatar": employer_avatar,
         "last_message": last_msg,
         "last_message_at": conv.last_message_at,
         "unread_count": unread_count,
+        "is_locked": conv.is_locked,
+        "is_reported": conv.is_reported,
         "created_at": conv.created_at,
         "updated_at": conv.updated_at,
     }
@@ -56,6 +70,7 @@ def _format_conversation_out(conv: Conversation, user_id: int, db: Session) -> d
 
 def _format_message_out(msg: ChatMessage) -> dict[str, Any]:
     sender_name = msg.sender.full_name or msg.sender.email if msg.sender else None
+    sender_avatar = msg.sender.avatar_url if msg.sender else None
     sender_role = (
         msg.sender.role.value
         if msg.sender and hasattr(msg.sender.role, "value")
@@ -69,6 +84,7 @@ def _format_message_out(msg: ChatMessage) -> dict[str, Any]:
         "sender_id": msg.sender_id,
         "sender_name": sender_name,
         "sender_role": sender_role,
+        "sender_avatar": sender_avatar,
         "content": msg.content,
         "is_read": msg.is_read,
         "read_at": msg.read_at,
@@ -218,6 +234,12 @@ def send_message(
             detail="Bạn không có quyền gửi tin nhắn trong cuộc trò chuyện này.",
         )
 
+    if conv.is_locked:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cuộc trò chuyện này đã bị tạm khóa bởi quản trị viên do có báo cáo vi phạm.",
+        )
+
     msg = crud_chat.create_message(
         db,
         conversation_id=conv.id,
@@ -247,6 +269,10 @@ def send_message(
                     "application_id": conv.application_id,
                     "sender_id": current_user.id,
                     "sender_name": sender_display,
+                    "sender_avatar": current_user.avatar_url,
+                    "company_name": conv.company.name if conv.company else None,
+                    "company_logo": conv.company.logo_url if conv.company else None,
+                    "job_title": conv.job.title if conv.job else None,
                     "content": msg.content,
                     "created_at": msg.created_at.isoformat() if msg.created_at else None,
                 },
@@ -299,3 +325,50 @@ def mark_conversation_as_read(
 
     count = crud_chat.mark_messages_read(db, conversation_id=conv.id, reader_id=current_user.id)
     return {"marked": count}
+
+
+@router.post(
+    "/conversations/{conversation_id}/report",
+    summary="Báo cáo cuộc trò chuyện vi phạm",
+    description="Người tham gia cuộc trò chuyện báo cáo hành vi quấy rối, lừa đảo hoặc vi phạm an toàn.",
+)
+def report_conversation(
+    conversation_id: int,
+    payload: ConversationReportRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Any:
+    conv = crud_chat.get_conversation_by_id(db, conversation_id=conversation_id)
+    if not conv:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Không tìm thấy cuộc trò chuyện #{conversation_id}",
+        )
+
+    if not crud_chat.user_has_access_to_conversation(db, conversation=conv, user=current_user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Bạn không có quyền báo cáo cuộc trò chuyện này.",
+        )
+
+    updated_conv = crud_chat.report_conversation(
+        db,
+        conversation_id=conv.id,
+        reporter_id=current_user.id,
+        reason=payload.reason,
+    )
+
+    logger.warning(
+        "Direct chat conversation #%d reported by user #%d (%s): %s",
+        conv.id,
+        current_user.id,
+        current_user.email,
+        payload.reason,
+    )
+
+    return {
+        "message": "Đã gửi báo cáo vi phạm tới ban quản trị để can thiệp bảo vệ cộng đồng.",
+        "conversation_id": updated_conv.id,
+        "is_reported": updated_conv.is_reported,
+        "reported_at": updated_conv.reported_at,
+    }

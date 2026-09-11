@@ -1,9 +1,9 @@
 /** Vertical round timeline with schedule form, quick-pick presets, live preview. */
 
 import { useState, useEffect, useCallback } from "react";
-import { Download } from "lucide-react";
+import { Download, Award } from "lucide-react";
 import { getRounds, createRound, updateRound, type RoundItem } from "@/lib/api/rounds";
-import { apiClient } from "@/lib/axios";
+import { InterviewRubricModal } from "@/pages/employer/components/modals/InterviewRubricModal";
 
 const ROUND_TYPE_OPTIONS = [
   { value: "cv_screen", label: "Duyệt CV", color: "text-sky-600 bg-sky-50 border-sky-200" },
@@ -25,9 +25,11 @@ const STATUS_ICONS: Record<string, string> = {
 
 interface Props {
   applicationId: number;
+  candidateName?: string;
+  jobTitle?: string;
 }
 
-export function RoundTimeline({ applicationId }: Props) {
+export function RoundTimeline({ applicationId, candidateName, jobTitle }: Props) {
   const [rounds, setRounds] = useState<RoundItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -44,41 +46,8 @@ export function RoundTimeline({ applicationId }: Props) {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
-  // ── Scoring panel ─────────────────────────────────────────────────────────
-  const DEFAULT_CRITERIA = ["Kỹ năng chuyên môn", "Kỹ năng giao tiếp", "Kinh nghiệm thực tế", "Thái độ / Tinh thần", "Phù hợp văn hóa"];
-  const [scoreRoundId, setScoreRoundId] = useState<number | null>(null);
-  const [criteriaScores, setCriteriaScores] = useState<Array<{ criteria_name: string; score: number; notes: string }>>([]);
-  const [scoreLoading, setScoreLoading] = useState(false);
-  const [scoreSaved, setScoreSaved] = useState(false);
-
-  const openScoring = async (round: RoundItem) => {
-    setScoreRoundId(round.id);
-    setScoreSaved(false);
-    setScoreLoading(true);
-    try {
-      const { data } = await apiClient.get(`/rounds/${round.id}/criteria`);
-      if (data.length > 0) {
-        setCriteriaScores(data.map((c: { criteria_name: string; score: number; notes: string | null }) => ({ criteria_name: c.criteria_name, score: c.score, notes: c.notes || "" })));
-      } else {
-        setCriteriaScores(DEFAULT_CRITERIA.map((c) => ({ criteria_name: c, score: 5, notes: "" })));
-      }
-    } catch { setCriteriaScores(DEFAULT_CRITERIA.map((c) => ({ criteria_name: c, score: 5, notes: "" }))); }
-    finally { setScoreLoading(false); }
-  };
-
-  const handleSaveCriteria = async () => {
-    if (!scoreRoundId) return;
-    setScoreLoading(true);
-    try {
-      await apiClient.put(`/rounds/${scoreRoundId}/criteria`, { criteria: criteriaScores });
-      setScoreSaved(true);
-      // Update local round score
-      const avg = Math.round(criteriaScores.reduce((s, c) => s + c.score, 0) / criteriaScores.length);
-      setRounds((rs) => rs.map((r) => r.id === scoreRoundId ? { ...r, score: avg } : r));
-      setTimeout(() => { setScoreSaved(false); setScoreRoundId(null); }, 1500);
-    } catch { /* ignore */ }
-    finally { setScoreLoading(false); }
-  };
+  // ── Rubric Scoring Modal state ─────────────────────────────────────────────
+  const [rubricRound, setRubricRound] = useState<RoundItem | null>(null);
 
   const fetch = useCallback(() => {
     setLoading(true); setError(null);
@@ -230,15 +199,21 @@ export function RoundTimeline({ applicationId }: Props) {
                   </div>
                 </div>
 
-                {/* Score display + scoring button */}
+                {/* Score display + Rubric scoring button */}
                 {r.score != null && (
-                  <span className="ml-2 inline-flex items-center gap-1 text-[11px] font-semibold text-gray-700 bg-gray-100 rounded-full px-2 py-0.5">
-                    Điểm: {r.score}/10
+                  <span className="ml-2 inline-flex items-center gap-1 text-[11px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200/80 rounded-full px-2 py-0.5">
+                    <Award className="w-3 h-3 text-indigo-500" />
+                    Rubric: {r.score}/10
                   </span>
                 )}
-                <button onClick={() => scoreRoundId === r.id ? setScoreRoundId(null) : openScoring(r)}
-                  className="text-[11px] text-primary hover:text-primary-hover font-medium ml-2">
-                  {scoreRoundId === r.id ? "Ẩn chấm điểm" : r.score != null ? "Sửa điểm" : "Chấm điểm phỏng vấn"}
+                <button
+                  type="button"
+                  onClick={() => setRubricRound(r)}
+                  className="text-[11px] text-indigo-600 hover:text-indigo-800 hover:underline font-bold ml-2 inline-flex items-center gap-1 cursor-pointer"
+                  title="Mở bảng chấm điểm Rubric"
+                >
+                  <Award className="w-3 h-3" />
+                  {r.score != null ? "Sửa Rubric" : "Chấm điểm Rubric"}
                 </button>
 
                 {/* Actions */}
@@ -252,43 +227,6 @@ export function RoundTimeline({ applicationId }: Props) {
                     >{s==="passed"?"✓ Qua":s==="failed"?"✗ Rớt":"→ Bỏ qua"}</button>
                   ))}
                 </div>
-
-                {/* Scoring panel */}
-                {scoreRoundId === r.id && (
-                  <div className="mt-3 pt-3 border-t border-gray-100 space-y-3 animate-[fadeIn_0.2s_ease-out]">
-                    {scoreLoading ? (
-                      <div className="flex justify-center py-4"><span className="inline-block w-5 h-5 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin"/></div>
-                    ) : (
-                      <>
-                        {criteriaScores.map((c, ci) => (
-                          <div key={c.criteria_name} className="flex items-center gap-3">
-                            <label className="text-xs font-medium text-gray-700 w-32 shrink-0">{c.criteria_name}</label>
-                            <input type="range" min="0" max="10" value={c.score}
-                              onChange={(e) => {
-                                const newScores = [...criteriaScores];
-                                newScores[ci] = { ...c, score: Number(e.target.value) };
-                                setCriteriaScores(newScores);
-                              }}
-                              className="flex-1 h-1.5 rounded-full appearance-none bg-gray-200 accent-emerald-600 cursor-pointer" />
-                            <span className="text-xs font-bold text-gray-900 w-6 text-right">{c.score}</span>
-                          </div>
-                        ))}
-                        <textarea placeholder="Ghi chú chung cho lần chấm điểm này..."
-                          value={criteriaScores[0]?.notes || ""}
-                          onChange={(e) => {
-                            const ns = [...criteriaScores];
-                            if (ns[0]) ns[0] = { ...ns[0], notes: e.target.value };
-                            setCriteriaScores(ns);
-                          }}
-                          className="w-full h-16 rounded-lg border border-gray-200 bg-white text-xs p-2 resize-y" />
-                        <button onClick={handleSaveCriteria} disabled={scoreLoading}
-                          className={`w-full h-9 rounded-lg text-sm font-medium transition-all ${scoreSaved ? "bg-green-500 text-white" : "bg-emerald-600 text-white hover:bg-emerald-700"} disabled:opacity-50`}>
-                          {scoreSaved ? "✓ Đã lưu điểm" : "Lưu điểm"}
-                        </button>
-                      </>
-                    )}
-                  </div>
-                )}
 
                 {/* Schedule form */}
                 {showSchedule && (
@@ -391,6 +329,33 @@ export function RoundTimeline({ applicationId }: Props) {
             ))}
           </div>
         </details>
+      )}
+
+      {/* Interview Rubric Modal */}
+      {rubricRound && (
+        <InterviewRubricModal
+          isOpen={true}
+          onClose={() => setRubricRound(null)}
+          roundId={rubricRound.id}
+          roundNumber={rubricRound.round_number}
+          roundType={rubricRound.round_type}
+          candidateName={candidateName || "Ứng viên"}
+          jobTitle={jobTitle}
+          onSaveSuccess={(savedAvgScore, newStatus) => {
+            setRounds((prev) =>
+              prev.map((item) =>
+                item.id === rubricRound.id
+                  ? {
+                      ...item,
+                      score: savedAvgScore,
+                      status: (newStatus as RoundItem["status"]) || item.status,
+                    }
+                  : item
+              )
+            );
+            setRubricRound(null);
+          }}
+        />
       )}
     </div>
   );

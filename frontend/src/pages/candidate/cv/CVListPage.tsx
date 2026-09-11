@@ -11,7 +11,7 @@ import {
   Zap,
   Edit3,
 } from "lucide-react";
-import { Button, Card, Skeleton } from "@/components/ui";
+import { Button, Card, Skeleton, ConfirmDialog } from "@/components/ui";
 import { createCvDocument, deleteCvDocument, getCvDocuments } from "@/lib/api/cvDocuments";
 import { evaluateCV } from "@/lib/api/ai";
 import { AICVReviewModal, type CVEvaluationResponse } from "@/pages/candidate/components/AICVReviewModal";
@@ -25,6 +25,7 @@ export function CVListPage() {
   const [isCreating, setIsCreating] = useState(false);
   const [evaluatingDocId, setEvaluatingDocId] = useState<number | null>(null);
   const [reviewData, setReviewData] = useState<CVEvaluationResponse | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<CvDocument | null>(null);
 
   useEffect(() => {
     getCvDocuments()
@@ -46,11 +47,12 @@ export function CVListPage() {
     }
   };
 
-  const remove = async (document: CvDocument) => {
-    if (!window.confirm(`Bạn có chắc chắn muốn xóa "${document.title}"?`)) return;
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
     try {
-      await deleteCvDocument(document.id);
-      setDocuments((items) => items.filter((item) => item.id !== document.id));
+      await deleteCvDocument(deleteTarget.id);
+      setDocuments((items) => items.filter((item) => item.id !== deleteTarget.id));
+      setDeleteTarget(null);
     } catch {
       setError("Không thể xóa CV này.");
     }
@@ -256,7 +258,7 @@ export function CVListPage() {
                     </button>
 
                     <button
-                      onClick={() => remove(doc)}
+                      onClick={() => setDeleteTarget(doc)}
                       className="p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
                       title="Xóa CV này"
                     >
@@ -269,6 +271,18 @@ export function CVListPage() {
           </div>
         )}
       </main>
+
+      {/* Confirm Delete Dialog */}
+      <ConfirmDialog
+        isOpen={!!deleteTarget}
+        title="Xác nhận xóa bản CV"
+        description={`Bạn có chắc chắn muốn xóa bản CV "${deleteTarget?.title}"? Thao tác này sẽ xóa vĩnh viễn và không thể hoàn tác.`}
+        confirmLabel="Xóa CV"
+        cancelLabel="Hủy"
+        variant="destructive"
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={confirmDelete}
+      />
 
       {reviewData && (
         <AICVReviewModal

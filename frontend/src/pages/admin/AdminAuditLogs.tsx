@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { ClipboardList, RefreshCw, Shield } from "lucide-react";
-import { AdminTabNavigation } from "./components/AdminTabNavigation";
+import { ClipboardList, RefreshCw } from "lucide-react";
 import { AdminPagination } from "./components/AdminPagination";
 import {
   getAdminAuditLogs,
@@ -59,20 +58,22 @@ export function AdminAuditLogs() {
   }, [loadLogs]);
 
   return (
-    <div className="min-h-screen bg-page-bg px-4 py-10 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-6xl space-y-6">
+    <div className="space-y-6 max-w-[1600px] mx-auto font-sans">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-slate-200/80">
         <div>
-          <Badge variant="primary" className="mb-2 inline-flex items-center gap-1.5 text-xs font-semibold">
-            <Shield className="h-3.5 w-3.5" />
-            Admin
-          </Badge>
-          <h1 className="text-3xl font-semibold text-gray-900">Nhật ký quản trị</h1>
-          <p className="mt-1 text-sm text-gray-500">
-            Theo dõi các thao tác có ảnh hưởng đến tài khoản và dữ liệu tuyển dụng.
+          <div className="flex items-center gap-2 mb-1.5">
+            <span className="text-xs font-mono font-bold text-slate-500 uppercase tracking-wider">
+              An toàn & Nhật ký Bảo mật
+            </span>
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+            Nhật Ký Kiểm Toán Hệ Thống (Audit Logs)
+          </h1>
+          <p className="text-sm text-slate-500 mt-1">
+            Theo dõi các thao tác quản trị có ảnh hưởng đến tài khoản và dữ liệu tuyển dụng
           </p>
         </div>
-
-        <AdminTabNavigation />
+      </div>
 
         <div className="flex items-center justify-between gap-3">
           <label className="text-sm font-medium text-gray-700">
@@ -169,6 +170,5 @@ export function AdminAuditLogs() {
           </Card>
         )}
       </div>
-    </div>
   );
 }

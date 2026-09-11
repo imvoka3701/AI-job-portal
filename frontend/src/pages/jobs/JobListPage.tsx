@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { Header } from "@/pages/jobs/components/Header";
 import { SearchHero } from "./components/SearchHero";
 import { AIMatchBanner } from "./components/AIMatchBanner";
@@ -9,10 +9,6 @@ import { CVBuilderPromo } from "./components/CVBuilderPromo";
 import { PlatformStats } from "./components/PlatformStats";
 import { Footer } from "./components/Footer";
 import { useJobStore, useJobsError } from "@/stores/jobStore";
-import { useUser } from "@/stores/authStore";
-import { getMyResumes } from "@/lib/api/resumes";
-import { getCvDocuments } from "@/lib/api/cvDocuments";
-import { RecommendedJobs } from "@/pages/candidate/components/RecommendedJobs";
 import { motion, AnimatePresence } from "framer-motion";
 import { AlertCircle, X } from "lucide-react";
 import { SEOMeta } from "@/components/seo/SEOMeta";
@@ -21,44 +17,11 @@ export function JobListPage() {
   const fetchJobs = useJobStore((s) => s.fetchJobs);
   const clearError = useJobStore((s) => s.clearError);
   const error = useJobsError();
-  const user = useUser();
-
-  const [candidateCv, setCandidateCv] = useState<{
-    resumeId: number | null;
-    cvDocumentId: number | null;
-    hasCv: boolean;
-  }>({ resumeId: null, cvDocumentId: null, hasCv: false });
 
   // Fetch jobs on first mount — filters changes are handled inside setFilters()
   useEffect(() => {
     fetchJobs(1);
   }, [fetchJobs]);
-
-  useEffect(() => {
-    if (!user || user.role !== "candidate") {
-      setCandidateCv({ resumeId: null, cvDocumentId: null, hasCv: false });
-      return;
-    }
-    let isCancelled = false;
-    Promise.all([
-      getMyResumes().catch(() => []),
-      getCvDocuments().catch(() => []),
-    ]).then(([resumes, docs]) => {
-      if (isCancelled) return;
-      const firstResume = resumes.find((r) => r.is_validated) ?? resumes[0];
-      const firstDoc = docs[0];
-      if (firstResume || firstDoc) {
-        setCandidateCv({
-          resumeId: firstResume?.id ?? null,
-          cvDocumentId: firstDoc?.id ?? null,
-          hasCv: true,
-        });
-      }
-    });
-    return () => {
-      isCancelled = true;
-    };
-  }, [user]);
 
   return (
     <div className="min-h-screen bg-page-bg bg-ambient-pattern font-sans text-[#0F172A]">
@@ -106,17 +69,6 @@ export function JobListPage() {
 
         {/* AI Matching Banner */}
         <AIMatchBanner />
-
-        {/* AI Recommended Jobs for Authenticated Candidates */}
-        {candidateCv.hasCv && (
-          <div className="mb-8">
-            <RecommendedJobs
-              resumeId={candidateCv.resumeId}
-              cvDocumentId={candidateCv.cvDocumentId}
-              isValidated={true}
-            />
-          </div>
-        )}
 
         <div className="flex flex-col lg:flex-row gap-8">
           {/* Left Sidebar — connected to store */}

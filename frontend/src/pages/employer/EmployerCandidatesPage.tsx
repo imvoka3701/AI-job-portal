@@ -28,6 +28,7 @@ import { CVPreviewModal } from "@/pages/candidate/components/CVPreviewModal";
 import { CVPreview } from "@/pages/candidate/cv/CVPreview";
 import { EmployerCandidateRadarChart } from "./components/EmployerCandidateRadarChart";
 import { EmployerApplicationList } from "./components/EmployerApplicationList";
+import { SkillGapPanel } from "./components/SkillGapPanel";
 import { InterviewQuestionsModal } from "./components/modals/InterviewQuestionsModal";
 import { EmailDraftModal } from "./components/modals/EmailDraftModal";
 import { DirectChatModal } from "@/components/chat/DirectChatModal";
@@ -99,8 +100,24 @@ export function EmployerCandidatesPage() {
   const [builderPreview, setBuilderPreview] = useState<CvDocument | null>(null);
   const [roundsTarget, setRoundsTarget] = useState<{ applicationId: number; candidateName: string } | null>(null);
   const [chatTarget, setChatTarget] = useState<EmployerApplication | null>(null);
+  const [skillGapTarget, setSkillGapTarget] = useState<{
+    candidateName: string;
+    jobId: number;
+    resumeId?: number | null;
+    cvDocumentId?: number | null;
+  } | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
+
+  const handleSkillGap = (app: EmployerApplication) => {
+    if ((!app.resume_id && !app.cv_document_id) || !app.candidate) return;
+    setSkillGapTarget({
+      candidateName: app.candidate.full_name,
+      jobId: app.job_id,
+      resumeId: app.resume_id,
+      cvDocumentId: app.cv_document_id,
+    });
+  };
 
   const handleExportCandidates = async () => {
     try {
@@ -586,6 +603,7 @@ export function EmployerCandidatesPage() {
           onEvaluate={handleEvaluate}
           onOpenRounds={handleOpenRounds}
           onOpenChat={(app) => setChatTarget(app)}
+          onSkillGap={handleSkillGap}
           canManagePipeline={hasPermission("pipeline:manage")}
           canRecommend={hasPermission("candidate:recommend")}
           onStatusChange={async (applicationId, status, decisionReason) => {
@@ -959,7 +977,13 @@ export function EmployerCandidatesPage() {
       />
 
       <Modal isOpen={roundsTarget !== null} onClose={() => setRoundsTarget(null)} title={`Quản lý vòng tuyển dụng — ${roundsTarget?.candidateName ?? ""}`}>
-        {roundsTarget && <RoundTimeline applicationId={roundsTarget.applicationId} />}
+        {roundsTarget && (
+          <RoundTimeline
+            applicationId={roundsTarget.applicationId}
+            candidateName={roundsTarget.candidateName}
+            jobTitle={selectedJobTitle}
+          />
+        )}
         <div className="mt-6 pt-4 border-t border-gray-100 flex justify-end">
           <Button variant="secondary" size="sm" onClick={() => setRoundsTarget(null)}>Đóng</Button>
         </div>
@@ -973,6 +997,28 @@ export function EmployerCandidatesPage() {
         {builderPreview && <CVPreview content={builderPreview.content_json} template={builderPreview.template_key} />}
       </Modal>
       <CVPreviewModal url={previewUrl} onClose={() => setPreviewUrl(null)} />
+
+      {/* Skill Gap Analysis Modal */}
+      <Modal
+        isOpen={skillGapTarget !== null}
+        onClose={() => setSkillGapTarget(null)}
+        title={`Phân tích khoảng cách kỹ năng — ${skillGapTarget?.candidateName ?? ""}`}
+        size="xl"
+      >
+        {skillGapTarget && (
+          <SkillGapPanel
+            jobId={skillGapTarget.jobId}
+            resumeId={skillGapTarget.resumeId ?? undefined}
+            cvDocumentId={skillGapTarget.cvDocumentId ?? undefined}
+            autoFetch={true}
+          />
+        )}
+        <div className="mt-6 pt-4 border-t border-gray-100 flex justify-end">
+          <Button variant="secondary" size="sm" onClick={() => setSkillGapTarget(null)}>
+            Đóng
+          </Button>
+        </div>
+      </Modal>
 
       {/* Direct Chat HR <-> Candidate */}
       <DirectChatModal

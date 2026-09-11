@@ -301,3 +301,40 @@ export async function getRecommendedJobs(
   return data;
 }
 
+
+// ── Direction 3: Skill Gap Analysis ──────────────────────────────────────────
+
+export interface SkillGapItem {
+  name: string;
+  category: "have" | "needs_improvement" | "missing";
+  priority?: "critical" | "recommended" | "nice_to_have" | null;
+  note?: string | null;
+}
+
+export interface SkillGapResult {
+  job_title: string;
+  overall_fit: string;
+  overall_score: number;
+  skills: SkillGapItem[];
+  learning_path: string[];
+  summary: string;
+}
+
+export interface SkillGapParams {
+  job_id: number;
+  resume_id?: number;
+  cv_document_id?: number;
+}
+
+/**
+ * Phân tích Skill Gap: so sánh kỹ năng ứng viên với yêu cầu JD.
+ * POST /ai/skill-gap
+ */
+export async function analyseSkillGap(params: SkillGapParams): Promise<SkillGapResult> {
+  const { data } = await apiClient.post<SkillGapResult>(
+    "/ai/skill-gap",
+    params,
+    { timeout: 90_000 },
+  );
+  return data;
+}

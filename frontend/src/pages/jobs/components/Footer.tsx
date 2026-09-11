@@ -8,12 +8,14 @@ import {
 } from "lucide-react";
 import { Button, Modal } from "@/components/ui";
 import { useIsAuthenticated } from "@/stores/authStore";
+import { UserFeedbackModal } from "@/components/feedback/UserFeedbackModal";
 
 type PolicyType = "privacy" | "terms" | "faq" | "press" | "internal_jobs" | null;
 
 export function Footer({ showTopCTA = true }: { showTopCTA?: boolean }) {
   const isAuthenticated = useIsAuthenticated();
   const [activeModal, setActiveModal] = useState<PolicyType>(null);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
 
   const SEO_LINKS = [
     "Việc làm Frontend", "Việc làm Backend", "Việc làm Fullstack", "Việc làm DevOps", 
@@ -169,6 +171,14 @@ export function Footer({ showTopCTA = true }: { showTopCTA?: boolean }) {
                   className="text-slate-600 hover:text-emerald-600 transition-colors block py-0.5 font-medium cursor-pointer text-left"
                 >
                   Điều khoản sử dụng
+                </button>
+              </li>
+              <li>
+                <button 
+                  onClick={() => setFeedbackOpen(true)} 
+                  className="text-emerald-600 hover:text-emerald-700 font-bold transition-colors flex items-center gap-1.5 py-0.5 cursor-pointer text-left"
+                >
+                  <span>💬 Góp ý & Báo lỗi hệ thống</span>
                 </button>
               </li>
             </ul>
@@ -416,6 +426,12 @@ export function Footer({ showTopCTA = true }: { showTopCTA?: boolean }) {
           </div>
         </div>
       </Modal>
+
+      {/* 6. User Feedback Modal */}
+      <UserFeedbackModal
+        isOpen={feedbackOpen}
+        onClose={() => setFeedbackOpen(false)}
+      />
 
     </footer>
   );

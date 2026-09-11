@@ -60,21 +60,32 @@ class AuthService:
                 )
             raise ValueError("Tài khoản đã bị khóa. Vui lòng liên hệ quản trị viên.")
 
-        access_token = self._create_access_token(TokenPayload(sub=user.id, role=user.role))
+        access_token = self._create_access_token(
+            TokenPayload(sub=user.id, role=user.role, token_version=user.token_version)
+        )
         return Token(access_token=access_token)
 
     def _create_access_token(self, payload: TokenPayload) -> str:
         expire = datetime.now(timezone.utc) + timedelta(
             minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
         )
-        to_encode = {"sub": str(payload.sub), "role": payload.role.value, "exp": expire}
+        to_encode = {
+            "sub": str(payload.sub),
+            "role": payload.role.value,
+            "token_version": payload.token_version,
+            "exp": expire,
+        }
         return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
     def decode_token(self, token: str) -> TokenPayload:
         """Decode JWT token. Raises JWTError on invalid token."""
         try:
             payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-            return TokenPayload(sub=int(payload["sub"]), role=payload["role"])
+            return TokenPayload(
+                sub=int(payload["sub"]),
+                role=payload["role"],
+                token_version=payload.get("token_version", 1),
+            )
         except JWTError:
             raise
 

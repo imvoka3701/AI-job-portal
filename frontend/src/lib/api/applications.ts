@@ -30,3 +30,8 @@ export async function updateApplicationRecommendation(
   );
   return data;
 }
+
+export async function withdrawApplication(applicationId: number): Promise<void> {
+  await apiClient.delete(`/applications/${applicationId}`);
+}
+

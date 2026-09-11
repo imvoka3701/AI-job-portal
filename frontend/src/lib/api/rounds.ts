@@ -85,3 +85,23 @@ export async function downloadIcsFile(roundId: number): Promise<void> {
   window.URL.revokeObjectURL(url);
 }
 
+// ── Criteria Scores ─────────────────────────────────────────────────────────
+export interface CriteriaScoreItem {
+  id?: number;
+  criteria_name: string;
+  score: number;
+  notes?: string | null;
+}
+
+export async function getRoundCriteria(roundId: number): Promise<CriteriaScoreItem[]> {
+  const { data } = await apiClient.get<CriteriaScoreItem[]>(`/rounds/${roundId}/criteria`);
+  return data;
+}
+
+export async function saveRoundCriteria(
+  roundId: number,
+  criteria: Array<{ criteria_name: string; score: number; notes?: string }>
+): Promise<CriteriaScoreItem[]> {
+  const { data } = await apiClient.put<CriteriaScoreItem[]>(`/rounds/${roundId}/criteria`, { criteria });
+  return data;
+}

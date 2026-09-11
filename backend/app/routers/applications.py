@@ -20,6 +20,7 @@ from app.crud.interview_round import crud_interview_round
 from app.crud.job import crud_job
 from app.crud.resume import crud_resume
 from app.database import get_db
+from app.models.application import ApplicationStatus
 from app.models.interview_round import RoundType
 from app.models.notification import NotificationType
 from app.models.user import User, UserRole
@@ -227,6 +228,37 @@ def get_application(
     else:
         raise HTTPException(status_code=403, detail="Bạn không có quyền xem hồ sơ này.")
     return ApplicationRead.model_validate(app)
+
+
+@router.delete(
+    "/{application_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Withdraw application (Candidate only)",
+)
+def withdraw_application(
+    application_id: int,
+    current_user: User = Depends(require_role(UserRole.CANDIDATE)),
+    db: Session = Depends(get_db),
+) -> None:
+    """Allow a candidate to withdraw an application while it is still pending."""
+    app = crud_application.get_by_id(db, application_id=application_id)
+    if not app:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found")
+    if app.candidate_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Bạn không có quyền thao tác trên đơn ứng tuyển này.",
+        )
+    if app.status != ApplicationStatus.PENDING:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Chỉ có thể rút đơn ứng tuyển khi hồ sơ đang ở trạng thái chờ duyệt (Pending).",
+        )
+
+    # Clean up any associated interview rounds
+    crud_interview_round.cleanup_orphan_rounds(db, application_id=app.id, to_status="rejected")
+    db.delete(app)
+    db.commit()
 
 
 @router.patch(

@@ -8,6 +8,7 @@ import { useUser, useAuthStore } from "@/stores/authStore";
 import { tokenStorage, getApiErrorMessage } from "@/lib/axios";
 import { Button, Card, Badge, Modal } from "@/components/ui";
 import { Header } from "@/pages/jobs/components/Header";
+import { CVSelectorCards } from "@/pages/jobs/components/CVSelectorCards";
 import { SEOMeta } from "@/components/seo/SEOMeta";
 import { motion } from "framer-motion";
 import {
@@ -1297,42 +1298,50 @@ export const JobDetailPage = () => {
             </button>
           </div>
 
-          {/* TAB 1: STANDARD APPLY */}
+          {/* TAB 1: SMART APPLY — CV Card Selector */}
           {applyModalTab === "standard" && (
             <div className="space-y-4">
-              <div className="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200/80 flex items-center justify-between">
-                <div>
-                  <h4 className="font-black text-xs text-emerald-950">{job.title}</h4>
+              {/* Job Info Banner with Live AI Score */}
+              <div className="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200/80 flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <h4 className="font-black text-xs text-emerald-950 truncate">{job.title}</h4>
                   <p className="text-[11px] text-emerald-700">{companyName}</p>
                 </div>
-                <span className="text-xs font-bold text-emerald-800 bg-white px-3 py-1 rounded-full border border-emerald-200">
-                  {formattedSalary}
-                </span>
+                <div className="flex items-center gap-2 shrink-0">
+                  {isMatchingLoading ? (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-white border border-slate-200 text-[10px] font-bold text-slate-500">
+                      <RefreshCw size={10} className="animate-spin" /> Đang tính...
+                    </span>
+                  ) : aiMatchResult ? (
+                    <span
+                      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full border text-[11px] font-black ${
+                        aiMatchResult.score >= 80
+                          ? "bg-emerald-100 border-emerald-300 text-emerald-800"
+                          : aiMatchResult.score >= 60
+                          ? "bg-amber-100 border-amber-300 text-amber-800"
+                          : "bg-rose-100 border-rose-300 text-rose-800"
+                      }`}
+                    >
+                      <Sparkles size={10} /> Match {aiMatchResult.score}%
+                    </span>
+                  ) : null}
+                  <span className="text-xs font-bold text-emerald-800 bg-white px-3 py-1 rounded-full border border-emerald-200 hidden sm:inline">
+                    {formattedSalary}
+                  </span>
+                </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                  Chọn CV đính kèm:
-                </label>
-                <select
-                  value={selectedDocument}
-                  onChange={(e) => setSelectedDocument(e.target.value)}
-                  className="w-full rounded-2xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-bold text-slate-900 outline-none focus:border-[#00B86B] focus:ring-2 focus:ring-[#00B86B]/20 transition-all"
-                >
-                  <option value="">Không đính kèm file</option>
-                  {resumes.map((r) => (
-                    <option key={r.id} value={`resume:${r.id}`}>
-                      📄 PDF: {r.title}
-                    </option>
-                  ))}
-                  {cvDocuments.map((cv) => (
-                    <option key={cv.id} value={`builder:${cv.id}`}>
-                      ✨ CV Builder: {cv.title}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              {/* CV Card Selector — replaces old <select> dropdown */}
+              <CVSelectorCards
+                resumes={resumes}
+                cvDocuments={cvDocuments}
+                selectedDocument={selectedDocument}
+                onChange={setSelectedDocument}
+                aiScore={aiMatchResult?.score ?? null}
+                isMatchingLoading={isMatchingLoading}
+              />
 
+              {/* Candidate Note */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1.5">
                   Lời nhắn gửi nhà tuyển dụng (tuỳ chọn):
@@ -1430,9 +1439,14 @@ export const JobDetailPage = () => {
               onClick={handleApply}
               isLoading={isApplying}
               disabled={!job.is_active || (!!user && user.role !== "candidate")}
-              className="bg-gradient-to-r from-[#00B86B] to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white rounded-full px-7 text-xs font-black shadow-md shadow-emerald-600/20 cursor-pointer"
+              className="bg-gradient-to-r from-[#00B86B] to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white rounded-full px-7 text-xs font-black shadow-md shadow-emerald-600/20 cursor-pointer flex items-center gap-2"
             >
               {user ? "Xác nhận nộp hồ sơ" : "Đăng nhập để nộp"}
+              {!isApplying && aiMatchResult && (
+                <span className="bg-white/20 border border-white/30 px-1.5 py-0.5 rounded-full text-[10px] font-black">
+                  {aiMatchResult.score}%
+                </span>
+              )}
             </Button>
           </div>
         </div>

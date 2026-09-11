@@ -1,5 +1,5 @@
 import { Suspense, lazy, useEffect } from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
 import { Toaster } from "sonner";
 import { useAuthStore } from "@/stores/authStore";
@@ -7,7 +7,9 @@ import { useAuthStore } from "@/stores/authStore";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { EmployerLayout } from "@/components/layout/EmployerLayout";
+import { AdminLayout } from "@/components/layout/AdminLayout";
 import { AIAssistantWidget } from "@/components/ai-assistant/AIAssistantWidget";
+import { FloatingMessengerWidget } from "@/components/chat/FloatingMessengerWidget";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { PageSkeleton } from "@/components/ui/PageSkeleton";
 
@@ -42,6 +44,8 @@ const AdminJobs = lazy(() => import("@/pages/admin/AdminJobs").then(m => ({ defa
 const AdminUsers = lazy(() => import("@/pages/admin/AdminUsers").then(m => ({ default: m.AdminUsers })));
 const AdminInterviewsPage = lazy(() => import("@/pages/admin/AdminInterviewsPage").then(m => ({ default: m.AdminInterviewsPage })));
 const AdminAuditLogs = lazy(() => import("@/pages/admin/AdminAuditLogs").then(m => ({ default: m.AdminAuditLogs })));
+const AdminChatGovernancePage = lazy(() => import("@/pages/admin/AdminChatGovernancePage"));
+const AdminFeedbackPage = lazy(() => import("@/pages/admin/AdminFeedbackPage").then(m => ({ default: m.AdminFeedbackPage })));
 const AIPromptsPage = lazy(() => import("@/pages/admin/AIPromptsPage").then(m => ({ default: m.AIPromptsPage })));
 const AdminAILogsPage = lazy(() => import("@/pages/admin/AdminAILogsPage").then(m => ({ default: m.AdminAILogsPage })));
 
@@ -50,6 +54,8 @@ const AssessmentPage = lazy(() => import("@/pages/tools/AssessmentPage").then(m 
 const AssessmentHistoryPage = lazy(() => import("@/pages/tools/AssessmentHistoryPage").then(m => ({ default: m.AssessmentHistoryPage })));
 
 function App() {
+  const location = useLocation();
+  const isAdminRoute = location.pathname.startsWith("/admin");
   const token = useAuthStore((s) => s.token);
   const user = useAuthStore((s) => s.user);
   const fetchMe = useAuthStore((s) => s.fetchMe);
@@ -94,9 +100,8 @@ function App() {
             <Route path="/ai/roadmap" element={<RoadmapPage />} />
             <Route path="/ai" element={<Navigate to="/ai/matching" replace />} />
 
-            {/* Dashboard Routes with Layout */}
+            {/* Candidate Dashboard Routes with Layout */}
             <Route element={<DashboardLayout />}>
-              {/* Candidate Dashboard */}
               <Route 
                 path="/dashboard" 
                 element={<ProtectedRoute allowedRoles={["candidate"]}><CandidateDashboard /></ProtectedRoute>} 
@@ -105,8 +110,10 @@ function App() {
               <Route path="/cv/new" element={<ProtectedRoute allowedRoles={["candidate"]}><CVEditorPage /></ProtectedRoute>} />
               <Route path="/cv/:id/edit" element={<ProtectedRoute allowedRoles={["candidate"]}><CVEditorPage /></ProtectedRoute>} />
               <Route path="/cv/:id/preview" element={<ProtectedRoute allowedRoles={["candidate"]}><CVEditorPage previewOnly /></ProtectedRoute>} />
+            </Route>
 
-              {/* Admin Routes */}
+            {/* Admin Routes with dedicated AdminLayout */}
+            <Route element={<AdminLayout />}>
               <Route 
                 path="/admin/dashboard" 
                 element={<ProtectedRoute allowedRoles={["admin"]}><AdminDashboard /></ProtectedRoute>} 
@@ -126,6 +133,14 @@ function App() {
               <Route
                 path="/admin/interviews"
                 element={<ProtectedRoute allowedRoles={["admin"]}><AdminInterviewsPage /></ProtectedRoute>}
+              />
+              <Route
+                path="/admin/feedback"
+                element={<ProtectedRoute allowedRoles={["admin"]}><AdminFeedbackPage /></ProtectedRoute>}
+              />
+              <Route
+                path="/admin/chat"
+                element={<ProtectedRoute allowedRoles={["admin"]}><AdminChatGovernancePage /></ProtectedRoute>}
               />
               <Route
                 path="/admin/audit-logs"
@@ -178,7 +193,12 @@ function App() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>
-        <AIAssistantWidget />
+        {!isAdminRoute && (
+          <>
+            <FloatingMessengerWidget />
+            <AIAssistantWidget />
+          </>
+        )}
         <Toaster richColors position="top-right" />
       </HelmetProvider>
     </ErrorBoundary>

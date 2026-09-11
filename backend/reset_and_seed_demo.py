@@ -455,30 +455,56 @@ def seed_demo_data():
                         "version": 1,
                         "personal": {
                             "full_name": "Nguyễn Văn An",
+                            "headline": "Senior Fullstack Software Engineer",
                             "email": "candidate@jobportal.vn",
                             "phone": "0912345678",
-                            "title": "Senior Fullstack Software Engineer",
-                            "summary": "Kỹ sư phần mềm Fullstack với 4+ năm kinh nghiệm phát triển ứng dụng web quy mô lớn bằng React, TypeScript, FastAPI và PostgreSQL.",
                             "location": "Hà Nội, Việt Nam",
+                            "website": "https://github.com/nguyenvanan",
                         },
-                        "experiences": [
+                        "summary": "Kỹ sư phần mềm Fullstack với 4+ năm kinh nghiệm phát triển ứng dụng web quy mô lớn bằng React, TypeScript, FastAPI và PostgreSQL.",
+                        "experience": [
                             {
+                                "id": "exp_1",
                                 "company": "VNG Corporation",
-                                "position": "Senior Software Engineer",
+                                "role": "Senior Software Engineer",
                                 "start_date": "2023-01",
                                 "end_date": "2026-06",
-                                "description": "Kiến trúc hệ thống Microservices phục vụ 2 triệu người dùng hàng ngày. Tối ưu hóa API response time giảm 40%.",
+                                "current": True,
+                                "location": "Hà Nội",
+                                "bullets": [
+                                    "Kiến trúc hệ thống Microservices phục vụ 2 triệu người dùng hàng ngày.",
+                                    "Tối ưu hóa API response time giảm 40% bằng Redis caching và pgvector index.",
+                                    "Dẫn dắt đội ngũ 6 kỹ sư frontend và backend thực hiện Agile sprints.",
+                                ],
                             }
                         ],
                         "skills": ["React", "TypeScript", "Python", "FastAPI", "PostgreSQL", "pgvector", "Docker", "Tailwind CSS"],
-                        "educations": [
+                        "education": [
                             {
+                                "id": "edu_1",
                                 "school": "Đại học Bách Khoa Hà Nội",
                                 "degree": "Kỹ sư Công nghệ Thông tin",
                                 "start_date": "2018",
                                 "end_date": "2022",
+                                "details": "Tốt nghiệp loại Giỏi, GPA 3.6/4.0",
                             }
                         ],
+                        "projects": [
+                            {
+                                "id": "proj_1",
+                                "name": "AI-Powered Job Portal Platform",
+                                "description": "Hệ thống tuyển dụng thông minh tích hợp AI CV Parser và Matching Engine.",
+                                "url": "https://github.com/example/jobportal",
+                                "technologies": ["React", "TypeScript", "FastAPI", "pgvector"],
+                            }
+                        ],
+                        "certifications": ["AWS Certified Solutions Architect", "IELTS 7.5"],
+                        "languages": ["Tiếng Việt (Bản ngữ)", "Tiếng Anh (Thành thạo)"],
+                        "links": {
+                            "github": "https://github.com/nguyenvanan",
+                            "linkedin": "https://linkedin.com/in/nguyenvanan",
+                            "portfolio": "https://nguyenvanan.dev",
+                        },
                     },
                 )
                 db.add(cv_doc)

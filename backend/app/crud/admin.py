@@ -6,7 +6,9 @@ from typing import Any
 from sqlalchemy import func, or_, select, text
 from sqlalchemy.orm import Session, joinedload
 
+from app.models.ai_call_log import AICallLog, AICallStatus
 from app.models.application import Application
+from app.models.feedback import UserFeedback
 from app.models.interview_round import InterviewRound
 from app.models.job import Job
 from app.models.user import User, UserRole
@@ -298,11 +300,51 @@ class CRUDAdmin:
             for a in pending_apps
         ]
 
+        # 4. AI provider errors in last 24h
+        twenty_four_hours_ago = now - timedelta(hours=24)
+        ai_errors_count = (
+            db.execute(
+                select(func.count())
+                .select_from(AICallLog)
+                .where(
+                    AICallLog.status == AICallStatus.FAILED,
+                    AICallLog.created_at >= twenty_four_hours_ago,
+                )
+            ).scalar()
+            or 0
+        )
+
+        # 5. Pending feedbacks & urgent / low CSAT feedbacks
+        pending_feedbacks_count = (
+            db.execute(
+                select(func.count())
+                .select_from(UserFeedback)
+                .where(UserFeedback.status == "new")
+            ).scalar()
+            or 0
+        )
+        urgent_feedbacks_count = (
+            db.execute(
+                select(func.count())
+                .select_from(UserFeedback)
+                .where(
+                    UserFeedback.status == "new",
+                    or_(
+                        UserFeedback.priority.in_(["high", "urgent"]),
+                        UserFeedback.rating <= 2,
+                    ),
+                )
+            ).scalar()
+            or 0
+        )
+
         return {
-            "ai_errors_24h": 0,
+            "ai_errors_24h": ai_errors_count,
             "stale_jobs": stale_job_alerts,
             "overdue_interviews": overdue_alerts,
             "pending_actions": pending_action_alerts,
+            "pending_feedbacks": pending_feedbacks_count,
+            "urgent_feedbacks": urgent_feedbacks_count,
         }
 
 

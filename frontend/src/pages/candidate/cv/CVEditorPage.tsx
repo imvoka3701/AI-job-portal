@@ -29,11 +29,12 @@ import {
   ArrowUp,
   ArrowDown,
 } from "lucide-react";
-import { Button, Input, Spinner } from "@/components/ui";
+import { Button, Input, Spinner, ConfirmDialog } from "@/components/ui";
 import { getApiErrorMessage } from "@/lib/axios";
 import { useUser } from "@/stores/authStore";
 import {
   createCvDocument,
+  deleteCvDocument,
   getCvDocument,
   updateCvDocument,
 } from "@/lib/api/cvDocuments";
@@ -45,6 +46,7 @@ import {
 import {
   CV_TEMPLATE_OPTIONS,
   createEmptyCvContent,
+  normalizeCvContent,
   type CvContent,
   type CvDocument,
   type CvExperience,
@@ -255,11 +257,12 @@ export function CVEditorPage({
           : await getCvDocument(Number(routeId));
         loadedDocumentId.current = loaded.id;
         setDocument(loaded);
-        setContent(loaded.content_json);
+        const normalized = normalizeCvContent(loaded.content_json);
+        setContent(normalized);
         setTemplate(loaded.template_key);
         setTitle(loaded.title);
-        if (loaded.content_json.design?.accent_color) {
-          setAccentColor(loaded.content_json.design.accent_color);
+        if (normalized.design?.accent_color) {
+          setAccentColor(normalized.design.accent_color);
         }
         if (isNewDocument) navigate(`/cv/${loaded.id}/edit`, { replace: true });
       } catch {
@@ -270,6 +273,18 @@ export function CVEditorPage({
     };
     load();
   }, [navigate, routeId]);
+
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  const confirmDeleteDocument = async () => {
+    if (!document) return;
+    try {
+      await deleteCvDocument(document.id);
+      navigate("/dashboard");
+    } catch (err) {
+      alert("Không thể xóa bản CV: " + getApiErrorMessage(err));
+    }
+  };
 
   const save = async (
     nextContent = content,
@@ -354,22 +369,27 @@ export function CVEditorPage({
 
   // Copy CV as plain text for ATS application forms
   const handleCopyAsPlainText = () => {
+    const personal = content.personal || { full_name: "", headline: "", email: "", phone: "", location: "" };
+    const expList = content.experience || [];
+    const eduList = content.education || [];
+    const skillList = content.skills || [];
+
     const lines = [
-      content.personal.full_name,
-      content.personal.headline,
-      `${content.personal.email} | ${content.personal.phone} | ${content.personal.location}`,
+      personal.full_name || "",
+      personal.headline || "",
+      `${personal.email || ""} | ${personal.phone || ""} | ${personal.location || ""}`,
       "",
       "--- TÓM TẮT CHUYÊN MÔN ---",
-      content.summary,
+      content.summary || "",
       "",
       "--- KỸ NĂNG CÔNG NGHỆ ---",
-      content.skills.join(", "),
+      skillList.join(", "),
       "",
       "--- KINH NGHIỆM LÀM VIỆC ---",
-      ...content.experience.map((e) => `${e.role} @ ${e.company} (${e.start_date} - ${e.current ? "Hiện tại" : e.end_date})\n${e.bullets.map((b) => `• ${b}`).join("\n")}`),
+      ...expList.map((e) => `${e.role || "Vị trí"} @ ${e.company || "Công ty"} (${e.start_date || ""} - ${e.current ? "Hiện tại" : e.end_date || ""})\n${(e.bullets || []).map((b) => `• ${b}`).join("\n")}`),
       "",
       "--- HỌC VẤN ---",
-      ...content.education.map((edu) => `${edu.degree} - ${edu.school} (${edu.start_date} - ${edu.end_date})`),
+      ...eduList.map((edu) => `${edu.degree || ""} - ${edu.school || ""} (${edu.start_date || ""} - ${edu.end_date || ""})`),
     ];
     navigator.clipboard.writeText(lines.join("\n"));
     setCopiedText(true);
@@ -378,11 +398,17 @@ export function CVEditorPage({
 
   // ─── Real-time ATS Readiness Score Calculation ──────────────────────────
   const atsAudit = useMemo(() => {
+    const personal = content.personal || { full_name: "", email: "", headline: "" };
+    const expList = content.experience || [];
+    const skillList = content.skills || [];
+    const eduList = content.education || [];
+    const projList = content.projects || [];
+
     const items = [
       {
         title: "Thông tin cá nhân & Tiêu đề",
         weight: 20,
-        passed: !!(content.personal.full_name && content.personal.email && content.personal.headline),
+        passed: !!(personal.full_name && personal.email && personal.headline),
         detail: "Họ tên, Email và Vị trí mong muốn giúp ATS nhận diện ứng viên.",
       },
       {
@@ -394,19 +420,19 @@ export function CVEditorPage({
       {
         title: "Kinh nghiệm làm việc chi tiết",
         weight: 25,
-        passed: content.experience.length > 0 && content.experience.some((e) => e.bullets.filter(Boolean).length >= 2),
+        passed: expList.length > 0 && expList.some((e) => (e.bullets || []).filter(Boolean).length >= 2),
         detail: "Ít nhất 1 vị trí có 2+ dòng thành tựu cụ thể.",
       },
       {
         title: "Kỹ năng chuyên môn cốt lõi",
         weight: 20,
-        passed: content.skills.filter(Boolean).length >= 4,
+        passed: skillList.filter(Boolean).length >= 4,
         detail: "Có từ 4 kỹ năng công nghệ/chuyên môn để bộ lọc ATS quét từ khóa.",
       },
       {
         title: "Học vấn hoặc Dự án nổi bật",
         weight: 15,
-        passed: content.education.length > 0 || (content.projects && content.projects.length > 0),
+        passed: eduList.length > 0 || projList.length > 0,
         detail: "Bổ sung quá trình đào tạo hoặc dự án thực tế để tăng uy tín.",
       },
     ];
@@ -426,7 +452,7 @@ export function CVEditorPage({
     scheduleSave({
       ...content,
       experience: [
-        ...content.experience,
+        ...(content.experience || []),
         {
           id: id(),
           role: "",
@@ -443,7 +469,7 @@ export function CVEditorPage({
   const updateExperience = (itemId: string, patch: Partial<CvExperience>) =>
     scheduleSave({
       ...content,
-      experience: content.experience.map((item) =>
+      experience: (content.experience || []).map((item) =>
         item.id === itemId ? { ...item, ...patch } : item,
       ),
     });
@@ -451,11 +477,11 @@ export function CVEditorPage({
   const removeExperience = (itemId: string) =>
     scheduleSave({
       ...content,
-      experience: content.experience.filter((item) => item.id !== itemId),
+      experience: (content.experience || []).filter((item) => item.id !== itemId),
     });
 
   const moveExperience = (index: number, direction: "up" | "down") => {
-    const list = [...content.experience];
+    const list = [...(content.experience || [])];
     const targetIdx = direction === "up" ? index - 1 : index + 1;
     if (targetIdx < 0 || targetIdx >= list.length) return;
     const temp = list[index];
@@ -468,7 +494,7 @@ export function CVEditorPage({
     scheduleSave({
       ...content,
       education: [
-        ...content.education,
+        ...(content.education || []),
         {
           id: id(),
           school: "",
@@ -483,7 +509,7 @@ export function CVEditorPage({
   const updateEducation = (itemId: string, patch: Partial<CvEducation>) =>
     scheduleSave({
       ...content,
-      education: content.education.map((item) =>
+      education: (content.education || []).map((item) =>
         item.id === itemId ? { ...item, ...patch } : item,
       ),
     });
@@ -491,14 +517,14 @@ export function CVEditorPage({
   const removeEducation = (itemId: string) =>
     scheduleSave({
       ...content,
-      education: content.education.filter((item) => item.id !== itemId),
+      education: (content.education || []).filter((item) => item.id !== itemId),
     });
 
   const addProject = () =>
     scheduleSave({
       ...content,
       projects: [
-        ...content.projects,
+        ...(content.projects || []),
         { id: id(), name: "", description: "", url: "", technologies: [] },
       ],
     });
@@ -506,7 +532,7 @@ export function CVEditorPage({
   const updateProject = (itemId: string, patch: Partial<CvProject>) =>
     scheduleSave({
       ...content,
-      projects: content.projects.map((item) =>
+      projects: (content.projects || []).map((item) =>
         item.id === itemId ? { ...item, ...patch } : item,
       ),
     });
@@ -514,7 +540,7 @@ export function CVEditorPage({
   const removeProject = (itemId: string) =>
     scheduleSave({
       ...content,
-      projects: content.projects.filter((item) => item.id !== itemId),
+      projects: (content.projects || []).filter((item) => item.id !== itemId),
     });
 
   // ─── AI Suggestion Triggers ─────────────────────────────────────────────
@@ -541,7 +567,8 @@ export function CVEditorPage({
       setExperienceAI((state) => ({ ...state, [item.id]: { loading: false, error: "Vui lòng nhập Vị trí ứng tuyển trước khi dùng AI.", suggestion: null } }));
       return;
     }
-    const source = `${item.role} tại ${item.company}\n${item.bullets.filter(Boolean).join("\n")}`.trim();
+    const bulletsList = (item.bullets || []).filter(Boolean);
+    const source = `${item.role} tại ${item.company}\n${bulletsList.join("\n")}`.trim();
     if (!item.role.trim() || !source) {
       setExperienceAI((state) => ({ ...state, [item.id]: { loading: false, error: "Vui lòng nhập Vị trí và ít nhất một dòng kinh nghiệm trước.", suggestion: null } }));
       return;
@@ -565,7 +592,7 @@ export function CVEditorPage({
     }
     setSkillsAI((state) => ({ ...state, loading: true, error: null }));
     try {
-      const result = await suggestCvSkills(document.id, content.skills, role, undefined, aiLanguage);
+      const result = await suggestCvSkills(document.id, content.skills || [], role, undefined, aiLanguage);
       const newSkills = result.skills;
       setSkillsAI({ loading: false, error: null, suggestion: { text: newSkills.join(", "), rationale: result.rationale } });
     } catch (error) {
@@ -730,6 +757,18 @@ export function CVEditorPage({
               <Printer size={13} />
               <span>Xuất PDF</span>
             </Button>
+
+            {/* Delete CV Button */}
+            {document && (
+              <button
+                type="button"
+                onClick={() => setShowDeleteConfirm(true)}
+                className="p-2 rounded-full border border-rose-200 bg-rose-50/60 hover:bg-rose-100 text-rose-600 hover:text-rose-700 transition-colors cursor-pointer flex items-center justify-center"
+                title="Xóa bản CV này"
+              >
+                <Trash2 size={14} />
+              </button>
+            )}
           </div>
         </div>
       </header>
@@ -1077,7 +1116,7 @@ export function CVEditorPage({
                       <Briefcase size={16} />
                     </div>
                     <div>
-                      <h2 className="text-sm font-black text-slate-900">3. Kinh Nghiệm Làm Việc ({content.experience.length})</h2>
+                      <h2 className="text-sm font-black text-slate-900">3. Kinh Nghiệm Làm Việc ({content.experience?.length || 0})</h2>
                       <p className="text-[11px] text-slate-500 font-medium">Tối ưu theo công thức Google XYZ Formula</p>
                     </div>
                   </div>
@@ -1086,7 +1125,7 @@ export function CVEditorPage({
 
                 {openSections.experience && (
                   <div className="p-5 sm:p-6 space-y-6">
-                    {content.experience.map((item, index) => (
+                    {(content.experience || []).map((item, index) => (
                       <div
                         key={item.id}
                         className="p-4 sm:p-5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-4 relative group"
@@ -1107,7 +1146,7 @@ export function CVEditorPage({
                                 <ArrowUp size={14} />
                               </button>
                             )}
-                            {index < content.experience.length - 1 && (
+                            {index < (content.experience?.length || 0) - 1 && (
                               <button
                                 type="button"
                                 onClick={() => moveExperience(index, "down")}
@@ -1188,7 +1227,7 @@ export function CVEditorPage({
 
                           <Textarea
                             label=""
-                            value={item.bullets.join("\n")}
+                            value={(item.bullets || []).join("\n")}
                             onChange={(val) => updateExperience(item.id, { bullets: val.split("\n") })}
                             placeholder="Nhập mỗi thành tựu trên một dòng (Ví dụ: Tối ưu hiệu năng ứng dụng React giúp giảm 40% thời gian tải trang...)"
                             rows={3}
@@ -1241,7 +1280,7 @@ export function CVEditorPage({
                       <Code size={16} />
                     </div>
                     <div>
-                      <h2 className="text-sm font-black text-slate-900">4. Kỹ Năng Chuyên Môn ({content.skills.length})</h2>
+                      <h2 className="text-sm font-black text-slate-900">4. Kỹ Năng Chuyên Môn ({content.skills?.length || 0})</h2>
                       <p className="text-[11px] text-slate-500 font-medium">Gõ từ khóa có dấu cách tự do, nhấn Enter để thêm tag</p>
                     </div>
                   </div>
@@ -1265,7 +1304,7 @@ export function CVEditorPage({
                     </div>
 
                     <TagInput
-                      tags={content.skills}
+                      tags={content.skills || []}
                       onChange={(newTags) => scheduleSave({ ...content, skills: newTags })}
                       placeholder="Nhập kỹ năng (VD: React 19, TypeScript, System Design...) và nhấn Enter"
                       suggestedTags={[
@@ -1411,7 +1450,7 @@ export function CVEditorPage({
 
                 {openSections.education && (
                   <div className="p-5 sm:p-6 space-y-5">
-                    {content.education.map((edu, idx) => (
+                    {(content.education || []).map((edu, idx) => (
                       <div key={edu.id} className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-3">
                         <div className="flex justify-between items-center border-b border-slate-200 pb-2">
                           <span className="text-xs font-bold text-slate-800">#{idx + 1}. {edu.school || "Trường học"}</span>
@@ -1567,6 +1606,18 @@ export function CVEditorPage({
 
         </div>
       </main>
+
+      {/* Confirm Delete CV Dialog */}
+      <ConfirmDialog
+        isOpen={showDeleteConfirm}
+        title="Xác nhận xóa bản CV"
+        description={`Bạn có chắc chắn muốn xóa bản CV "${title || document?.title || "này"}"? Thao tác này sẽ xóa vĩnh viễn dữ liệu CV này và không thể hoàn tác.`}
+        confirmLabel="Xóa CV"
+        cancelLabel="Hủy"
+        variant="destructive"
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={confirmDeleteDocument}
+      />
     </div>
   );
 }

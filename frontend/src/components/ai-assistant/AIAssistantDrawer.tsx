@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Bot,
   Briefcase,
   Check,
   ChevronRight,
@@ -20,6 +19,7 @@ import {
   Building2,
   GraduationCap,
 } from "lucide-react";
+import botAvatar from "./avatar/avatar_chat_bot.png";
 import { useAssistantStore, type DisplayMessage } from "@/stores/assistantStore";
 import { useUser } from "@/stores/authStore";
 import { Button } from "@/components/ui";
@@ -154,8 +154,8 @@ export function AIAssistantDrawer() {
         {/* Bright Clean Header with Neural Waveform */}
         <div className="flex items-center justify-between border-b border-gray-100 bg-white px-4 py-3.5">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary text-white font-bold shadow-xs">
-              <Bot className="h-5 w-5" />
+            <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 border border-emerald-200 p-0.5 shadow-xs overflow-hidden">
+              <img src={botAvatar} alt="JobPortal Copilot" className="w-full h-full object-contain" />
               <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-emerald-500 animate-ping" />
               <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-emerald-500" />
             </div>
@@ -360,8 +360,8 @@ export function AIAssistantDrawer() {
               animate={{ opacity: 1, y: 0 }}
               className="flex items-start gap-3"
             >
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-primary text-white font-bold text-xs shadow-xs">
-                <Bot className="h-4 w-4" />
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-emerald-50 border border-emerald-200 p-0.5 shadow-xs overflow-hidden">
+                <img src={botAvatar} alt="JobPortal AI" className="w-full h-full object-contain" />
               </div>
               <div className="rounded-2xl rounded-tl-sm border border-gray-200 bg-white px-4 py-3 shadow-xs">
                 <div className="flex items-center gap-2">
@@ -505,8 +505,8 @@ function DiplomaticMessageItem({
 
   return (
     <div className="flex items-start gap-3">
-      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-primary text-white font-bold shadow-xs">
-        <Bot className="h-4 w-4" />
+      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-emerald-50 border border-emerald-200 p-0.5 shadow-xs overflow-hidden">
+        <img src={botAvatar} alt="JobPortal AI" className="w-full h-full object-contain" />
       </div>
 
       <div className="min-w-0 max-w-[88%] space-y-2.5">

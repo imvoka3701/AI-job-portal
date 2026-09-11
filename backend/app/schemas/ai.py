@@ -248,3 +248,36 @@ class CoverLetterRequest(BaseModel):
 
 class CoverLetterResponse(BaseModel):
     cover_letter: str
+
+
+# ── Direction 3: Skill Gap Analysis ─────────────────────────────────────────
+
+class SkillGapItem(BaseModel):
+    """A single skill categorized by match status."""
+    name: str
+    category: str  # "have" | "needs_improvement" | "missing"
+    priority: str | None = None  # "critical" | "recommended" | "nice_to_have"
+    note: str | None = None  # Vietnamese rationale from LLM
+
+
+class SkillGapRequest(BaseModel):
+    """Request payload for /ai/skill-gap endpoint."""
+    job_id: int
+    resume_id: int | None = None
+    cv_document_id: int | None = None
+
+    @model_validator(mode="after")
+    def check_cv_source(self) -> "SkillGapRequest":
+        if self.resume_id is None and self.cv_document_id is None:
+            raise ValueError("Cần cung cấp ít nhất resume_id hoặc cv_document_id.")
+        return self
+
+
+class SkillGapResponse(BaseModel):
+    """Structured skill gap analysis for a candidate vs. job."""
+    job_title: str
+    overall_fit: str  # "Rất phù hợp" | "Phù hợp tốt" | "Cần cải thiện" | "Không phù hợp"
+    overall_score: float  # 0-100, mirroring AI match score
+    skills: list[SkillGapItem]
+    learning_path: list[str]  # Ordered list of 3-5 recommended next steps (Vietnamese)
+    summary: str  # 2-3 sentence Vietnamese executive summary

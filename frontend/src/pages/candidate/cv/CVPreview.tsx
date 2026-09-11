@@ -196,7 +196,7 @@ function JakesResumeTemplate({
                   </span>
                 </div>
                 <ul className="list-disc pl-4 text-[11.5px] text-slate-900 space-y-0.5 leading-relaxed">
-                  {item.bullets.filter(Boolean).map((bullet, idx) => (
+                  {(item.bullets || []).filter(Boolean).map((bullet, idx) => (
                     <li key={`${item.id}-${idx}`}>{bullet}</li>
                   ))}
                 </ul>
@@ -361,7 +361,7 @@ function HarvardPrestigeTemplate({
                   </span>
                 </div>
                 <ul className="list-disc pl-4 text-xs space-y-1 text-slate-800 leading-normal">
-                  {item.bullets.filter(Boolean).map((bullet, idx) => (
+                  {(item.bullets || []).filter(Boolean).map((bullet, idx) => (
                     <li key={`${item.id}-${idx}`}>{bullet}</li>
                   ))}
                 </ul>
@@ -561,7 +561,7 @@ function SiliconValleyTemplate({
                   </span>
                 </div>
                 <ul className="list-disc pl-4 text-xs text-slate-600 space-y-1 leading-relaxed font-medium">
-                  {item.bullets.filter(Boolean).map((bullet, idx) => (
+                  {(item.bullets || []).filter(Boolean).map((bullet, idx) => (
                     <li key={`${item.id}-${idx}`}>{bullet}</li>
                   ))}
                 </ul>
@@ -824,7 +824,7 @@ function TopCvTwoColumnTemplate({
                       </span>
                     </div>
                     <ul className="list-disc pl-4 text-xs text-slate-600 space-y-0.5 leading-relaxed">
-                      {item.bullets.filter(Boolean).map((bullet, idx) => (
+                      {(item.bullets || []).filter(Boolean).map((bullet, idx) => (
                         <li key={`${item.id}-${idx}`}>{bullet}</li>
                       ))}
                     </ul>

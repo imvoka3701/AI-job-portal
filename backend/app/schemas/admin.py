@@ -153,3 +153,5 @@ class AdminAlertsSummary(BaseModel):
     stale_jobs: list[StaleJobAlert] = []
     overdue_interviews: list[OverdueInterviewAlert] = []
     pending_actions: list[PendingActionAlert] = []
+    pending_feedbacks: int = 0
+    urgent_feedbacks: int = 0

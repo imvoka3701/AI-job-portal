@@ -3,6 +3,7 @@
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.models.application import Application
 from app.models.cv_document import CvDocument
 from app.schemas.cv_document import CvDocumentCreate, CvDocumentUpdate
 
@@ -39,6 +40,9 @@ class CRUDCvDocument:
         return document
 
     def delete(self, db: Session, *, document: CvDocument) -> None:
+        db.query(Application).filter(Application.cv_document_id == document.id).update(
+            {Application.cv_document_id: None}, synchronize_session=False
+        )
         db.delete(document)
         db.commit()
 

@@ -1,4 +1,5 @@
 from app.models.admin_audit_log import AdminAuditLog  # noqa: F401
+from app.models.admin_rbac import AdminPermission, AdminRole, AdminRolePermission  # noqa: F401
 from app.models.ai_call_log import AICallLog, AICallStatus, AIFeature  # noqa: F401
 from app.models.ai_prompt_config import AIPromptConfig  # noqa: F401
 from app.models.application import Application  # noqa: F401
@@ -14,6 +15,7 @@ from app.models.company import (  # noqa: F401
 from app.models.contact_lead import ContactLead  # noqa: F401
 from app.models.criteria_score import CriteriaScore  # noqa: F401
 from app.models.cv_document import CvDocument, CvDocumentStatus  # noqa: F401
+from app.models.feedback import UserFeedback  # noqa: F401
 from app.models.interview_round import InterviewRound  # noqa: F401
 from app.models.job import Job, JobCategory  # noqa: F401
 from app.models.notification import Notification  # noqa: F401

@@ -10,7 +10,7 @@ from app.config import settings
 from app.models.ai_call_log import AIFeature
 from app.models.cv_document import CvDocument
 from app.models.resume import Resume
-from app.schemas.ai import AIMatchResponse, MatchBreakdown
+from app.schemas.ai import AIMatchResponse, MatchBreakdown, SkillGapItem, SkillGapResponse
 from app.services.deepseek_client import deepseek_client
 from app.services.prompt_loader import get_system_prompt
 
@@ -613,6 +613,96 @@ class AIMatchingService:
             "total_matched": len(recommendations),
             "recommendations": recommendations,
         }
+
+
+    async def compute_skill_gap(
+        self,
+        *,
+        resume_text: str,
+        job: Any,
+        db: Session | None = None,
+    ) -> SkillGapResponse:
+        """Analyse candidate skill gap vs. job requirements using LLM rubric.
+
+        Returns a categorised list of skills (have / needs_improvement / missing)
+        and a Vietnamese learning path recommendation.
+        """
+        job_title = getattr(job, "title", "Vị trí tuyển dụng")
+        job_req = getattr(job, "requirements", "") or ""
+        job_desc = getattr(job, "description", "") or ""
+
+        system_prompt = (
+            "Bạn là chuyên gia tuyển dụng kỹ thuật AI. Nhiệm vụ: Phân tích kỹ năng (ứng viên vs JD), "
+            "phân loại từng kỹ năng vào nhóm: have / needs_improvement / missing. "
+            "Tất cả giải thích phải bằng tiếng Việt. Trả về JSON đúng schema sau:\n"
+            "{\n"
+            '  "overall_fit": "Rất phù hợp|Phù hợp tốt|Cần cải thiện|Không phù hợp",\n'
+            '  "overall_score": 0-100,\n'
+            '  "summary": "2-3 câu tiếng Việt",\n'
+            '  "skills": [\n'
+            '    {"name": "Tên kỹ năng", "category": "have|needs_improvement|missing",\n'
+            '     "priority": "critical|recommended|nice_to_have", "note": "Tiếng Việt"}\n'
+            '  ],\n'
+            '  "learning_path": ["Bước 1 ...", "Bước 2 ..."]\n'
+            "}"
+        )
+
+        user_prompt = (
+            f"=== MÔ TẢ CÔNG VIỆC ===\nVị trí: {job_title}\n"
+            f"Yêu cầu:\n{job_req[:1500]}\n\n"
+            f"Mô tả:\n{job_desc[:800]}\n\n"
+            f"=== HỔ SƠ ỨNG VIÊN ===\n{resume_text[:2500]}\n\n"
+            "Hãy phân tích chi tiết và trả về JSON chính xác theo schema."
+        )
+
+        try:
+            response = await deepseek_client.create_chat_completion(
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                model=settings.LLM_MODEL,
+                response_format={"type": "json_object"},
+                feature=AIFeature.MATCHING,
+                db=db,
+            )
+            content = response.get("choices", [])[0].get("message", {}).get("content", "")
+            if not content:
+                raise ValueError("Empty LLM response for skill gap")
+
+            data = json.loads(content)
+
+            raw_skills = data.get("skills", [])
+            skill_items = [
+                SkillGapItem(
+                    name=str(s.get("name", "")),
+                    category=str(s.get("category", "missing")),
+                    priority=str(s.get("priority", "recommended")) if s.get("priority") else None,
+                    note=str(s.get("note", "")) if s.get("note") else None,
+                )
+                for s in raw_skills
+                if isinstance(s, dict) and s.get("name")
+            ]
+
+            return SkillGapResponse(
+                job_title=job_title,
+                overall_fit=str(data.get("overall_fit", "Cần cải thiện")),
+                overall_score=float(data.get("overall_score", 50.0)),
+                skills=skill_items,
+                learning_path=[str(s) for s in data.get("learning_path", []) if s],
+                summary=str(data.get("summary", "")),
+            )
+
+        except Exception as exc:
+            logger.warning("Skill gap analysis failed: %s", exc)
+            return SkillGapResponse(
+                job_title=job_title,
+                overall_fit="Không xác định",
+                overall_score=0.0,
+                skills=[],
+                learning_path=[],
+                summary="Không thể phân tích Skill Gap lúc này. Vui lòng thử lại sau.",
+            )
 
 
 ai_matching_service = AIMatchingService()

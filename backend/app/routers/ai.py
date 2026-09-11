@@ -47,6 +47,8 @@ from app.schemas.ai import (
     JobRecommendationResponse,
     RoadmapRequest,
     RoadmapResponse,
+    SkillGapRequest,
+    SkillGapResponse,
 )
 from app.schemas.assistant import (
     AssistantChatRequest,
@@ -1054,3 +1056,68 @@ def assistant_suggestions(
     """Get context-aware 1-click prompt chips."""
     effective_role = role or (current_user.role if current_user else "guest")
     return assistant_service.get_quick_suggestions(path=path, role=effective_role)
+
+
+# ── Direction 3: Skill Gap Analysis ───────────────────────────────────────────
+
+@router.post(
+    "/skill-gap",
+    response_model=SkillGapResponse,
+    summary="Phân tích Skill Gap: so sánh kỹ năng ứng viên với JD",
+    description=(
+        "Sử dụng LLM để phân loại từng kỹ năng trong JD theo 3 nhóm: có, cần cải thiện, thiếu. "
+        "Trả về lộ trình học tập đề xuất bằng tiếng Việt. "
+        "Cho phép cả nhà tuyển dụng (employer) lẫn ứng viên (candidate) gọi."
+    ),
+    dependencies=[Depends(rate_limit("ai_interactive"))],
+)
+async def analyse_skill_gap(
+    data: SkillGapRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> SkillGapResponse:
+    """Analyse candidate skill gap vs. a specific job using LLM."""
+    # ── 1. Resolve Job ─────────────────────────────────────────────────────
+    job = crud_job.get_by_id(db, job_id=data.job_id)
+    if not job:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Công việc không tồn tại.")
+
+    # ── 2. Resolve CV Text ──────────────────────────────────────────────
+    resume_text: str = ""
+
+    if data.resume_id is not None:
+        resume = crud_resume.get_by_id(db, resume_id=data.resume_id)
+        if not resume:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Không tìm thấy CV."
+            )
+        _authorize_resume_access(db, current_user=current_user, resume=resume, job_id=data.job_id)
+        resume_text = resume.raw_text or ""
+
+    elif data.cv_document_id is not None:
+        cv_doc = crud_cv_document.get_by_id(
+            db, document_id=data.cv_document_id,
+            user_id=current_user.id if current_user.role == UserRole.CANDIDATE else None,
+        )
+        if not cv_doc:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Không tìm thấy CV Builder document."
+            )
+        if current_user.role != UserRole.CANDIDATE:
+            _authorize_cv_document_access(
+                db, current_user=current_user, cv_document=cv_doc, job_id=data.job_id
+            )
+        resume_text = extract_cv_document_text(cv_doc)
+
+    if not resume_text.strip():
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Hồ sơ CV trống. Vui lòng cập nhật nội dung trước khi phân tích.",
+        )
+
+    # ── 3. Compute Skill Gap via LLM ────────────────────────────────────
+    return await ai_matching_service.compute_skill_gap(
+        resume_text=resume_text,
+        job=job,
+        db=db,
+    )

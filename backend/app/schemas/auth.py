@@ -13,6 +13,7 @@ class Token(BaseModel):
 class TokenPayload(BaseModel):
     sub: int  # user id
     role: UserRole
+    token_version: int = 1
 
 
 class LoginRequest(BaseModel):

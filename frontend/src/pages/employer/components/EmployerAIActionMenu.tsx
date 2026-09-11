@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, FileText, Mail, MessageSquareText, Radar } from "lucide-react";
+import { ChevronDown, FileText, Mail, MessageSquareText, Radar, Zap } from "lucide-react";
 import { Button } from "@/components/ui";
 import type { EmployerApplication } from "@/types/application";
 import { cn } from "@/lib/utils";
@@ -10,6 +10,7 @@ interface EmployerAIActionMenuProps {
   onGenerateQuestions: (app: EmployerApplication) => void;
   onGenerateEmail: (app: EmployerApplication) => void;
   onEvaluate: (app: EmployerApplication) => void;
+  onSkillGap?: (app: EmployerApplication) => void;
   disabled?: boolean;
 }
 
@@ -19,6 +20,7 @@ export function EmployerAIActionMenu({
   onGenerateQuestions,
   onGenerateEmail,
   onEvaluate,
+  onSkillGap,
   disabled = false,
 }: EmployerAIActionMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -92,6 +94,16 @@ export function EmployerAIActionMenu({
             <Radar className="w-4 h-4 text-primary" />
             Đánh giá CV
           </button>
+          {onSkillGap && (
+            <button
+              type="button"
+              onClick={() => handleAction(onSkillGap)}
+              className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-gray-700 hover:bg-gray-50 border-t border-gray-100"
+            >
+              <Zap className="w-4 h-4 text-amber-500" />
+              <span>Phân tích Skill Gap</span>
+            </button>
+          )}
         </div>
       )}
     </div>

@@ -11,8 +11,23 @@ export interface WebSocketNotificationPayload {
   extra_data?: Record<string, unknown>;
 }
 
+export interface ChatMessageRealtimePayload {
+  id: number;
+  conversation_id: number;
+  application_id?: number;
+  sender_id: number;
+  sender_name: string | null;
+  sender_avatar?: string | null;
+  company_name?: string | null;
+  company_logo?: string | null;
+  job_title?: string | null;
+  content: string;
+  created_at?: string | null;
+}
+
 interface UseWebSocketNotificationsOptions {
   onNotification?: (notification: WebSocketNotificationPayload) => void;
+  onChatMessage?: (chatData: ChatMessageRealtimePayload) => void;
 }
 
 export function getWebSocketNotificationUrl(token: string): string {
@@ -41,9 +56,11 @@ export function useWebSocketNotifications(options?: UseWebSocketNotificationsOpt
   const [lastNotification, setLastNotification] = useState<WebSocketNotificationPayload | null>(null);
 
   const onNotificationRef = useRef(options?.onNotification);
+  const onChatMessageRef = useRef(options?.onChatMessage);
   useEffect(() => {
     onNotificationRef.current = options?.onNotification;
-  }, [options?.onNotification]);
+    onChatMessageRef.current = options?.onChatMessage;
+  }, [options?.onNotification, options?.onChatMessage]);
 
   const socketRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -91,7 +108,13 @@ export function useWebSocketNotifications(options?: UseWebSocketNotificationsOpt
           const data = JSON.parse(event.data);
           if (data.type === "pong") return;
 
-          if (data.type === "notification" && data.data) {
+          if (data.type === "chat_message" && data.data) {
+            const chatPayload = data.data as ChatMessageRealtimePayload;
+            onChatMessageRef.current?.(chatPayload);
+            window.dispatchEvent(
+              new CustomEvent("aijob:chat_message", { detail: chatPayload })
+            );
+          } else if (data.type === "notification" && data.data) {
             const notif = data.data as WebSocketNotificationPayload;
             setLastNotification(notif);
             onNotificationRef.current?.(notif);

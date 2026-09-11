@@ -6,6 +6,7 @@ import {
   Briefcase,
   Calendar,
   ClipboardList,
+  MessagesSquare,
   ScrollText,
   Users,
 } from "lucide-react";
@@ -16,6 +17,7 @@ const tabs = [
   { path: "/admin/jobs", label: "Tin tuyển dụng", icon: Briefcase },
   { path: "/admin/users", label: "Người dùng", icon: Users },
   { path: "/admin/interviews", label: "Phỏng vấn", icon: Calendar },
+  { path: "/admin/chat", label: "Giám sát Chat", icon: MessagesSquare },
   { path: "/admin/audit-logs", label: "Nhật ký", icon: ClipboardList },
   { path: "/admin/ai/prompts", label: "AI Prompt", icon: Brain },
   { path: "/admin/ai/logs", label: "AI Logs & Chi phí", icon: ScrollText },

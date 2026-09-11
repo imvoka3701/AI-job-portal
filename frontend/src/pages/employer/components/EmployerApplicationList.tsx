@@ -26,6 +26,7 @@ import {
   Columns3,
   ListFilter,
   PanelLeftClose,
+  Zap,
 } from "lucide-react";
 import { Badge, Button, Card, EmptyState, ErrorState, PipelineStepper } from "@/components/ui";
 import { getInitials, cn } from "@/lib/utils";
@@ -35,6 +36,7 @@ import type { RoundItem } from "@/lib/api/rounds";
 import { EmployerAIActionMenu } from "./EmployerAIActionMenu";
 import { EmployerCandidateRadarChart } from "./EmployerCandidateRadarChart";
 import { EmployerKanbanBoard } from "./EmployerKanbanBoard";
+import { SkillGapPanel } from "./SkillGapPanel";
 
 export type SortMode = "match_score" | "submitted_date" | "status_priority" | "name_asc";
 export type FilterStatus = ApplicationStatus | "all";
@@ -59,6 +61,7 @@ interface EmployerApplicationListProps {
   onEvaluate: (app: EmployerApplication) => void;
   onOpenRounds: (app: EmployerApplication) => void;
   onOpenChat?: (app: EmployerApplication) => void;
+  onSkillGap?: (app: EmployerApplication) => void;
   canManagePipeline: boolean;
   canRecommend: boolean;
   onStatusChange: (applicationId: number, status: ApplicationStatus, decisionReason?: string) => Promise<void>;
@@ -99,6 +102,7 @@ export function EmployerApplicationList({
   onEvaluate,
   onOpenRounds,
   onOpenChat,
+  onSkillGap,
   canManagePipeline,
   canRecommend,
   onStatusChange,
@@ -134,7 +138,7 @@ export function EmployerApplicationList({
   const [filterRound, setFilterRound] = useState<FilterRound>("all");
   const [filterMinScore, setFilterMinScore] = useState<number>(0);
   const [showFilters, setShowFilters] = useState(false);
-  const [activeTab, setActiveTab] = useState<"overview" | "timeline" | "internal_notes">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "timeline" | "internal_notes" | "skill_gap">("overview");
 
   // Sync URL ?search= param → local filter
   useEffect(() => {
@@ -450,6 +454,7 @@ export function EmployerApplicationList({
                     onGenerateQuestions={onGenerateQuestions}
                     onGenerateEmail={onGenerateEmail}
                     onEvaluate={onEvaluate}
+                    onSkillGap={onSkillGap}
                   />
                 )}
               </div>
@@ -589,6 +594,7 @@ export function EmployerApplicationList({
                   onPreviewResume={onPreviewResume}
                   onPreviewBuilder={onPreviewBuilder}
                   onOpenChat={onOpenChat}
+                  onSkillGap={onSkillGap}
                   canManagePipeline={canManagePipeline}
                 />
               )}
@@ -848,6 +854,19 @@ export function EmployerApplicationList({
                       >
                         <History className="w-3.5 h-3.5" />
                         Lịch sử chuyển trạng thái
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab("skill_gap")}
+                        className={cn(
+                          "flex items-center gap-1.5 border-b-2 px-4 py-2.5 text-xs font-semibold transition-colors",
+                          activeTab === "skill_gap"
+                            ? "border-primary text-primary"
+                            : "border-transparent text-gray-500 hover:text-gray-900",
+                        )}
+                      >
+                        <Zap className="w-3.5 h-3.5 text-amber-500" />
+                        AI Skill Gap
                       </button>
                     </div>
 
@@ -1276,6 +1295,18 @@ export function EmployerApplicationList({
                             </div>
                           </div>
                         </Card>
+                      </div>
+                    )}
+
+                    {/* Tab 4: AI Skill Gap Analysis */}
+                    {activeTab === "skill_gap" && (
+                      <div className="space-y-4">
+                        <SkillGapPanel
+                          jobId={selectedApplication.job_id}
+                          resumeId={selectedApplication.resume_id ?? undefined}
+                          cvDocumentId={selectedApplication.cv_document_id ?? undefined}
+                          autoFetch={true}
+                        />
                       </div>
                     )}
 

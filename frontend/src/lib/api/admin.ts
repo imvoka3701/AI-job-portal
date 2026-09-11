@@ -201,6 +201,8 @@ export interface AdminAlertsSummary {
   stale_jobs: StaleJobAlert[];
   overdue_interviews: OverdueInterviewAlert[];
   pending_actions: PendingActionAlert[];
+  pending_feedbacks?: number;
+  urgent_feedbacks?: number;
 }
 
 export async function getAdminAlerts(): Promise<AdminAlertsSummary> {
