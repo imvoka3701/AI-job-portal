@@ -57,6 +57,7 @@ import {
 import { CVPreview } from "./CVPreview";
 import { AISuggestionPanel, type AISuggestionValue } from "./AISuggestionPanel";
 import { TagInput } from "./components/TagInput";
+import { CandidateCVCopilotDrawer } from "@/components/candidate/copilot";
 
 const id = () => Math.random().toString(36).slice(2, 9);
 
@@ -239,6 +240,7 @@ export function CVEditorPage({
   /** Ngôn ngữ người dùng muốn AI gợi ý — vi: Tiếng Việt, en: English */
   const [aiLanguage, setAiLanguage] = useState<"vi" | "en">("vi");
   const [showAtsAudit, setShowAtsAudit] = useState(false);
+  const [showCopilotDrawer, setShowCopilotDrawer] = useState(false);
   const [showTemplateModal, setShowTemplateModal] = useState(false);
 
   const saveTimer = useRef<number | undefined>(undefined);
@@ -695,8 +697,9 @@ export function CVEditorPage({
 
             {/* Real-time ATS Score Badge Button */}
             <button
-              onClick={() => setShowAtsAudit(!showAtsAudit)}
+              onClick={() => setShowCopilotDrawer(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-50 hover:bg-slate-100 border border-slate-200 text-xs font-black transition-all cursor-pointer"
+              title="Mở Thước đo chuẩn ATS & AI Copilot"
             >
               <Zap size={13} className="text-amber-500" />
               <span>ATS:</span>
@@ -705,6 +708,16 @@ export function CVEditorPage({
               }`}>
                 {atsAudit.score}%
               </span>
+            </button>
+
+            {/* AI Copilot & Career Advisor Button */}
+            <button
+              onClick={() => setShowCopilotDrawer(true)}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white text-xs font-bold transition-all cursor-pointer shadow-xs"
+              title="Mở AI CV Copilot & Cố vấn nghề nghiệp"
+            >
+              <Sparkles size={13} className="animate-pulse" />
+              <span>AI Copilot</span>
             </button>
 
             {/* Template Selector Button */}
@@ -1606,6 +1619,35 @@ export function CVEditorPage({
 
         </div>
       </main>
+
+      {/* Floating AI Copilot Trigger */}
+      <div className="fixed bottom-6 right-6 z-40 print:hidden">
+        <button
+          type="button"
+          onClick={() => setShowCopilotDrawer(true)}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-slate-900 hover:bg-slate-800 text-white shadow-xl hover:shadow-2xl transition-all hover:scale-105 border border-slate-700 font-bold text-xs cursor-pointer group"
+        >
+          <div className="w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center">
+            <Sparkles className="w-3.5 h-3.5" />
+          </div>
+          <span>AI Copilot & ATS</span>
+          <span className="bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full text-[11px] font-black border border-emerald-500/30">
+            {atsAudit.score}%
+          </span>
+        </button>
+      </div>
+
+      {/* AI CV Copilot & Career Advisor Drawer */}
+      <CandidateCVCopilotDrawer
+        isOpen={showCopilotDrawer}
+        onClose={() => setShowCopilotDrawer(false)}
+        cvContent={content}
+        documentTitle={title || document?.title || "Hồ sơ ứng viên"}
+        cvDocumentId={document?.id}
+        onApplyContentUpdate={(updater) => {
+          scheduleSave(updater(content));
+        }}
+      />
 
       {/* Confirm Delete CV Dialog */}
       <ConfirmDialog
