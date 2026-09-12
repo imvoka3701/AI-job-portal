@@ -98,6 +98,7 @@ class CRUDDocumentChunk:
         section_types: list[str] | None = None,
         limit: int = 5,
         min_score: float = 0.4,
+        exclude_drafts: bool = True,
     ) -> list[RAGSearchResult]:
         """Perform Hybrid Search (Dense pgvector Cosine + Sparse BM25 tsvector) with hard tenant isolation."""
         bind = db.get_bind()
@@ -115,7 +116,10 @@ class CRUDDocumentChunk:
 
             # Multi-tenant boundary isolation
             if company_id is not None:
-                filters.append("(company_id = :company_id OR company_id IS NULL)")
+                if document_type == "job":
+                    filters.append("company_id = :company_id")
+                else:
+                    filters.append("(company_id = :company_id OR company_id IS NULL)")
                 params["company_id"] = company_id
 
             if user_id is not None:
@@ -129,6 +133,12 @@ class CRUDDocumentChunk:
             if section_types:
                 filters.append("section_type = ANY(:section_types)")
                 params["section_types"] = section_types
+
+            # Exclude draft CV documents from public/employer search
+            if exclude_drafts and user_id is None:
+                filters.append(
+                    "(document_type != 'cv_document' OR document_id IN (SELECT id FROM cv_documents WHERE status = 'published'))"
+                )
 
             where_clause = " AND ".join(filters)
             if where_clause:
@@ -207,13 +217,28 @@ class CRUDDocumentChunk:
             # Fallback for SQLite in-memory testing or non-vector queries
             query = db.query(DocumentChunk)
             if company_id is not None:
-                query = query.filter((DocumentChunk.company_id == company_id) | (DocumentChunk.company_id.is_(None)))
+                if document_type == "job":
+                    query = query.filter(DocumentChunk.company_id == company_id)
+                else:
+                    query = query.filter((DocumentChunk.company_id == company_id) | (DocumentChunk.company_id.is_(None)))
             if user_id is not None:
                 query = query.filter(DocumentChunk.user_id == user_id)
             if document_type:
                 query = query.filter(DocumentChunk.document_type == document_type)
             if section_types:
                 query = query.filter(DocumentChunk.section_type.in_(section_types))
+            if exclude_drafts and user_id is None:
+                from app.models.cv_document import CvDocument, CvDocumentStatus
+                published_cv_ids = {
+                    row[0]
+                    for row in db.query(CvDocument.id)
+                    .filter(CvDocument.status == CvDocumentStatus.PUBLISHED.value)
+                    .all()
+                }
+                query = query.filter(
+                    (DocumentChunk.document_type != "cv_document")
+                    | (DocumentChunk.document_id.in_(published_cv_ids))
+                )
 
             # Simple substring matching
             keywords = [w.lower() for w in query_text.split() if len(w) > 2]

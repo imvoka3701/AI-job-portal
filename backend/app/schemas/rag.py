@@ -1,7 +1,7 @@
 """RAG Pydantic schemas — Semantic Chunks, Hybrid Search, and Grounded Generation."""
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -63,9 +63,11 @@ class RAGQueryRequest(BaseModel):
     query: str = Field(..., min_length=2, max_length=1000, description="Nội dung tìm kiếm ngữ nghĩa")
     document_type: str | None = Field(None, description="'resume' | 'cv_document' | 'job' hoặc None để tìm tất cả")
     company_id: int | None = Field(None, description="Tenant ID để lọc cách ly dữ liệu")
+    user_id: int | None = Field(None, description="Lọc theo người sở hữu tài liệu")
     section_types: list[str] | None = Field(None, description="Bộ lọc các section cụ thể")
     limit: int = Field(5, ge=1, le=50, description="Số lượng kết quả lấy ra")
     min_score: float = Field(0.4, ge=0.0, le=1.0, description="Ngưỡng tương đồng tối thiểu")
+    exclude_drafts: bool = Field(True, description="Loại trừ CV Builder đang ở trạng thái nháp (chỉ lấy published)")
 
 
 class RAGQueryResponse(BaseModel):
@@ -98,7 +100,7 @@ class RAGInterviewQuestionsResponse(BaseModel):
 
 
 class RAGCVChatMessage(BaseModel):
-    role: str = Field(..., description="'user' | 'assistant'")
+    role: Literal["user", "assistant"] = Field(..., description="'user' | 'assistant'")
     content: str = Field(..., min_length=1)
 
 

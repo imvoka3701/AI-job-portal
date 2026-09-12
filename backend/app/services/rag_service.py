@@ -141,9 +141,11 @@ class RAGService:
             query_vector=query_vector,
             document_type=request.document_type,
             company_id=request.company_id,
+            user_id=request.user_id,
             section_types=request.section_types,
             limit=request.limit,
             min_score=request.min_score,
+            exclude_drafts=request.exclude_drafts,
         )
 
         if not results:
@@ -423,10 +425,15 @@ class RAGService:
             if query_vector:
                 scored_chunks = []
                 for c in candidate_chunks:
-                    if c.embedding is not None:
-                        dot = sum(a * b for a, b in zip(query_vector, c.embedding))
-                        scored_chunks.append((dot, c))
-                    else:
+                    try:
+                        emb = c.embedding
+                        if emb is not None:
+                            emb_list = list(emb)
+                            dot = sum(a * b for a, b in zip(query_vector, emb_list))
+                            scored_chunks.append((dot, c))
+                        else:
+                            scored_chunks.append((0.0, c))
+                    except Exception:
                         scored_chunks.append((0.0, c))
                 scored_chunks.sort(key=lambda x: x[0], reverse=True)
                 selected_chunks = [c for _, c in scored_chunks[:7]]

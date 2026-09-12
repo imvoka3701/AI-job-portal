@@ -6,10 +6,11 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
+from app.core.company_permissions import CompanyPermission, build_company_context
 from app.core.dependencies import get_current_user
 from app.database import get_db
-from app.models.company import Company, CompanyMembership
-from app.models.cv_document import CvDocument
+from app.models.application import Application
+from app.models.cv_document import CvDocument, CvDocumentStatus
 from app.models.job import Job
 from app.models.resume import Resume
 from app.models.user import User, UserRole
@@ -39,15 +40,27 @@ def hybrid_search(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> Any:
-    # If user is employer and searching jobs, enforce tenant boundary to their company_id
-    if current_user.role == UserRole.EMPLOYER and payload.document_type == "job":
-        membership = db.query(CompanyMembership).filter(CompanyMembership.user_id == current_user.id).first()
-        if membership:
-            payload.company_id = membership.company_id
-        else:
-            comp = db.query(Company).filter(Company.created_by_user_id == current_user.id).first()
-            if comp:
-                payload.company_id = comp.id
+    # 1. Candidate Boundary Isolation: A candidate must NEVER see another candidate's private resumes/CVs
+    if current_user.role == UserRole.CANDIDATE:
+        if payload.document_type in ["resume", "cv_document"] or payload.document_type is None:
+            payload.user_id = current_user.id
+            payload.exclude_drafts = False  # Candidate can search their own draft CVs
+        payload.company_id = None
+
+    # 2. Employer Boundary Isolation: Verify active company context & permission
+    elif current_user.role == UserRole.EMPLOYER:
+        context = build_company_context(db, current_user)
+        if not context.has(CompanyPermission.AI_RECRUITMENT) and not context.has(CompanyPermission.APPLICATION_VIEW):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Bạn không có quyền sử dụng tính năng tìm kiếm AI tuyển dụng.",
+            )
+        if payload.document_type == "job":
+            payload.company_id = context.company.id
+        elif payload.document_type in ["resume", "cv_document"]:
+            # Employer can only search published CVs in the public talent pool
+            payload.exclude_drafts = True
+            payload.user_id = None
 
     results = rag_service.search(db, payload)
     return RAGQueryResponse(
@@ -68,7 +81,6 @@ async def generate_interview_questions(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> Any:
-    # Security check: verify job exists
     job = db.query(Job).filter(Job.id == payload.job_id).first()
     if not job:
         raise HTTPException(
@@ -76,21 +88,59 @@ async def generate_interview_questions(
             detail=f"Không tìm thấy việc làm #{payload.job_id}",
         )
 
-    # Employer tenant check
+    # Employer tenant and application relationship check
     if current_user.role == UserRole.EMPLOYER:
-        is_authorized = (job.employer_id == current_user.id)
-        if not is_authorized and job.company_id:
-            membership = db.query(CompanyMembership).filter(
-                CompanyMembership.user_id == current_user.id,
-                CompanyMembership.company_id == job.company_id,
-            ).first()
-            if membership:
-                is_authorized = True
+        context = build_company_context(db, current_user)
+        if not context.has(CompanyPermission.AI_RECRUITMENT):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Bạn không có quyền sử dụng tính năng AI phỏng vấn.",
+            )
+
+        is_authorized = (job.employer_id == current_user.id or job.company_id == context.company.id)
         if not is_authorized:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Bạn không có quyền truy cập dữ liệu phỏng vấn của tin tuyển dụng này.",
             )
+
+        # IDOR prevention: Verify candidate has actually applied to this job or this company
+        if payload.resume_id or payload.cv_document_id:
+            app_filter = [Application.job_id == job.id]
+            if payload.resume_id:
+                app_filter.append(Application.resume_id == payload.resume_id)
+            if payload.cv_document_id:
+                app_filter.append(Application.cv_document_id == payload.cv_document_id)
+
+            app_exists = db.query(Application).filter(*app_filter).first()
+            if not app_exists:
+                # Also check company-wide applications
+                company_app_query = (
+                    db.query(Application)
+                    .join(Job, Application.job_id == Job.id)
+                    .filter(Job.company_id == context.company.id)
+                )
+                if payload.resume_id:
+                    company_app_query = company_app_query.filter(Application.resume_id == payload.resume_id)
+                if payload.cv_document_id:
+                    company_app_query = company_app_query.filter(Application.cv_document_id == payload.cv_document_id)
+
+                if not company_app_query.first():
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail="Ứng viên này chưa từng ứng tuyển vào công ty của bạn.",
+                    )
+
+    elif current_user.role == UserRole.CANDIDATE:
+        # Candidate can only generate interview prep for their own CV
+        if payload.cv_document_id:
+            cv = db.query(CvDocument).filter(CvDocument.id == payload.cv_document_id).first()
+            if not cv or cv.user_id != current_user.id:
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Không có quyền truy cập hồ sơ này.")
+        if payload.resume_id:
+            res = db.query(Resume).filter(Resume.id == payload.resume_id).first()
+            if not res or res.user_id != current_user.id:
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Không có quyền truy cập hồ sơ này.")
 
     try:
         response = await rag_service.generate_grounded_interview_questions(db, payload)
@@ -114,7 +164,7 @@ async def chat_with_cv(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> Any:
-    # Security: If user is candidate, verify they own the resume/cv_document
+    # 1. Candidate check: must own the document
     if current_user.role == UserRole.CANDIDATE:
         if payload.cv_document_id:
             cv = db.query(CvDocument).filter(CvDocument.id == payload.cv_document_id).first()
@@ -130,6 +180,59 @@ async def chat_with_cv(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="Bạn không có quyền truy vấn hồ sơ này.",
                 )
+
+    # 2. Employer check: must have AI permission AND (applied to company OR published in talent search)
+    elif current_user.role == UserRole.EMPLOYER:
+        context = build_company_context(db, current_user)
+        if not context.has(CompanyPermission.AI_RECRUITMENT):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Bạn không có quyền sử dụng tính năng AI CV Copilot.",
+            )
+
+        is_authorized = False
+        if payload.cv_document_id:
+            cv = db.query(CvDocument).filter(CvDocument.id == payload.cv_document_id).first()
+            if not cv:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Không tìm thấy CV Builder.")
+            # Allowed if published in Talent Pool
+            if cv.status == CvDocumentStatus.PUBLISHED.value:
+                is_authorized = True
+            else:
+                # Check if applied to employer's company
+                has_applied = (
+                    db.query(Application)
+                    .join(Job, Application.job_id == Job.id)
+                    .filter(
+                        Job.company_id == context.company.id,
+                        Application.cv_document_id == payload.cv_document_id,
+                    )
+                    .first()
+                )
+                if has_applied:
+                    is_authorized = True
+
+        elif payload.resume_id:
+            res = db.query(Resume).filter(Resume.id == payload.resume_id).first()
+            if not res:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Không tìm thấy Resume.")
+            has_applied = (
+                db.query(Application)
+                .join(Job, Application.job_id == Job.id)
+                .filter(
+                    Job.company_id == context.company.id,
+                    Application.resume_id == payload.resume_id,
+                )
+                .first()
+            )
+            if has_applied:
+                is_authorized = True
+
+        if not is_authorized:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Bạn không có quyền truy vấn hồ sơ này vì ứng viên chưa nộp đơn hoặc chưa công khai hồ sơ.",
+            )
 
     try:
         response = await rag_service.chat_with_cv(db, payload)
@@ -153,6 +256,34 @@ def index_document(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
+    # Authorization check for manual re-indexing
+    if current_user.role == UserRole.CANDIDATE:
+        if document_type == "resume":
+            res = db.query(Resume).filter(Resume.id == document_id).first()
+            if not res or res.user_id != current_user.id:
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Không có quyền truy cập tài liệu này.")
+        elif document_type == "cv_document":
+            cv = db.query(CvDocument).filter(CvDocument.id == document_id).first()
+            if not cv or cv.user_id != current_user.id:
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Không có quyền truy cập tài liệu này.")
+        else:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Ứng viên không được phép index việc làm.")
+
+    elif current_user.role == UserRole.EMPLOYER:
+        context = build_company_context(db, current_user)
+        if document_type == "job":
+            job = db.query(Job).filter(Job.id == document_id).first()
+            if not job or (job.employer_id != current_user.id and job.company_id != context.company.id):
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Không có quyền index tin tuyển dụng này.")
+        elif document_type in ["resume", "cv_document"]:
+            app_query = db.query(Application).join(Job, Application.job_id == Job.id).filter(Job.company_id == context.company.id)
+            if document_type == "resume":
+                app_query = app_query.filter(Application.resume_id == document_id)
+            else:
+                app_query = app_query.filter(Application.cv_document_id == document_id)
+            if not app_query.first():
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Không có quyền index tài liệu ứng viên này.")
+
     count = rag_service.index_document(db, document_type=document_type, document_id=document_id)
     return {
         "status": "success",
@@ -164,17 +295,17 @@ def index_document(
 
 @router.post(
     "/ingest-all",
-    summary="Batch Ingest All Documents (Admin / TechLead utility)",
+    summary="Batch Ingest All Documents (Admin only)",
     description="Tự động duyệt và phân đoạn toàn bộ Jobs, Resumes, và CV Documents hiện có trong CSDL.",
 )
 def batch_ingest_all(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
-    if current_user.role != UserRole.ADMIN and current_user.role != UserRole.EMPLOYER:
+    if current_user.role != UserRole.ADMIN:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Chỉ Quản trị viên hoặc Nhà tuyển dụng mới có quyền kích hoạt batch ingest.",
+            detail="Chỉ Quản trị viên (Admin) mới có quyền kích hoạt batch ingest.",
         )
 
     indexed_jobs = 0
