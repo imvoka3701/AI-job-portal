@@ -103,15 +103,18 @@ class EmailGeneratorService:
             f"- Công ty: {company_name}\n"
         )
         if cv_summary:
-            user_prompt += f"- Tóm tắt hồ sơ ứng viên: {cv_summary}\n"
+            # Truncate to 800 chars — consistent with ai_matching.py cap; prevents token bloat
+            user_prompt += f"- Tóm tắt hồ sơ ứng viên: {cv_summary[:800]}\n"
 
         if tone:
             tone_guide = TONE_DESCRIPTIONS.get(tone.lower(), tone)
             user_prompt += f"- Giọng điệu (Tone): {tone_guide}\n"
 
         if custom_prompt and custom_prompt.strip():
+            # Truncate to 500 chars — cap user-controlled input injected into LLM prompt
+            # to mitigate indirect prompt injection risk (AI_CODE_REVIEW.md — Phát hiện 2.1)
             user_prompt += (
-                f"- Chỉ dẫn bổ sung từ nhà tuyển dụng (Custom Prompt): {custom_prompt.strip()}\n"
+                f"- Chỉ dẫn bổ sung từ nhà tuyển dụng (Custom Prompt): {custom_prompt.strip()[:500]}\n"
             )
 
         user_prompt += f"\nHãy soạn email loại '{email_type}' cho ứng viên này."

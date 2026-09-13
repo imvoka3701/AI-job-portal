@@ -297,6 +297,26 @@ async def test_prompt(
         ) from exc
 
     duration_ms = int((time.monotonic() - start) * 1000)
+
+    # Ghi audit log — test prompt tiêu tốn token thật, cần truy vết (AI_CODE_REVIEW.md — Phát hiện 3.1)
+    try:
+        crud_admin_audit_log.create(
+            db,
+            actor_user_id=current_user.id,
+            actor_email=current_user.email,
+            action="ai_prompt.tested",
+            target_type="ai_prompt",
+            target_id=feature.value,
+            target_label=f"[TEST] {feature.value}",
+            details={
+                "feature": feature.value,
+                "duration_ms": duration_ms,
+                "sample_length": len(sample),
+            },
+        )
+    except Exception as log_exc:
+        logger.warning("Failed to write audit log for prompt test: %s", log_exc)
+
     return AIPromptTestResult(
         feature=feature.value,
         sample_input=sample,
