@@ -157,7 +157,7 @@ class TestTestPrompt:
             "usage": {"prompt_tokens": 50, "completion_tokens": 30},
         }
         with patch(
-            "app.services.deepseek_client.DeepseekClient.create_chat_completion",
+            "app.routers.admin_ai.deepseek_client.create_chat_completion",
             new_callable=AsyncMock,
             return_value=fake_response,
         ):
@@ -218,7 +218,7 @@ class TestTestPrompt:
             return fake_response
 
         with patch(
-            "app.services.deepseek_client.DeepseekClient.create_chat_completion",
+            "app.routers.admin_ai.deepseek_client.create_chat_completion",
             new_callable=AsyncMock,
             side_effect=_capture,
         ):
