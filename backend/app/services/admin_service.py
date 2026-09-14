@@ -24,9 +24,20 @@ def set_company_status(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Employer not found")
     previous = company.is_active
     company.is_active = is_active
+    if not is_active:
+        # Invalidate employer JWT session and suspend all active job listings
+        company.token_version = (company.token_version or 1) + 1
+        db.query(Job).filter(Job.employer_id == company.id, Job.is_active.is_(True)).update({"is_active": False})
+
     membership = crud_company.get_active_membership(db, user_id=company.id)
     if membership is not None:
         membership.company.is_active = is_active
+        if not is_active:
+            # Invalidate all company team members' active JWT sessions
+            for m in membership.company.memberships:
+                if m.user:
+                    m.user.token_version = (m.user.token_version or 1) + 1
+
     crud_admin_audit_log.create(
         db,
         actor_user_id=actor.id,
@@ -57,18 +68,28 @@ def set_user_status(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Bạn không thể tự khóa tài khoản Admin đang đăng nhập.",
         )
-    if (
-        target.role == UserRole.ADMIN
-        and target.is_active
-        and not is_active
-        and crud_admin.count_active_admins(db) <= 1
-    ):
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Hệ thống phải còn ít nhất một tài khoản Admin hoạt động.",
-        )
+    if target.role == UserRole.ADMIN:
+        # Hierarchy check: Only a Super Admin can lock/unlock another Admin
+        actor_is_super = actor.admin_role and actor.admin_role.code == "super_admin"
+        if not actor_is_super:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Chỉ Quản trị viên Tối cao (Super Admin) mới có quyền thay đổi trạng thái tài khoản Quản trị viên khác.",
+            )
+        if (
+            target.is_active
+            and not is_active
+            and crud_admin.count_active_admins(db) <= 1
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Hệ thống phải còn ít nhất một tài khoản Admin hoạt động.",
+            )
     previous = target.is_active
     target.is_active = is_active
+    if not is_active:
+        # Instantly invalidate all active JWT sessions across devices / Postman
+        target.token_version = (target.token_version or 1) + 1
     crud_admin_audit_log.create(
         db,
         actor_user_id=actor.id,

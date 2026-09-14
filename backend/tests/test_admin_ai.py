@@ -145,6 +145,17 @@ class TestUpdatePrompt:
         )
         assert r.status_code == 422
 
+    def test_oversized_system_prompt_returns_422(self, client, db_session):
+        admin = _create_user(db_session, email="admin-len@ai-test.example.com", role=UserRole.ADMIN)
+        headers = _login(client, admin.email)
+        r = client.patch(
+            "/admin/ai/prompts/cv_evaluate",
+            json={"system_prompt": "A" * 4001},
+            headers=headers,
+        )
+        assert r.status_code == 422
+
+
 
 class TestTestPrompt:
     def test_mocked_test_call_returns_result(self, client, db_session):
@@ -157,7 +168,7 @@ class TestTestPrompt:
             "usage": {"prompt_tokens": 50, "completion_tokens": 30},
         }
         with patch(
-            "app.routers.admin_ai.deepseek_client.create_chat_completion",
+            "app.services.deepseek_client.DeepseekClient.create_chat_completion",
             new_callable=AsyncMock,
             return_value=fake_response,
         ):
@@ -218,7 +229,7 @@ class TestTestPrompt:
             return fake_response
 
         with patch(
-            "app.routers.admin_ai.deepseek_client.create_chat_completion",
+            "app.services.deepseek_client.DeepseekClient.create_chat_completion",
             new_callable=AsyncMock,
             side_effect=_capture,
         ):

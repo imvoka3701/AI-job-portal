@@ -6,6 +6,7 @@ import {
   Briefcase,
   Calendar,
   ClipboardList,
+  Database,
   MessagesSquare,
   ScrollText,
   Users,
@@ -21,6 +22,7 @@ const tabs = [
   { path: "/admin/audit-logs", label: "Nhật ký", icon: ClipboardList },
   { path: "/admin/ai/prompts", label: "AI Prompt", icon: Brain },
   { path: "/admin/ai/logs", label: "AI Logs & Chi phí", icon: ScrollText },
+  { path: "/admin/ai/rag-governance", label: "AI RAG & Vector", icon: Database },
 ];
 
 export function AdminTabNavigation() {

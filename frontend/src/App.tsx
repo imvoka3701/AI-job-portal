@@ -10,6 +10,7 @@ import { EmployerLayout } from "@/components/layout/EmployerLayout";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { AIAssistantWidget } from "@/components/ai-assistant/AIAssistantWidget";
 import { FloatingMessengerWidget } from "@/components/chat/FloatingMessengerWidget";
+import { FloatingFeedbackButton } from "@/components/feedback/FloatingFeedbackButton";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { PageSkeleton } from "@/components/ui/PageSkeleton";
 
@@ -49,6 +50,7 @@ const AdminChatGovernancePage = lazy(() => import("@/pages/admin/AdminChatGovern
 const AdminFeedbackPage = lazy(() => import("@/pages/admin/AdminFeedbackPage").then(m => ({ default: m.AdminFeedbackPage })));
 const AIPromptsPage = lazy(() => import("@/pages/admin/AIPromptsPage").then(m => ({ default: m.AIPromptsPage })));
 const AdminAILogsPage = lazy(() => import("@/pages/admin/AdminAILogsPage").then(m => ({ default: m.AdminAILogsPage })));
+const AdminRAGGovernancePage = lazy(() => import("@/pages/admin/AdminRAGGovernancePage").then(m => ({ default: m.AdminRAGGovernancePage })));
 
 const ToolsLandingPage = lazy(() => import("@/pages/tools/ToolsLandingPage").then(m => ({ default: m.ToolsLandingPage })));
 const AssessmentPage = lazy(() => import("@/pages/tools/AssessmentPage").then(m => ({ default: m.AssessmentPage })));
@@ -155,6 +157,10 @@ function App() {
                 path="/admin/ai/logs"
                 element={<ProtectedRoute allowedRoles={["admin"]}><AdminAILogsPage /></ProtectedRoute>}
               />
+              <Route
+                path="/admin/ai/rag-governance"
+                element={<ProtectedRoute allowedRoles={["admin"]}><AdminRAGGovernancePage /></ProtectedRoute>}
+              />
             </Route>
 
             {/* Employer Routes with dedicated EmployerLayout */}
@@ -200,6 +206,7 @@ function App() {
         </Suspense>
         {!isAdminRoute && (
           <>
+            <FloatingFeedbackButton />
             <FloatingMessengerWidget />
             <AIAssistantWidget />
           </>

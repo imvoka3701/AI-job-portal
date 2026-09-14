@@ -142,6 +142,11 @@ class CRUDAdmin:
             {"job_id": job_id},
         )
         db.execute(text("DELETE FROM applications WHERE job_id = :job_id"), {"job_id": job_id})
+        # Clean up polymorphic AI RAG vector chunks in pgvector to prevent orphaned search results
+        db.execute(
+            text("DELETE FROM document_chunks WHERE document_type = 'job' AND document_id = :job_id"),
+            {"job_id": job_id},
+        )
         db.delete(job)
         db.flush()
         return True

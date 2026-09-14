@@ -10,6 +10,7 @@ import {
   History,
   BrainCircuit,
   TerminalSquare,
+  Database,
   ChevronLeft,
   ChevronRight,
   Menu,
@@ -63,6 +64,13 @@ const navSections: NavSection[] = [
     items: [
       { label: "AI System Prompts", href: "/admin/ai/prompts", icon: BrainCircuit },
       { label: "AI Logs & Chi phí Token", href: "/admin/ai/logs", icon: TerminalSquare },
+      {
+        label: "AI RAG & Kho Vector",
+        href: "/admin/ai/rag-governance",
+        icon: Database,
+        badge: "Hybrid",
+        badgeColor: "bg-emerald-50 text-emerald-700 border border-emerald-200",
+      },
     ],
   },
 ];
@@ -107,6 +115,10 @@ const routeTitleMap: Record<string, { title: string; subtitle: string }> = {
   "/admin/ai/logs": {
     title: "AI Call Logs & Phân tích Chi phí Token",
     subtitle: "Kiểm soát độ trễ, lưu lượng token DeepSeek và chi phí vận hành AI",
+  },
+  "/admin/ai/rag-governance": {
+    title: "Quản trị AI RAG & Hybrid Vector Store",
+    subtitle: "Giám sát kho pgvector, điều chỉnh trọng số Cosine / BM25 và kiểm soát an toàn truy vấn ứng viên",
   },
 };
 

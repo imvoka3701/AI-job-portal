@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
 from app.core.dependencies import get_optional_user
+from app.core.rate_limiter import rate_limit
 from app.crud.feedback import crud_feedback
 from app.database import get_db
 from app.models.user import User
@@ -23,6 +24,7 @@ router = APIRouter(prefix="/feedback", tags=["User Feedback"])
     status_code=status.HTTP_201_CREATED,
     summary="Gửi phản hồi / góp ý / báo cáo hệ thống",
     description="Cho phép Ứng viên, Nhà tuyển dụng hoặc Khách vãng lai gửi góp ý, báo lỗi, hoặc khiếu nại tin đăng.",
+    dependencies=[Depends(rate_limit("feedback_submit"))],
 )
 def submit_feedback(
     data: FeedbackCreate,
