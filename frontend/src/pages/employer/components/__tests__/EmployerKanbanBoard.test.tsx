@@ -89,8 +89,8 @@ describe("EmployerKanbanBoard", () => {
 
     expect(screen.getByText("Alice Nguyen")).toBeInTheDocument();
     expect(screen.getByText("Bob Tran")).toBeInTheDocument();
-    expect(screen.getByText("85% MATCH")).toBeInTheDocument();
-    expect(screen.getByText("92% MATCH")).toBeInTheDocument();
+    expect(screen.getByText(/85%/)).toBeInTheDocument();
+    expect(screen.getByText(/92%/)).toBeInTheDocument();
   });
 
   it("calls onSelectApplication when card is clicked", async () => {

@@ -3,7 +3,9 @@
 import json
 import logging
 import re
+import time
 
+from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.config import settings
@@ -127,8 +129,23 @@ class RAGService:
         self,
         db: Session,
         request: RAGQueryRequest,
+        actor_user_id: int | None = None,
+        actor_email: str | None = None,
+        company_name: str | None = None,
     ) -> list[RAGSearchResult]:
         """Hybrid Search with dense vector similarity, sparse full-text matching, and tenant fence."""
+        from app.services.rag_governance_service import rag_governance_service
+
+        if not rag_governance_service.is_enabled():
+            cfg = rag_governance_service.get_config()
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=cfg.maintenance_message,
+            )
+
+        start_time = time.perf_counter()
+        cfg = rag_governance_service.get_config()
+
         query_vector = None
         try:
             query_vector = generate_embedding(request.query)
@@ -140,12 +157,17 @@ class RAGService:
             query_text=request.query,
             query_vector=query_vector,
             document_type=request.document_type,
+            document_types=request.document_types,
             company_id=request.company_id,
             user_id=request.user_id,
+            job_id=request.job_id,
+            only_company_applicants=request.only_company_applicants,
             section_types=request.section_types,
             limit=request.limit,
             min_score=request.min_score,
             exclude_drafts=request.exclude_drafts,
+            alpha_dense=cfg.hybrid_alpha_dense,
+            alpha_sparse=cfg.hybrid_alpha_sparse,
         )
 
         if not results:
@@ -160,7 +182,7 @@ class RAGService:
         users_map = {}
         if user_ids:
             users = db.query(User).filter(User.id.in_(user_ids)).all()
-            users_map = {u.id: (u.full_name or u.email) for u in users}
+            users_map = {u.id: (u.full_name or u.email, u.email) for u in users}
 
         cv_titles_map = {}
         if cv_doc_ids:
@@ -170,22 +192,81 @@ class RAGService:
         resume_titles_map = {}
         if resume_ids:
             resumes = db.query(Resume).filter(Resume.id.in_(resume_ids)).all()
-            resume_titles_map = {r.id: (r.file_name or f"CV đính kèm #{r.id}") for r in resumes}
+            resume_titles_map = {
+                r.id: (getattr(r, "title", None) or getattr(r, "file_name", None) or f"CV đính kèm #{r.id}")
+                for r in resumes
+            }
 
         job_titles_map = {}
         if job_ids:
             jobs = db.query(Job).filter(Job.id.in_(job_ids)).all()
             job_titles_map = {j.id: j.title for j in jobs}
 
+        # Batch enrich application info if company_id is provided
+        apps_map = {}
+        user_app_map = {}
+        if request.company_id and (resume_ids or cv_doc_ids or user_ids):
+            from app.models.application import Application
+
+            app_query = (
+                db.query(Application, Job.title.label("job_title"))
+                .join(Job, Job.id == Application.job_id)
+                .filter(Job.company_id == request.company_id)
+            )
+            if request.job_id:
+                app_query = app_query.filter(Job.id == request.job_id)
+
+            app_rows = app_query.order_by(Application.applied_at.desc()).all()
+            for app, job_title in app_rows:
+                if app.resume_id:
+                    apps_map[("resume", app.resume_id)] = (app, job_title)
+                if app.cv_document_id:
+                    apps_map[("cv_document", app.cv_document_id)] = (app, job_title)
+                if app.candidate_id not in user_app_map:
+                    user_app_map[app.candidate_id] = (app, job_title)
+
         for r in results:
             if r.user_id and r.user_id in users_map:
-                r.candidate_name = users_map[r.user_id]
+                name, email = users_map[r.user_id]
+                r.candidate_name = name
+                r.candidate_email = email
             if r.document_type == "cv_document":
                 r.document_title = cv_titles_map.get(r.document_id)
             elif r.document_type == "resume":
                 r.document_title = resume_titles_map.get(r.document_id)
             elif r.document_type == "job":
                 r.document_title = job_titles_map.get(r.document_id)
+
+            # Enrich application data
+            matched_app_info = apps_map.get((r.document_type, r.document_id))
+            if not matched_app_info and r.user_id:
+                matched_app_info = user_app_map.get(r.user_id)
+
+            if matched_app_info:
+                app, job_title = matched_app_info
+                r.applied_job_id = app.job_id
+                r.applied_job_title = job_title
+                r.application_status = (
+                    app.status.value if hasattr(app.status, "value") else str(app.status)
+                )
+                r.application_id = app.id
+        # Record search telemetry for Admin RAG Governance
+        duration_ms = int((time.perf_counter() - start_time) * 1000)
+        max_score = max((r.hybrid_score for r in results), default=0.0)
+        rag_governance_service.record_search(
+            query=request.query,
+            results_count=len(results),
+            duration_ms=duration_ms,
+            min_score=request.min_score,
+            company_id=request.company_id,
+            company_name=company_name,
+            user_id=actor_user_id if actor_user_id is not None else request.user_id,
+            user_email=actor_email,
+            job_id=request.job_id,
+            section_types=request.section_types,
+            max_hybrid_score=max_score,
+            status="success" if results else "empty",
+        )
 
         return results
 
@@ -405,7 +486,11 @@ class RAGService:
                 )
             resume = crud_resume.get_by_id(db, resume_id=request.resume_id)
             if resume:
-                document_title = resume.file_name or f"CV đính kèm #{resume.id}"
+                document_title = (
+                    getattr(resume, "title", None)
+                    or getattr(resume, "file_name", None)
+                    or f"CV đính kèm #{resume.id}"
+                )
                 if resume.user:
                     candidate_name = resume.user.full_name or resume.user.email
 

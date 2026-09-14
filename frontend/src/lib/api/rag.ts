@@ -12,6 +12,7 @@ export interface RAGSearchResult {
   company_id?: number | null;
   user_id?: number | null;
   candidate_name?: string | null;
+  candidate_email?: string | null;
   document_title?: string | null;
   section_type: "summary" | "experience" | "education" | "skills" | "project" | "requirement" | "benefit" | string;
   chunk_index: number;
@@ -31,12 +32,22 @@ export interface RAGSearchResult {
   dense_score: number;
   sparse_score: number;
   hybrid_score: number;
+  // Application context (company candidate details)
+  applied_job_id?: number | null;
+  applied_job_title?: string | null;
+  application_status?: string | null;
+  application_id?: number | null;
+  applied_at?: string | null;
 }
 
 export interface RAGQueryRequest {
   query: string;
   document_type?: "resume" | "cv_document" | "job" | null;
+  document_types?: string[] | null;
   company_id?: number | null;
+  user_id?: number | null;
+  job_id?: number | null;
+  only_company_applicants?: boolean;
   section_types?: string[] | null;
   limit?: number;
   min_score?: number;

@@ -96,9 +96,44 @@ else
     echo "  ⏭️  seed_demo_data.py not found, skipping"
 fi
 
+# --- 6. Verify AI RAG Hybrid Search chunks ---
+echo "[6/6] Verifying AI RAG Hybrid Search index..."
+python -c '
+from app.database import SessionLocal
+from app.models.document_chunk import DocumentChunk
+from app.models.job import Job
+from app.models.resume import Resume
+from app.models.cv_document import CvDocument
+from app.services.rag_service import rag_service
+
+db = SessionLocal()
+try:
+    chunk_count = db.query(DocumentChunk).count()
+    if chunk_count == 0:
+        print("  ⚡ DocumentChunk table is empty. Auto-indexing documents for RAG Hybrid Search...")
+        j_count, r_count, c_count = 0, 0, 0
+        for j in db.query(Job).all():
+            rag_service.index_document(db, document_type="job", document_id=j.id)
+            j_count += 1
+        for r in db.query(Resume).all():
+            rag_service.index_document(db, document_type="resume", document_id=r.id)
+            r_count += 1
+        for c in db.query(CvDocument).all():
+            rag_service.index_document(db, document_type="cv_document", document_id=c.id)
+            c_count += 1
+        print(f"  ✅ Auto-indexed {j_count} jobs, {r_count} resumes, {c_count} cv_documents into RAG store.")
+    else:
+        print(f"  ✅ RAG chunk store ready ({chunk_count} chunks indexed).")
+except Exception as e:
+    print(f"  ⚠️ RAG index check warning: {e}")
+finally:
+    db.close()
+' 2>/dev/null || echo "  ⚠️ RAG index verification skipped"
+
 echo ""
 echo "========================================"
 echo "  Starting uvicorn on 0.0.0.0:8000"
 echo "========================================"
 
 exec uvicorn app.main:app --host 0.0.0.0 --port 8000
+

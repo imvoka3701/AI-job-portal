@@ -8,6 +8,8 @@ from sqlalchemy.orm import Session
 
 from app.core.company_permissions import CompanyPermission, build_company_context
 from app.core.dependencies import get_current_user
+from app.core.prompt_armor import prompt_armor
+from app.core.rate_limiter import rate_limit
 from app.database import get_db
 from app.models.application import Application
 from app.models.cv_document import CvDocument, CvDocumentStatus
@@ -34,12 +36,21 @@ router = APIRouter(prefix="/rag", tags=["RAG (Retrieval-Augmented Generation)"])
     response_model=RAGQueryResponse,
     summary="Hybrid Semantic Search (Dense Vector + Sparse BM25)",
     description="Tìm kiếm ngữ nghĩa kết hợp lọc từ khóa chính xác và cách ly Multi-tenant.",
+    dependencies=[Depends(rate_limit("ai_matching"))],
 )
 def hybrid_search(
     payload: RAGQueryRequest,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> Any:
+    is_safe, reason, _ = prompt_armor.inspect(payload.query)
+    if not is_safe:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Nội dung tìm kiếm chứa mẫu không an toàn: {reason}",
+        )
+
+    actor_company_name = None
     # 1. Candidate Boundary Isolation: A candidate must NEVER see another candidate's private resumes/CVs
     if current_user.role == UserRole.CANDIDATE:
         if payload.document_type in ["resume", "cv_document"] or payload.document_type is None:
@@ -55,14 +66,26 @@ def hybrid_search(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Bạn không có quyền sử dụng tính năng tìm kiếm AI tuyển dụng.",
             )
+        payload.company_id = context.company.id
+        actor_company_name = context.company.name
+
         if payload.document_type == "job":
-            payload.company_id = context.company.id
-        elif payload.document_type in ["resume", "cv_document"]:
-            # Employer can only search published CVs in the public talent pool
-            payload.exclude_drafts = True
+            payload.only_company_applicants = False
+        else:
+            # Employer Talent Search: only search candidate CVs submitted to this company
+            if not payload.document_type and not payload.document_types:
+                payload.document_types = ["resume", "cv_document"]
+            payload.only_company_applicants = True
+            payload.exclude_drafts = False
             payload.user_id = None
 
-    results = rag_service.search(db, payload)
+    results = rag_service.search(
+        db,
+        payload,
+        actor_user_id=current_user.id,
+        actor_email=current_user.email,
+        company_name=actor_company_name,
+    )
     return RAGQueryResponse(
         query=payload.query,
         results=results,
@@ -75,12 +98,22 @@ def hybrid_search(
     response_model=RAGInterviewQuestionsResponse,
     summary="Generate Grounded Interview Questions",
     description="Sinh câu hỏi phỏng vấn thực chiến bám sát chứng cứ trong hồ sơ ứng viên và yêu cầu JD.",
+    dependencies=[Depends(rate_limit("ai_expensive"))],
 )
 async def generate_interview_questions(
     payload: RAGInterviewQuestionsRequest,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> Any:
+    from app.services.rag_governance_service import rag_governance_service
+
+    if not rag_governance_service.is_enabled():
+        cfg = rag_governance_service.get_config()
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=cfg.maintenance_message,
+        )
+
     job = db.query(Job).filter(Job.id == payload.job_id).first()
     if not job:
         raise HTTPException(
@@ -158,12 +191,20 @@ async def generate_interview_questions(
     response_model=RAGCVChatResponse,
     summary="CV Copilot RAG Chat",
     description="Hỏi đáp thông minh về hồ sơ ứng viên với trích dẫn chứng cứ chính xác từ các đoạn phân đoạn.",
+    dependencies=[Depends(rate_limit("ai_expensive"))],
 )
 async def chat_with_cv(
     payload: RAGCVChatRequest,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> Any:
+    is_safe, reason, _ = prompt_armor.inspect(payload.query)
+    if not is_safe:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Câu hỏi chứa nội dung không an toàn hoặc cố ý thao túng AI: {reason}",
+        )
+
     # 1. Candidate check: must own the document
     if current_user.role == UserRole.CANDIDATE:
         if payload.cv_document_id:
@@ -234,9 +275,20 @@ async def chat_with_cv(
                 detail="Bạn không có quyền truy vấn hồ sơ này vì ứng viên chưa nộp đơn hoặc chưa công khai hồ sơ.",
             )
 
+    from app.services.rag_governance_service import rag_governance_service
+
+    if not rag_governance_service.is_enabled():
+        cfg = rag_governance_service.get_config()
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=cfg.maintenance_message,
+        )
+
     try:
         response = await rag_service.chat_with_cv(db, payload)
         return response
+    except HTTPException:
+        raise
     except Exception as exc:
         logger.exception("Error in CV Copilot chat: %s", exc)
         raise HTTPException(
@@ -249,6 +301,7 @@ async def chat_with_cv(
     "/index",
     summary="Index document chunks",
     description="Phân đoạn ngữ nghĩa và sinh vector embedding cho một tài liệu (resume / cv_document / job).",
+    dependencies=[Depends(rate_limit("ai_matching"))],
 )
 def index_document(
     document_type: str = Query(..., description="'resume' | 'cv_document' | 'job'"),

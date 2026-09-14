@@ -540,3 +540,91 @@ def test_batch_ingest_all_forbidden_for_employer(client: TestClient, db_session:
     assert res.status_code == 403
 
 
+def test_employer_talent_search_isolates_company_applicants(client: TestClient, db_session: Session):
+    """Employer talent search must strictly isolate results to candidates who applied to their company."""
+    from app.models.application import Application, ApplicationStatus
+    from app.models.job import Job
+    from app.models.resume import Resume
+
+    # Setup Employer A and Company A
+    headers_emp_a = _login(client, db_session, "employer_alpha@example.com", role="employer")
+    emp_a_user = db_session.query(User).filter(User.email == "employer_alpha@example.com").first()
+    assert emp_a_user is not None
+
+    from app.core.company_permissions import build_company_context
+    context = build_company_context(db_session, emp_a_user)
+    comp_a_id = context.company.id
+
+    # Create Job A for Company A
+    job_a = Job(
+        title="React Frontend Developer",
+        description="React and TypeScript",
+        requirements="Must know React, TypeScript and Tailwind",
+        employer_id=emp_a_user.id,
+        company_id=comp_a_id,
+    )
+    db_session.add(job_a)
+    db_session.commit()
+    db_session.refresh(job_a)
+
+    # Create Candidate A who applied to Job A
+    cand_a = User(email="cand_alpha@example.com", hashed_password="pw", full_name="Candidate Alpha", role=UserRole.CANDIDATE)
+    db_session.add(cand_a)
+    db_session.commit()
+    db_session.refresh(cand_a)
+
+    resume_a = Resume(
+        user_id=cand_a.id,
+        title="React TypeScript Engineer Candidate Alpha",
+        desired_role="React TypeScript Engineer",
+        raw_text="Senior React Engineer proficient in TypeScript, React 19, and Tailwind CSS",
+    )
+    db_session.add(resume_a)
+    db_session.commit()
+    db_session.refresh(resume_a)
+    rag_service.index_document(db_session, document_type="resume", document_id=resume_a.id)
+
+    app_a = Application(
+        candidate_id=cand_a.id,
+        job_id=job_a.id,
+        resume_id=resume_a.id,
+        status=ApplicationStatus.SHORTLISTED,
+    )
+    db_session.add(app_a)
+    db_session.commit()
+
+    # Create Candidate B who applied to ANOTHER company's job
+    cand_b = User(email="cand_beta@example.com", hashed_password="pw", full_name="Candidate Beta", role=UserRole.CANDIDATE)
+    db_session.add(cand_b)
+    db_session.commit()
+    db_session.refresh(cand_b)
+
+    resume_b = Resume(
+        user_id=cand_b.id,
+        title="React TypeScript Engineer Candidate Beta",
+        desired_role="React TypeScript Engineer",
+        raw_text="Senior React Engineer proficient in TypeScript, React 19, and Tailwind CSS",
+    )
+    db_session.add(resume_b)
+    db_session.commit()
+    db_session.refresh(resume_b)
+    rag_service.index_document(db_session, document_type="resume", document_id=resume_b.id)
+
+    # Employer A searches for React candidates
+    res = client.post(
+        "/rag/search",
+        json={"query": "React TypeScript Engineer", "min_score": 0.3},
+        headers=headers_emp_a,
+    )
+    assert res.status_code == 200
+    data = res.json()
+    assert len(data["results"]) > 0
+    # All returned results must belong to Candidate A, NOT Candidate B
+    for item in data["results"]:
+        assert item["user_id"] == cand_a.id
+        assert item["candidate_name"] == "Candidate Alpha"
+        assert item["applied_job_title"] == "React Frontend Developer"
+        assert item["application_status"] == "shortlisted"
+
+
+

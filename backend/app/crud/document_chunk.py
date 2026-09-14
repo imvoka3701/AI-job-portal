@@ -93,12 +93,17 @@ class CRUDDocumentChunk:
         query_text: str,
         query_vector: list[float] | None = None,
         document_type: str | None = None,
+        document_types: list[str] | None = None,
         company_id: int | None = None,
         user_id: int | None = None,
+        job_id: int | None = None,
+        only_company_applicants: bool = False,
         section_types: list[str] | None = None,
         limit: int = 5,
         min_score: float = 0.4,
         exclude_drafts: bool = True,
+        alpha_dense: float = 0.70,
+        alpha_sparse: float = 0.30,
     ) -> list[RAGSearchResult]:
         """Perform Hybrid Search (Dense pgvector Cosine + Sparse BM25 tsvector) with hard tenant isolation."""
         bind = db.get_bind()
@@ -112,10 +117,34 @@ class CRUDDocumentChunk:
                 "limit": limit,
                 "min_score": min_score,
                 "vector_str": f"[{','.join(str(v) for v in query_vector)}]",
+                "alpha_dense": float(alpha_dense),
+                "alpha_sparse": float(alpha_sparse),
             }
 
-            # Multi-tenant boundary isolation
-            if company_id is not None:
+            # Multi-tenant boundary isolation: Company Applicants fence
+            if only_company_applicants and company_id is not None:
+                applicant_filter = """
+                (
+                    (document_type = 'resume' AND document_id IN (
+                        SELECT a.resume_id FROM applications a JOIN jobs j ON j.id = a.job_id
+                        WHERE j.company_id = :company_id AND (:filter_job_id IS NULL OR j.id = :filter_job_id) AND a.resume_id IS NOT NULL
+                    ))
+                    OR
+                    (document_type = 'cv_document' AND document_id IN (
+                        SELECT a.cv_document_id FROM applications a JOIN jobs j ON j.id = a.job_id
+                        WHERE j.company_id = :company_id AND (:filter_job_id IS NULL OR j.id = :filter_job_id) AND a.cv_document_id IS NOT NULL
+                    ))
+                    OR
+                    (user_id IN (
+                        SELECT a.candidate_id FROM applications a JOIN jobs j ON j.id = a.job_id
+                        WHERE j.company_id = :company_id AND (:filter_job_id IS NULL OR j.id = :filter_job_id)
+                    ))
+                )
+                """
+                filters.append(applicant_filter)
+                params["company_id"] = company_id
+                params["filter_job_id"] = job_id
+            elif company_id is not None:
                 if document_type == "job":
                     filters.append("company_id = :company_id")
                 else:
@@ -126,7 +155,10 @@ class CRUDDocumentChunk:
                 filters.append("user_id = :user_id")
                 params["user_id"] = user_id
 
-            if document_type:
+            if document_types:
+                filters.append("document_type = ANY(:document_types)")
+                params["document_types"] = document_types
+            elif document_type:
                 filters.append("document_type = :document_type")
                 params["document_type"] = document_type
 
@@ -177,8 +209,8 @@ class CRUDDocumentChunk:
                     metadata_json,
                     dense_sim,
                     sparse_rank,
-                    -- Hybrid score formula: 70% Dense + 30% Sparse (capped at 1.0)
-                    LEAST(1.0, (dense_sim * 0.70) + (LEAST(1.0, sparse_rank) * 0.30)) AS hybrid_score
+                    -- Hybrid score formula: dynamic Dense + Sparse weights
+                    LEAST(1.0, (dense_sim * :alpha_dense) + (LEAST(1.0, sparse_rank) * :alpha_sparse)) AS hybrid_score
                 FROM scored_chunks
                 WHERE (dense_sim >= :min_score OR sparse_rank > 0.05)
                 ORDER BY hybrid_score DESC
@@ -216,14 +248,43 @@ class CRUDDocumentChunk:
         else:
             # Fallback for SQLite in-memory testing or non-vector queries
             query = db.query(DocumentChunk)
-            if company_id is not None:
+            if only_company_applicants and company_id is not None:
+                from app.models.application import Application
+                from app.models.job import Job
+
+                app_query = (
+                    db.query(Application.resume_id, Application.cv_document_id, Application.candidate_id)
+                    .join(Job, Job.id == Application.job_id)
+                    .filter(Job.company_id == company_id)
+                )
+                if job_id is not None:
+                    app_query = app_query.filter(Job.id == job_id)
+                app_rows = app_query.all()
+                allowed_resume_ids = {r[0] for r in app_rows if r[0]}
+                allowed_cv_doc_ids = {r[1] for r in app_rows if r[1]}
+                allowed_user_ids = {r[2] for r in app_rows if r[2]}
+
+                query = query.filter(
+                    (
+                        (DocumentChunk.document_type == "resume")
+                        & (DocumentChunk.document_id.in_(allowed_resume_ids))
+                    )
+                    | (
+                        (DocumentChunk.document_type == "cv_document")
+                        & (DocumentChunk.document_id.in_(allowed_cv_doc_ids))
+                    )
+                    | (DocumentChunk.user_id.in_(allowed_user_ids))
+                )
+            elif company_id is not None:
                 if document_type == "job":
                     query = query.filter(DocumentChunk.company_id == company_id)
                 else:
                     query = query.filter((DocumentChunk.company_id == company_id) | (DocumentChunk.company_id.is_(None)))
             if user_id is not None:
                 query = query.filter(DocumentChunk.user_id == user_id)
-            if document_type:
+            if document_types:
+                query = query.filter(DocumentChunk.document_type.in_(document_types))
+            elif document_type:
                 query = query.filter(DocumentChunk.document_type == document_type)
             if section_types:
                 query = query.filter(DocumentChunk.section_type.in_(section_types))

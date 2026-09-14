@@ -24,6 +24,9 @@ from app.models.criteria_score import CriteriaScore
 from app.models.recruitment_request import RecruitmentRequest, RecruitmentPriority, RecruitmentRequestStatus
 from app.models.notification import Notification, NotificationType
 from app.models.admin_audit_log import AdminAuditLog
+from app.models.admin_rbac import AdminRole
+from app.models.document_chunk import DocumentChunk
+from app.services.rag_service import rag_service
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger("seed_demo")
@@ -41,6 +44,7 @@ def clean_database(db):
     logger.info("🧹 Cleaning old test data...")
     # Delete in order respecting foreign key constraints
     tables_to_clean = [
+        DocumentChunk,
         CriteriaScore,
         InterviewRound,
         Application,
@@ -91,12 +95,16 @@ def seed_demo_data():
         logger.info("  ✓ Created 5 job categories")
 
         # ── 2. Core Demo Accounts ──────────────────────────────────────────────
+        super_admin_role = db.query(AdminRole).filter(AdminRole.code == "super_admin").first()
+        super_admin_id = super_admin_role.id if super_admin_role else None
+
         # Admin User
         admin_user = User(
             email="admin@jobportal.vn",
             hashed_password=hash_password(ADMIN_PASSWORD),
             full_name="Quản Trị Viên Hệ Thống",
             role=UserRole.ADMIN,
+            admin_role_id=super_admin_id,
             is_active=True,
             phone="0901000001",
         )
@@ -665,6 +673,19 @@ def seed_demo_data():
         db.add_all(logs_data)
         db.commit()
         logger.info("  ✓ Created audit logs for Admin oversight")
+
+        # --- Index RAG Document Chunks ---
+        logger.info("  ✓ Indexing document chunks for AI RAG Hybrid Search...")
+        try:
+            for j in db.query(Job).all():
+                rag_service.index_document(db, document_type="job", document_id=j.id)
+            for r in db.query(Resume).all():
+                rag_service.index_document(db, document_type="resume", document_id=r.id)
+            for c in db.query(CvDocument).all():
+                rag_service.index_document(db, document_type="cv_document", document_id=c.id)
+            logger.info("  ✓ Successfully indexed all jobs and CVs for RAG Hybrid Search")
+        except Exception as e:
+            logger.warning(f"  ⚠️ RAG indexing warning: {e}")
 
         print("\n" + "=" * 70)
         print("🎉 HOÀN THÀNH DỌN DẸP & NẠP DỮ LIỆU DEMO THỰC TẾ 100%!")

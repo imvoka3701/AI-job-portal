@@ -32,11 +32,15 @@ def seed():
             print(f"[OK] Admin account already exists: {existing.email}")
             return
 
+        from app.models.admin_rbac import AdminRole
+
+        super_role = db.query(AdminRole).filter(AdminRole.code == "super_admin").first()
         admin = User(
             email=ADMIN_EMAIL,
             hashed_password=hash_password(ADMIN_PASSWORD),
             full_name="System Admin",
             role=UserRole.ADMIN,
+            admin_role_id=super_role.id if super_role else None,
             is_active=True,
         )
         db.add(admin)

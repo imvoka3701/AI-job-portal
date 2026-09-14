@@ -49,6 +49,7 @@ class RAGSearchResult(BaseModel):
     company_id: int | None = None
     user_id: int | None = None
     candidate_name: str | None = None
+    candidate_email: str | None = None
     document_title: str | None = None
     section_type: str
     chunk_index: int
@@ -57,13 +58,22 @@ class RAGSearchResult(BaseModel):
     dense_score: float = Field(0.0, ge=0.0, le=1.0)
     sparse_score: float = Field(0.0, ge=0.0)
     hybrid_score: float = Field(0.0, ge=0.0, le=1.0)
+    # Application Context (for company candidates)
+    applied_job_id: int | None = None
+    applied_job_title: str | None = None
+    application_status: str | None = None
+    application_id: int | None = None
+    applied_at: datetime | None = None
 
 
 class RAGQueryRequest(BaseModel):
     query: str = Field(..., min_length=2, max_length=1000, description="Nội dung tìm kiếm ngữ nghĩa")
     document_type: str | None = Field(None, description="'resume' | 'cv_document' | 'job' hoặc None để tìm tất cả")
+    document_types: list[str] | None = Field(None, description="Danh sách các loại tài liệu cần tìm (vd: ['resume', 'cv_document'])")
     company_id: int | None = Field(None, description="Tenant ID để lọc cách ly dữ liệu")
     user_id: int | None = Field(None, description="Lọc theo người sở hữu tài liệu")
+    job_id: int | None = Field(None, description="Lọc ứng viên đã nộp vào một vị trí tuyển dụng cụ thể")
+    only_company_applicants: bool = Field(False, description="Chỉ tìm kiếm ứng viên đã nộp hồ sơ vào công ty")
     section_types: list[str] | None = Field(None, description="Bộ lọc các section cụ thể")
     limit: int = Field(5, ge=1, le=50, description="Số lượng kết quả lấy ra")
     min_score: float = Field(0.4, ge=0.0, le=1.0, description="Ngưỡng tương đồng tối thiểu")
