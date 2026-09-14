@@ -108,7 +108,6 @@ ai-job-portal/
 │   │   │   ├── candidate/                # CandidateDashboard, CVEditorPage, AssessmentPage, RoadmapPage...
 │   │   │   └── employer/                 # EmployerTalentSearch, EmployerDashboard, RecruitmentRequestsPage...
 │   │   └── styles/                       # Tailwind CSS v4 + Design Tokens
-├── docs/                                 # Báo cáo kiểm toán bảo mật, AI Code Review, Minh chứng AI
 ├── scripts/
 │   ├── export_backup.bat                 # Script tự động xuất bản sao lưu database từ Docker container
 │   ├── restore_db.bat                    # Script khôi phục nhanh database
