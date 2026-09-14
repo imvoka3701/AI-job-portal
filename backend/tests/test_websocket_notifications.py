@@ -114,3 +114,51 @@ def test_websocket_realtime_notification_dispatch(db_session: Session, client: T
         db_notif = db_session.query(Notification).filter(Notification.id == notif.id).first()
         assert db_notif is not None
         assert db_notif.user_id == user_id
+
+
+def test_websocket_token_version_invalidation(db_session: Session, client: TestClient):
+    """When a user's token_version is bumped, active or stolen tokens are rejected on WS connect."""
+    import pytest
+    from starlette.websockets import WebSocketDisconnect
+
+    user_id, token_v1 = _register_and_get_token(
+        client, db_session, "ws_revocation@test.com", "Password123!", full_name="Revoke WS User"
+    )
+
+    # 1. Connect with token_v1 succeeds
+    with client.websocket_connect(f"/ws/notifications?token={token_v1}") as ws:
+        greeting = ws.receive_json()
+        assert greeting["type"] == "connection_established"
+        assert greeting["user_id"] == user_id
+
+    # 2. Bump token_version for user in DB (e.g. password reset / admin role change / forced logout)
+    user = db_session.query(User).filter(User.id == user_id).first()
+    assert user is not None
+    user.token_version = (user.token_version or 1) + 1
+    db_session.commit()
+    db_session.refresh(user)
+    assert user.token_version == 2
+
+    # 3. Attempting to connect with old token_v1 MUST be rejected with code 1008
+    with pytest.raises(WebSocketDisconnect) as exc_info:
+        with client.websocket_connect(f"/ws/notifications?token={token_v1}"):
+            pass
+    assert exc_info.value.code == 1008
+
+    # 4. User logs in again to get fresh token_v2 with token_version = 2
+    ip_suffix = abs(hash("ws_revocation@test.com")) % 240 + 1
+    headers = {"X-Forwarded-For": f"10.99.5.{ip_suffix}"}
+    login_resp = client.post(
+        "/auth/login",
+        json={"email": "ws_revocation@test.com", "password": "Password123!"},
+        headers=headers,
+    )
+    assert login_resp.status_code == 200
+    token_v2 = login_resp.json()["access_token"]
+
+    # 5. Connect with new token_v2 succeeds!
+    with client.websocket_connect(f"/ws/notifications?token={token_v2}") as ws:
+        greeting = ws.receive_json()
+        assert greeting["type"] == "connection_established"
+        assert greeting["user_id"] == user_id
+

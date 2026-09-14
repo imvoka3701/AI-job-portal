@@ -3,12 +3,12 @@
 Retries up to 2 times if JSON parsing fails. Raises RuntimeError if all attempts fail.
 """
 
-import json
 import logging
 
 from sqlalchemy.orm import Session
 
 from app.config import settings
+from app.core.llm_guard import clamp_text, parse_llm_json
 from app.models.ai_call_log import AIFeature
 from app.schemas.ai import CVEvaluationResponse
 from app.services.ai_errors import normalize_ai_error
@@ -31,9 +31,11 @@ class CVEvaluatorService:
         resume_text: str,
         db: Session | None = None,
     ) -> CVEvaluationResponse:
-        system_prompt = get_system_prompt(AIFeature.CV_EVALUATE, db=db)
+        from app.core.prompt_armor import sanitize_prompt_text
 
-        user_prompt = f"Hãy đánh giá CV sau:\n{resume_text}"
+        system_prompt = get_system_prompt(AIFeature.CV_EVALUATE, db=db)
+        sanitized_cv = sanitize_prompt_text(resume_text, max_length=15000)
+        user_prompt = f"Hãy đánh giá CV sau:\n{sanitized_cv}"
 
         last_error: Exception | None = None
 
@@ -85,13 +87,25 @@ class CVEvaluatorService:
                 is_valid = True nếu đúng format CV.
                 is_valid = False kèm thông điệp giải thích lý do cụ thể và hướng dẫn người dùng.
         """
+        # ── TẦNG 0: Prompt Armor security check (chống Prompt Injection trong CV) ──
+        from app.core.prompt_armor import detect_prompt_injection
+
+        is_injection, threat_type = detect_prompt_injection(resume_text)
+        if is_injection:
+            logger.warning("Prompt injection detected in CV text: threat=%s", threat_type)
+            return (
+                False,
+                "Hồ sơ chứa chỉ thị can thiệp bất hợp pháp hoặc câu lệnh độc hại. "
+                "Vui lòng tải lên CV ứng tuyển thực tế.",
+            )
+
         # ── TẦNG 1: Heuristic fast-check (không tốn token AI) ────────────────
         heuristic_result = validate_cv_heuristic(resume_text)
         if not heuristic_result.is_valid:
             logger.info("CV rejected at Tier 1 heuristic: %s", heuristic_result.reason)
             return False, heuristic_result.reason
 
-        text_clean = resume_text.strip()
+        text_clean = clamp_text(resume_text, max_chars=4000)
 
         # ── TẦNG 2: LLM structured format validation ────────────────────────
         system_prompt = (
@@ -125,7 +139,7 @@ class CVEvaluatorService:
                 db=db,
             )
             content = response.get("choices", [])[0].get("message", {}).get("content", "").strip()
-            data = json.loads(content)
+            data = parse_llm_json(content, default={"is_valid": False, "reason": "Không thể phân tích phản hồi từ AI."})
             is_valid = bool(data.get("is_valid", False))
             reason = str(data.get("reason") or "").strip()
 

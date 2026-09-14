@@ -139,10 +139,18 @@ class OAuthService:
         name = user_data.get("name", email.split("@")[0] if email else "Google User")
         picture = user_data.get("picture")
 
+        email_verified = user_data.get("email_verified", False)
+
         if not email:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Google did not return an email address.",
+            )
+
+        if not email_verified:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email tài khoản Google chưa được xác thực (unverified email). Không thể đăng nhập hệ thống.",
             )
 
         # 3. Find-or-create user
@@ -212,6 +220,12 @@ class OAuthService:
         user = crud_user.get_by_email(db, email=email)
 
         if user:
+            # Security: Prevent unauthorized automatic linking/takeover of ADMIN accounts
+            if user.role == UserRole.ADMIN:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Tài khoản Quản trị viên (Admin) không được phép tự động liên kết qua Google OAuth công cộng. Vui lòng đăng nhập bằng mật khẩu quản trị.",
+                )
             # Existing local user — link OAuth account
             if picture and not user.avatar_url:
                 user.avatar_url = picture

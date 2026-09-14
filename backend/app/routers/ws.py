@@ -19,19 +19,36 @@ router = APIRouter(tags=["WebSockets"])
 
 
 def authenticate_websocket_token(token: str | None, db: Session) -> User | None:
-    """Validate JWT token passed in WebSocket query parameters."""
+    """Validate JWT token passed in WebSocket query parameters.
+
+    Checks:
+    1. Valid JWT signature and expiration.
+    2. User exists and is active.
+    3. Token version matches user's current token_version (session revocation check).
+    """
     if not token:
         return None
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         user_id = int(payload.get("sub"))
         user = crud_user.get_by_id(db, user_id=user_id)
-        if user and user.is_active:
-            return user
+        if not user or not user.is_active:
+            return None
+
+        token_ver = payload.get("token_version")
+        if token_ver is not None and token_ver != user.token_version:
+            logger.warning(
+                "WebSocket connection rejected: token_version mismatch (token=%s, user=%s) for user_id=%s",
+                token_ver,
+                user.token_version,
+                user.id,
+            )
+            return None
+
+        return user
     except (JWTError, KeyError, ValueError, Exception) as exc:
         logger.debug("WebSocket auth failed: %s", exc)
         return None
-    return None
 
 
 @router.websocket("/ws/notifications")

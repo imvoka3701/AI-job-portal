@@ -39,6 +39,10 @@ def generate_embedding(text: str) -> list[float]:
     if not stripped:
         raise ValueError("Cannot generate embedding from empty text")
 
+    # Clamp input to max 8192 characters for embedding model efficiency & safety
+    if len(stripped) > 8192:
+        stripped = stripped[:8192]
+
     # encode returns a numpy array; convert to plain Python list[float]
     embedding: Sequence[float] = _model.encode(stripped, normalize_embeddings=True).tolist()
     return list(embedding)

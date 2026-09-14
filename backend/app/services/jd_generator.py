@@ -4,12 +4,12 @@ Enriches the generation prompt with Company Tenancy context and industry specifi
 Provides robust heuristic fallbacks across industries if the LLM API is unavailable.
 """
 
-import json
 import logging
 
 from sqlalchemy.orm import Session
 
 from app.config import settings
+from app.core.llm_guard import parse_llm_json
 from app.models.ai_call_log import AIFeature
 from app.models.company import Company
 from app.models.job import JobCategory
@@ -108,7 +108,7 @@ class JDGeneratorService:
             if not raw_content:
                 raise ValueError("Empty LLM response")
 
-            data = json.loads(raw_content)
+            data = parse_llm_json(raw_content)
 
             # Fallback benchmark salary if LLM omits or gives 0
             bench_min, bench_max = SALARY_BENCHMARKS.get(

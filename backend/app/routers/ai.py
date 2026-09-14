@@ -15,6 +15,7 @@ from app.core.company_permissions import (
     require_job_scope,
 )
 from app.core.dependencies import get_current_user, get_optional_user
+from app.core.prompt_armor import prompt_armor
 from app.core.rate_limiter import rate_limit
 from app.crud.application import crud_application
 from app.crud.cv_document import crud_cv_document
@@ -889,6 +890,14 @@ async def generate_email(
             detail=f"email_type must be one of: {sorted(valid_types)}",
         )
 
+    if data.custom_prompt:
+        is_safe, reason, _ = prompt_armor.inspect(data.custom_prompt)
+        if not is_safe:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Nội dung yêu cầu chứa mẫu không an toàn: {reason}",
+            )
+
     app = crud_application.get_by_id_with_relations(db, application_id=data.application_id)
     if not app:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found")
@@ -982,6 +991,14 @@ async def generate_job_description(
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="Chức danh công việc phải có ít nhất 2 ký tự.",
+        )
+
+    combined_notes = f"{data.job_title} {data.key_notes or ''}"
+    is_safe, reason, _ = prompt_armor.inspect(combined_notes)
+    if not is_safe:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Nội dung yêu cầu chứa mẫu không an toàn: {reason}",
         )
 
     started = time.monotonic()

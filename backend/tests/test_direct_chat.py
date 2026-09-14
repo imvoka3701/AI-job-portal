@@ -174,10 +174,29 @@ def test_chat_security_privacy_and_admin_governance(client: TestClient, db_sessi
     admin_headers, admin_id = _register_and_login(
         client, db_session, "admin_sec@domain.com", role="candidate", full_name="Security Admin"
     )
+    from app.models.admin_rbac import AdminRole
+
     admin_user = db_session.query(User).filter(User.id == admin_id).first()
     assert admin_user is not None
     admin_user.role = UserRole.ADMIN
+    super_role = db_session.query(AdminRole).filter(AdminRole.code == "super_admin").first()
+    if not super_role:
+        super_role = AdminRole(
+            name="Super Administrator",
+            code="super_admin",
+            description="Full privileges",
+            is_system=True,
+        )
+        db_session.add(super_role)
+        db_session.flush()
+    admin_user.admin_role_id = super_role.id
+    admin_user.admin_role = super_role
     db_session.commit()
+
+    # Re-login with updated admin role
+    login_admin = client.post("/auth/login", json={"email": "admin_sec@domain.com", "password": "Password123!"})
+    assert login_admin.status_code == 200
+    admin_headers = {"Authorization": f"Bearer {login_admin.json()['access_token']}"}
 
     # 2. Setup job, application, and conversation with messages
     job_id = _create_job(client, emp_headers)

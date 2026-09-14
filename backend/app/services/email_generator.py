@@ -22,6 +22,7 @@ import logging
 from sqlalchemy.orm import Session
 
 from app.config import settings
+from app.core.llm_guard import parse_llm_json
 from app.models.ai_call_log import AIFeature
 from app.schemas.ai import GenerateEmailResponse
 from app.services.ai_errors import normalize_ai_error
@@ -103,7 +104,7 @@ class EmailGeneratorService:
             f"- Công ty: {company_name}\n"
         )
         if cv_summary:
-            # Truncate to 800 chars — consistent with ai_matching.py cap; prevents token bloat
+            # Truncate để tránh token overrun (đồng nhất với ai_matching.py pattern)
             user_prompt += f"- Tóm tắt hồ sơ ứng viên: {cv_summary[:800]}\n"
 
         if tone:
@@ -111,8 +112,8 @@ class EmailGeneratorService:
             user_prompt += f"- Giọng điệu (Tone): {tone_guide}\n"
 
         if custom_prompt and custom_prompt.strip():
-            # Truncate to 500 chars — cap user-controlled input injected into LLM prompt
-            # to mitigate indirect prompt injection risk (AI_CODE_REVIEW.md — Phát hiện 2.1)
+            # Truncate 500 chars: giảm thiểu rủi ro indirect prompt injection từ HR input
+            # (Safety rules trong system prompt vẫn có authority cao hơn user prompt)
             user_prompt += (
                 f"- Chỉ dẫn bổ sung từ nhà tuyển dụng (Custom Prompt): {custom_prompt.strip()[:500]}\n"
             )
@@ -137,7 +138,8 @@ class EmailGeneratorService:
                 if not content:
                     raise ValueError("Empty response from Deepseek.")
 
-                result = GenerateEmailResponse.model_validate_json(content)
+                parsed_data = parse_llm_json(content)
+                result = GenerateEmailResponse.model_validate(parsed_data)
                 return result
 
             except Exception as exc:

@@ -55,17 +55,18 @@ def login(data: LoginRequest, db: Session = Depends(get_db)) -> Token:
     "/forgot-password",
     response_model=ForgotPasswordResponse,
     summary="Request a new temporary password sent via email",
+    dependencies=[Depends(rate_limit("auth_login"))],
 )
 def forgot_password(
     data: ForgotPasswordRequest,
     db: Session = Depends(get_db),
 ) -> ForgotPasswordResponse:
-    """Generate a secure new password, update DB, and deliver to user's email via SMTP."""
-    try:
-        msg = auth_service.forgot_password(db, email=data.email)
-        return ForgotPasswordResponse(message=msg, email=data.email)
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    """Generate a secure new password, update DB, and deliver to user's email via SMTP.
+
+    Enforces rate limiting (5 req/min) and anti-user enumeration.
+    """
+    msg = auth_service.forgot_password(db, email=data.email)
+    return ForgotPasswordResponse(message=msg, email=data.email)
 
 
 # ── Google OAuth ─────────────────────────────────────────────────────────────

@@ -64,9 +64,12 @@ class User(Base):
         """Check if user has a specific admin permission."""
         if self.role != UserRole.ADMIN:
             return False
-        # Super admin has all permissions; if unassigned, default to super_admin for backwards compatibility
-        if not self.admin_role or self.admin_role.code == "super_admin":
+        # Only users explicitly assigned to super_admin have full bypass permissions
+        if self.admin_role and self.admin_role.code == "super_admin":
             return True
+        # Least-privilege: an admin without an assigned admin_role has NO administrative permissions
+        if not self.admin_role:
+            return False
         return any(p.code == permission_code for p in self.admin_role.permissions)
 
     def __repr__(self) -> str:

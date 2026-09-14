@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.core.dependencies import get_current_user
+from app.core.rate_limiter import rate_limit
 from app.crud.user import crud_user
 from app.database import get_db
 from app.models.user import User, UserRole
@@ -30,7 +31,12 @@ def update_me(
     return UserRead.model_validate(updated)
 
 
-@router.post("/me/avatar", response_model=UserRead, summary="Upload user avatar")
+@router.post(
+    "/me/avatar",
+    response_model=UserRead,
+    summary="Upload user avatar",
+    dependencies=[Depends(rate_limit("file_upload"))],
+)
 async def upload_avatar(
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),

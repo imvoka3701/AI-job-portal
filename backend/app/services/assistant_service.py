@@ -130,6 +130,31 @@ class AssistantService:
         """Process chat message with diplomatic persona & contextual knowledge."""
         last_user_message = next((m.content for m in reversed(messages) if m.role == "user"), "")
 
+        # ── Prompt Armor Security Check ──────────────────────────────────────
+        from app.core.prompt_armor import (
+            SAFE_PROMPT_DEFLECTION_MESSAGE,
+            detect_prompt_injection,
+            sanitize_prompt_text,
+        )
+
+        is_injection, threat_type = detect_prompt_injection(last_user_message)
+        if is_injection:
+            logger.warning(
+                "Prompt injection intercepted: threat=%s, user_id=%s, msg=%r",
+                threat_type,
+                current_user.id if current_user else "guest",
+                last_user_message[:100],
+            )
+            return AssistantChatResponse(
+                reply=SAFE_PROMPT_DEFLECTION_MESSAGE,
+                suggested_cards=[],
+                suggested_followups=[
+                    "Tìm kiếm việc làm phù hợp",
+                    "Đánh giá chất lượng hồ sơ CV",
+                    "Gợi ý câu hỏi phỏng vấn phổ biến",
+                ],
+            )
+
         # Security hardening: Role is cryptographically bound to verified JWT identity
         if current_user:
             role = current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)
@@ -194,7 +219,7 @@ class AssistantService:
 
         payload_messages = [{"role": "system", "content": system_prompt}]
         for m in messages[-8:]:
-            payload_messages.append({"role": m.role, "content": m.content})
+            payload_messages.append({"role": m.role, "content": sanitize_prompt_text(m.content)})
 
         # Agentic Tool Definitions & Dispatcher
         from app.services.assistant_tools import ASSISTANT_TOOLS_DEFINITIONS, dispatch_tool_call

@@ -10,6 +10,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.dependencies import get_current_user, require_role
+from app.core.rate_limiter import rate_limit
 from app.crud.resume import crud_resume
 from app.database import get_db
 from app.models.resume import Resume
@@ -20,9 +21,12 @@ from app.services.cv_evaluator import cv_evaluator_service
 from app.services.embedding_service import generate_embedding
 from app.services.rag_service import rag_service
 from app.utils.file_upload import (
+    MAX_FILE_SIZE_MB,
     MIN_EXTRACTED_TEXT_LENGTH,
+    _verify_pdf_magic,
     extract_text_from_pdf,
     save_file_upload,
+    validate_file_extension,
 )
 
 logger = logging.getLogger(__name__)
@@ -43,6 +47,7 @@ ALLOWED_CONTENT_TYPES = {"application/pdf"}
         "generates a vector embedding via sentence-transformers, and stores "
         "everything in the database. File is only persisted after validation passes."
     ),
+    dependencies=[Depends(rate_limit("file_upload"))],
 )
 async def upload_resume(
     file: UploadFile = File(..., description="Resume file (PDF only, max 5 MB)"),
@@ -51,20 +56,41 @@ async def upload_resume(
     db: Session = Depends(get_db),
 ) -> ResumeRead:
     """Upload a PDF resume, extract text, generate embedding, and create a resume entry."""
+    import io
 
-    # ── 1. Validate content type ─────────────────────────────────────────────
+    # ── 1. Validate content type & filename extension ────────────────────────
     if file.content_type not in ALLOWED_CONTENT_TYPES:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Định dạng file không hợp lệ. Chỉ chấp nhận file PDF.",
         )
 
-    # ── 2. Extract text from PDF (BEFORE saving to disk) ─────────────────────
-    # Read the file stream for text extraction first — avoid orphan files from
-    # rejected uploads.
-    file.file.seek(0)
+    filename = file.filename or "resume.pdf"
+    if not validate_file_extension(filename):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Định dạng file không hợp lệ. Chỉ chấp nhận file PDF (.pdf).",
+        )
+
+    # ── 2. Early Magic Bytes & Max Size Validation (BEFORE parsing or AI) ────
+    file_bytes = await file.read()
+    if len(file_bytes) > MAX_FILE_SIZE_MB * 1024 * 1024:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"File quá lớn. Dung lượng tối đa là {MAX_FILE_SIZE_MB}MB.",
+        )
+
     try:
-        raw_text = extract_text_from_pdf(file.file)
+        _verify_pdf_magic(file_bytes)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        )
+
+    # ── 3. Extract text from PDF stream ──────────────────────────────────────
+    try:
+        raw_text = extract_text_from_pdf(io.BytesIO(file_bytes))
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -229,57 +255,6 @@ def get_my_resumes(
     return [ResumeRead.model_validate(r) for r in resumes]
 
 
-@router.get("/{resume_id}", response_model=ResumeRead, summary="Get resume by ID")
-def get_resume(
-    resume_id: int,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-) -> ResumeRead:
-    """Get a single resume by ID."""
-    resume = crud_resume.get_by_id(db, resume_id=resume_id)
-    if not resume:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume not found")
-    if resume.user_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not your resume")
-    return ResumeRead.model_validate(resume)
-
-
-@router.post("/{resume_id}/evaluate", response_model=ResumeRead, summary="Evaluate resume using AI")
-async def evaluate_resume(
-    resume_id: int,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-) -> ResumeRead:
-    """Evaluate a resume using AI and save the results."""
-    resume = crud_resume.get_by_id(db, resume_id=resume_id)
-    if not resume:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume not found")
-    if resume.user_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not your resume")
-    if not resume.is_validated:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="CV chưa được xác thực. Vui lòng tải lên lại CV hợp lệ trước khi đánh giá.",
-        )
-    if not resume.raw_text:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Resume has no text content"
-        )
-
-    try:
-        evaluation = await cv_evaluator_service.evaluate(resume_text=resume.raw_text, db=db)
-        updated_resume = crud_resume.update(
-            db, resume=resume, obj_in={"ai_evaluation_json": evaluation.model_dump_json()}
-        )
-        return ResumeRead.model_validate(updated_resume)
-    except Exception as exc:
-        logger.exception("Failed to evaluate resume %s", resume_id)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to evaluate resume: {exc}",
-        )
-
-
 def _resolve_resume_file_path(file_url: str | None) -> str | None:
     """Safely resolve the physical file path from a resume's stored file_url.
 
@@ -369,6 +344,61 @@ def _check_resume_access(db: Session, resume: Resume, current_user: User) -> Non
         status_code=status.HTTP_403_FORBIDDEN,
         detail="Bạn không có quyền truy cập CV này.",
     )
+
+
+@router.get("/{resume_id}", response_model=ResumeRead, summary="Get resume by ID")
+def get_resume(
+    resume_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> ResumeRead:
+    """Get a single resume by ID. Enforces ownership or authorized application access."""
+    resume = crud_resume.get_by_id(db, resume_id=resume_id)
+    if not resume:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume not found")
+    _check_resume_access(db, resume, current_user)
+    return ResumeRead.model_validate(resume)
+
+
+@router.post(
+    "/{resume_id}/evaluate",
+    response_model=ResumeRead,
+    summary="Evaluate resume using AI",
+    dependencies=[Depends(rate_limit("ai_expensive"))],
+)
+async def evaluate_resume(
+    resume_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> ResumeRead:
+    """Evaluate a resume using AI and save the results."""
+    resume = crud_resume.get_by_id(db, resume_id=resume_id)
+    if not resume:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume not found")
+    if resume.user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not your resume")
+    if not resume.is_validated:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="CV chưa được xác thực. Vui lòng tải lên lại CV hợp lệ trước khi đánh giá.",
+        )
+    if not resume.raw_text:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Resume has no text content"
+        )
+
+    try:
+        evaluation = await cv_evaluator_service.evaluate(resume_text=resume.raw_text, db=db)
+        updated_resume = crud_resume.update(
+            db, resume=resume, obj_in={"ai_evaluation_json": evaluation.model_dump_json()}
+        )
+        return ResumeRead.model_validate(updated_resume)
+    except Exception as exc:
+        logger.exception("Failed to evaluate resume %s", resume_id)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to evaluate resume: {exc}",
+        )
 
 
 @router.get("/{resume_id}/content", summary="Get resume raw file content for preview")

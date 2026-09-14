@@ -1,5 +1,6 @@
 """Auth Service — handles registration, login, and JWT token management."""
 
+import logging
 from datetime import datetime, timedelta, timezone
 
 from jose import JWTError, jwt
@@ -12,6 +13,8 @@ from app.models.user import User, UserRole
 from app.schemas.auth import LoginRequest, RegisterRequest, Token, TokenPayload
 from app.schemas.user import UserCreate
 from app.services.company_service import company_service
+
+logger = logging.getLogger(__name__)
 
 
 class AuthService:
@@ -90,27 +93,43 @@ class AuthService:
             raise
 
     def forgot_password(self, db: Session, *, email: str) -> str:
-        """Issue a new temporary password, hash and save it to DB, and send it to user's email."""
+        """Issue a new temporary password, hash and save it to DB, and send it to user's email.
+
+        Anti-User Enumeration: Always returns a generic confirmation message regardless
+        of whether the email exists in the system or not.
+        Session Security: Increments user.token_version to immediately revoke all existing JWTs.
+        """
+        generic_msg = (
+            "Nếu email tồn tại trong hệ thống, mật khẩu tạm thời đã được gửi đến hộp thư của bạn. "
+            "Vui lòng kiểm tra hộp thư để đăng nhập."
+        )
+
+        user = crud_user.get_by_email(db, email=email)
+        if not user:
+            return generic_msg
+
         from app.services.password_reset_service import (
             generate_temporary_password,
             password_reset_service,
         )
 
-        user = crud_user.get_by_email(db, email=email)
-        if not user:
-            raise ValueError("Không tìm thấy tài khoản tương ứng với email này trong hệ thống.")
-
         new_password = generate_temporary_password(length=10)
         user.hashed_password = hash_password(new_password)
+        # Immediate session invalidation across all devices
+        user.token_version = (user.token_version or 1) + 1
         db.commit()
         db.refresh(user)
 
-        password_reset_service.send_new_password(
-            email=user.email,
-            full_name=user.full_name,
-            new_password=new_password,
-        )
-        return "Mật khẩu mới đã được gửi đến email của bạn. Vui lòng kiểm tra hộp thư để đăng nhập."
+        try:
+            password_reset_service.send_new_password(
+                email=user.email,
+                full_name=user.full_name,
+                new_password=new_password,
+            )
+        except Exception as exc:
+            logger.error("Failed to deliver temporary password email to %s: %s", user.email, exc)
+
+        return generic_msg
 
 
 auth_service = AuthService()

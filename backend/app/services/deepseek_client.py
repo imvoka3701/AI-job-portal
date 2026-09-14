@@ -12,6 +12,7 @@ from typing import Any
 import httpx
 
 from app.config import settings
+from app.core.secret_masker import mask_secrets
 
 logger = logging.getLogger(__name__)
 
@@ -90,7 +91,7 @@ class DeepseekClient:
             return response_data
         except Exception as exc:
             status = "failed"
-            error_msg = str(exc)[:500]
+            error_msg = mask_secrets(str(exc))[:500]
             raise
         finally:
             duration_ms = int((time.monotonic() - start_ms) * 1000)

@@ -16,6 +16,7 @@ import logging
 from sqlalchemy.orm import Session
 
 from app.config import settings
+from app.core.llm_guard import clamp_text, parse_llm_json
 from app.models.ai_call_log import AIFeature
 from app.schemas.ai import InterviewQuestionsResponse
 from app.services.ai_errors import normalize_ai_error
@@ -45,9 +46,12 @@ class InterviewQuestionsService:
         system_prompt = get_system_prompt(AIFeature.INTERVIEW_QUESTIONS, db=db)
 
         skills_list = ", ".join(skills_to_assess)
+        clamped_jd = clamp_text(job_description, max_chars=6000)
+        clamped_cv = clamp_text(cv_text, max_chars=8000)
+
         user_prompt = (
-            f"Mô tả vị trí tuyển dụng:\n{job_description}\n\n"
-            f"CV ứng viên:\n{cv_text}\n\n"
+            f"Mô tả vị trí tuyển dụng:\n{clamped_jd}\n\n"
+            f"CV ứng viên:\n{clamped_cv}\n\n"
             f"Kỹ năng cần đánh giá khi phỏng vấn: {skills_list}\n\n"
             f"Hãy tạo câu hỏi phỏng vấn cho TỪNG kỹ năng trong danh sách trên. "
             f"Tối thiểu 2 câu hỏi cho mỗi kỹ năng. "
@@ -72,7 +76,8 @@ class InterviewQuestionsService:
                 if not content:
                     raise ValueError("Empty response from Deepseek.")
 
-                result = InterviewQuestionsResponse.model_validate_json(content)
+                parsed_data = parse_llm_json(content)
+                result = InterviewQuestionsResponse.model_validate(parsed_data)
                 return result
 
             except Exception as exc:

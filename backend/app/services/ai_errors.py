@@ -6,6 +6,8 @@ import httpx
 from fastapi import HTTPException, status
 from pydantic import ValidationError
 
+from app.core.secret_masker import mask_secrets
+
 
 class AIServiceError(Exception):
     def __init__(self, *, code: str, message: str, status_code: int, retryable: bool) -> None:
@@ -75,7 +77,7 @@ def ai_http_exception(exc: Exception) -> HTTPException:
         status_code=error.status_code,
         detail={
             "code": error.code,
-            "message": error.message,
+            "message": mask_secrets(error.message),
             "retryable": error.retryable,
         },
     )

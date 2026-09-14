@@ -53,6 +53,7 @@ import time
 from datetime import datetime, timezone
 from typing import Any
 
+from app.core.secret_masker import mask_secrets
 from app.services.ai_errors import normalize_ai_error
 
 # Dedicated logger — configure a separate file handler in production to isolate
@@ -88,8 +89,8 @@ class AIAuditLogger:
                 "user_role": user_role,
                 "endpoint": endpoint,
                 "model": model,
-                "input_summary": input_summary[:200],
-                "output_summary": output_summary[:300],
+                "input_summary": mask_secrets(input_summary)[:200],
+                "output_summary": mask_secrets(output_summary)[:300],
                 "raw_input_payload": raw_input_payload,
                 "raw_output_payload": raw_output_payload,
                 "latency_ms": round((time.monotonic() - started_at) * 1000),
@@ -120,7 +121,7 @@ class AIAuditLogger:
                 "user_role": user_role,
                 "endpoint": endpoint,
                 "model": model,
-                "input_summary": input_summary[:200],
+                "input_summary": mask_secrets(input_summary)[:200],
                 "output_summary": None,
                 "raw_input_payload": raw_input_payload,
                 "latency_ms": round((time.monotonic() - started_at) * 1000),

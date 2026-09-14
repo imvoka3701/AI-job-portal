@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from pydantic import BaseModel, field_validator, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class AIMatchRequest(BaseModel):
@@ -135,9 +135,9 @@ class InterviewQuestionsResponse(BaseModel):
 
 class GenerateEmailRequest(BaseModel):
     application_id: int
-    email_type: str  # "invite" | "reject" | "offer"
-    tone: str | None = None  # "formal" | "friendly" | "concise"
-    custom_prompt: str | None = None
+    email_type: str = Field(..., max_length=50)  # "invite" | "reject" | "offer"
+    tone: str | None = Field(None, max_length=50)  # "formal" | "friendly" | "concise"
+    custom_prompt: str | None = Field(None, max_length=2000)
 
 
 class GenerateEmailResponse(BaseModel):
@@ -207,14 +207,14 @@ class JobRecommendationResponse(BaseModel):
 class GenerateJDRequest(BaseModel):
     """Payload for requesting AI-assisted multi-industry Job Description generation."""
 
-    job_title: str
-    industry: str | None = None
+    job_title: str = Field(..., min_length=2, max_length=200)
+    industry: str | None = Field(None, max_length=100)
     category_id: int | None = None
-    experience_level: str = "middle"  # fresher, junior, middle, senior, lead
-    job_type: str = "full_time"  # full_time, part_time, remote, internship, freelance
-    tone: str = "professional"  # professional, modern_startup, corporate_formal
-    key_notes: str | None = None
-    location: str | None = None
+    experience_level: str = Field("middle", max_length=50)  # fresher, junior, middle, senior, lead
+    job_type: str = Field("full_time", max_length=50)  # full_time, part_time, remote, internship, freelance
+    tone: str = Field("professional", max_length=50)  # professional, modern_startup, corporate_formal
+    key_notes: str | None = Field(None, max_length=2000)
+    location: str | None = Field(None, max_length=200)
 
 
 class GenerateJDResponse(BaseModel):
