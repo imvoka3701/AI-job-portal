@@ -63,8 +63,10 @@ def mock_smtp_backend(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
-def db_session():
+def db_session(monkeypatch):
     """Create a fresh database and reset rate limiter state for each test."""
+    monkeypatch.setattr("app.database.SessionLocal", TestingSessionLocal)
+    monkeypatch.setattr("app.routers.applications.SessionLocal", TestingSessionLocal, raising=False)
     rate_limiter_store.reset()
     settings.RATE_LIMIT_ENABLED = True
     settings.TESTING = True

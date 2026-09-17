@@ -92,13 +92,14 @@ class TestAutoCreateRound1:
         self, client: TestClient, db_session: Session
     ):
         """Two applications should each get their own Round 1."""
-        cand = _register_and_login(client, db_session, "r1b_c@t.com", "p", "RC2")
+        cand1 = _register_and_login(client, db_session, "r1b_c1@t.com", "p", "RC1")
+        cand2 = _register_and_login(client, db_session, "r1b_c2@t.com", "p", "RC2")
         emp = _register_and_login(client, db_session, "r1b_e@t.com", "p", "RE2", "employer", "RC2")
         job_id = _create_job(client, emp)
 
-        r1 = client.post("/applications", json={"job_id": job_id}, headers=cand)
+        r1 = client.post("/applications", json={"job_id": job_id}, headers=cand1)
         assert r1.status_code == 201
-        r2 = client.post("/applications", json={"job_id": job_id}, headers=cand)
+        r2 = client.post("/applications", json={"job_id": job_id}, headers=cand2)
         assert r2.status_code == 201
 
         r1_rounds = (
