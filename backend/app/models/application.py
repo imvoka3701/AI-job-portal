@@ -3,7 +3,7 @@
 import enum
 from datetime import datetime
 
-from sqlalchemy import DateTime, Float, ForeignKey, Text, func
+from sqlalchemy import DateTime, Float, ForeignKey, Text, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base, pg_enum
@@ -26,6 +26,9 @@ class HiringRecommendation(str, enum.Enum):
 
 class Application(Base):
     __tablename__ = "applications"
+    __table_args__ = (
+        UniqueConstraint("candidate_id", "job_id", name="uq_candidate_job_application"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     cover_letter: Mapped[str | None] = mapped_column(Text, nullable=True)

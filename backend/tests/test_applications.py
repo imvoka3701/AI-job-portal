@@ -153,18 +153,27 @@ class TestApplicationsCRUD:
         )
         assert response.status_code == 404
 
-    def test_apply_twice_allowed(self, client: TestClient, db_session: Session):
-        """Applying twice creates two applications (dedup is not enforced yet)."""
+    def test_apply_twice_rejected_with_conflict(self, client: TestClient, db_session: Session):
+        """Applying twice to the same job must be rejected with 409 Conflict."""
         cand = _register_and_login(client, db_session, "tw@t.com", "p", "Tw")
         emp = _register_and_login(
             client, db_session, "tw_e@t.com", "p", "TE", role="employer", company_name="TI"
         )
         job_id = _create_job(client, emp)
         r1 = client.post("/applications", json={"job_id": job_id}, headers=cand)
-        assert r1.status_code == 201
+        assert r1.status_code == 201, r1.text
+
+        # Verify check-applied returns has_applied=True
+        check_resp = client.get(f"/applications/check-applied/{job_id}", headers=cand)
+        assert check_resp.status_code == 200, check_resp.text
+        assert check_resp.json()["has_applied"] is True
+
+        # Second apply must return 409 Conflict
         r2 = client.post("/applications", json={"job_id": job_id}, headers=cand)
-        # Duplicate applications are currently allowed (TODO: dedup check)
-        assert r2.status_code == 201, f"Duplicate apply: {r2.status_code} {r2.text}"
+        assert r2.status_code == 409, f"Expected 409 Conflict on duplicate apply, got {r2.status_code} {r2.text}"
+        data2 = r2.json()
+        error_msg = data2.get("error", {}).get("message") or data2.get("detail", "")
+        assert "đã nộp" in error_msg.lower()
 
     def test_unauthenticated_cannot_apply(self, client: TestClient):
         resp = client.post("/applications", json={"job_id": 1})

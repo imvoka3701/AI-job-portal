@@ -83,17 +83,34 @@ if [ -f "seed_demo_accounts.py" ]; then
 fi
 echo "  ✅ Accounts ready"
 
-# --- 5. Seed demo data (only if DB is empty or SEED_RICH_DEMO=true) ---
+# --- 5. Seed demo data (only if DB is empty or FORCE_RESET_DEMO=true) ---
 echo "[5/6] Checking for demo data..."
-if [ "$SEED_RICH_DEMO" = "true" ] && [ -f "reset_and_seed_demo.py" ]; then
-    echo "  🌟 SEED_RICH_DEMO=true: Populating rich live presentation dataset..."
+DB_JOB_COUNT=$(python -c '
+from app.database import SessionLocal
+from app.models.job import Job
+db = SessionLocal()
+try:
+    print(db.query(Job).count())
+except Exception:
+    print(0)
+finally:
+    db.close()
+' 2>/dev/null || echo 0)
+
+if [ "$FORCE_RESET_DEMO" = "true" ] && [ -f "reset_and_seed_demo.py" ]; then
+    echo "  ⚠️ FORCE_RESET_DEMO=true: Wiping and re-seeding presentation dataset..."
     python reset_and_seed_demo.py
     echo "  ✅ Rich demo dataset ready"
-elif [ -f "seed_demo_data.py" ]; then
+elif [ "$DB_JOB_COUNT" -eq 0 ] && [ -f "reset_and_seed_demo.py" ]; then
+    echo "  🌟 Initial startup (empty DB): Populating rich presentation dataset..."
+    python reset_and_seed_demo.py
+    echo "  ✅ Rich demo dataset initialized"
+elif [ "$DB_JOB_COUNT" -eq 0 ] && [ -f "seed_demo_data.py" ]; then
+    echo "  🌟 Initial startup (empty DB): Populating standard demo data..."
     python seed_demo_data.py
-    echo "  ✅ Demo data check complete"
+    echo "  ✅ Demo data initialized"
 else
-    echo "  ⏭️  seed_demo_data.py not found, skipping"
+    echo "  ✅ Database already contains $DB_JOB_COUNT jobs — preserving persistent user data."
 fi
 
 # --- 6. Verify AI RAG Hybrid Search chunks ---

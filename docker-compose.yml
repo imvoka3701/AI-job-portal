@@ -68,7 +68,8 @@ services:
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-http://localhost:8000/auth/google/callback}
       RATE_LIMIT_ENABLED: ${RATE_LIMIT_ENABLED:-true}
-      SEED_RICH_DEMO: ${SEED_RICH_DEMO:-true}
+      SEED_RICH_DEMO: ${SEED_RICH_DEMO:-false}
+      FORCE_RESET_DEMO: ${FORCE_RESET_DEMO:-false}
     ports:
       - "8000:8000"
     volumes:

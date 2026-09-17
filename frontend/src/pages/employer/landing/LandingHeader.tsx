@@ -1,7 +1,24 @@
-import { useState, useEffect } from "react";
-import { Menu, X, PhoneCall, Sparkles, ArrowRight } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import {
+  Menu,
+  X,
+  PhoneCall,
+  Sparkles,
+  ArrowRight,
+  ChevronDown,
+  LayoutDashboard,
+  Briefcase,
+  Users,
+  LogOut,
+  Plus,
+  Shield,
+  FileText,
+} from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { cn } from "@/lib/utils";
+import { cn, getInitials, getFileUrl } from "@/lib/utils";
+import { useUser, useAuthStore } from "@/stores/authStore";
+import { NotificationBell } from "@/components/ui";
 
 const NAV_ITEMS = [
   { label: "Tính năng", href: "#features" },
@@ -16,6 +33,23 @@ export function LandingHeader() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeSection, setActiveSection] = useState("");
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+
+  const profileRef = useRef<HTMLDivElement>(null);
+  const user = useUser();
+  const logout = useAuthStore((s) => s.logout);
+  const navigate = useNavigate();
+
+  // Close profile dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
+        setIsProfileOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -42,6 +76,20 @@ export function LandingHeader() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  const handleLogout = () => {
+    logout();
+    navigate("/");
+  };
+
+  const userAvatarSrc = getFileUrl(user?.avatar_url);
+
+  const dashboardLink =
+    user?.role === "employer"
+      ? "/employer/dashboard"
+      : user?.role === "admin"
+      ? "/admin/dashboard"
+      : "/dashboard";
+
   return (
     <header
       className={cn(
@@ -55,7 +103,7 @@ export function LandingHeader() {
         <div className="flex h-18 items-center justify-between gap-3 lg:gap-6">
           
           {/* Brand Logo */}
-          <a href="/" className="flex items-center gap-2.5 shrink-0 group">
+          <Link to="/" className="flex items-center gap-2.5 shrink-0 group">
             <div className="relative w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-tr from-emerald-600 via-emerald-500 to-teal-400 flex items-center justify-center shadow-md shadow-emerald-500/20 group-hover:scale-105 transition-transform">
               <Sparkles className="w-5 h-5 text-white animate-pulse" />
               <div className="absolute -inset-0.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-400 opacity-0 group-hover:opacity-40 blur transition-opacity" />
@@ -73,7 +121,7 @@ export function LandingHeader() {
                 Tuyển dụng thông minh chuẩn AI
               </span>
             </div>
-          </a>
+          </Link>
 
           {/* Desktop Nav Links (Zero Text Wrap) */}
           <nav className="hidden lg:flex items-center gap-1 bg-gray-50/90 p-1.5 rounded-full border border-gray-200/70 shrink-0" aria-label="Main navigation">
@@ -103,9 +151,9 @@ export function LandingHeader() {
             })}
           </nav>
 
-          {/* Right Action CTAs (Zero Text Wrap) */}
+          {/* Right Action CTAs */}
           <div className="flex items-center gap-2.5 shrink-0">
-            {/* Phone hotline */}
+            {/* Phone hotline (hide on small screens) */}
             <a
               href="tel:02466805588"
               className="hidden xl:flex items-center gap-1.5 text-xs font-bold text-gray-700 hover:text-emerald-600 px-2.5 py-2 rounded-xl transition-colors whitespace-nowrap"
@@ -116,22 +164,176 @@ export function LandingHeader() {
               <span>Hotline 24/7</span>
             </a>
 
-            <a
-              href="/login"
-              className="hidden sm:inline-flex px-3.5 py-2 rounded-xl border border-gray-300 text-xs sm:text-sm font-bold text-gray-700 hover:text-emerald-600 hover:border-emerald-300 hover:bg-emerald-50/50 transition-all whitespace-nowrap shrink-0"
-            >
-              Đăng nhập
-            </a>
-            
-            <a
-              href="/employer/dashboard"
-              className="group relative inline-flex items-center gap-1.5 px-4 sm:px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-600 text-white text-xs sm:text-sm font-extrabold shadow-md shadow-emerald-600/25 hover:shadow-lg hover:shadow-emerald-600/30 hover:scale-[1.02] active:scale-[0.98] transition-all overflow-hidden whitespace-nowrap shrink-0"
-            >
-              {/* Shimmer line effect */}
-              <div className="absolute top-0 -left-[100%] w-1/2 h-full bg-white/25 skew-x-12 group-hover:left-[200%] transition-all duration-1000 ease-out pointer-events-none" />
-              <span>Đăng tin miễn phí</span>
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform shrink-0" />
-            </a>
+            {user ? (
+              /* Authenticated State */
+              <div className="flex items-center gap-2 sm:gap-3">
+                <NotificationBell />
+
+                {/* Quick Post Job CTA */}
+                {user.role === "employer" ? (
+                  <Link
+                    to="/employer/jobs/new"
+                    className="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-bold shadow-xs transition-transform hover:-translate-y-0.5 cursor-pointer whitespace-nowrap"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Đăng tin</span>
+                  </Link>
+                ) : (
+                  <Link
+                    to={dashboardLink}
+                    className="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-bold shadow-xs transition-transform hover:-translate-y-0.5 cursor-pointer whitespace-nowrap"
+                  >
+                    <LayoutDashboard className="w-4 h-4" />
+                    <span>Dashboard</span>
+                  </Link>
+                )}
+
+                {/* Profile Dropdown Popover */}
+                <div className="relative" ref={profileRef}>
+                  <button
+                    type="button"
+                    onClick={() => setIsProfileOpen((prev) => !prev)}
+                    className="flex items-center gap-2 p-1 pl-1.5 pr-2.5 rounded-full bg-slate-50 hover:bg-slate-100 border border-slate-200 transition-all cursor-pointer shadow-2xs group"
+                  >
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 text-white font-extrabold text-xs flex items-center justify-center overflow-hidden shrink-0 shadow-xs ring-1 ring-emerald-200">
+                      {userAvatarSrc ? (
+                        <img src={userAvatarSrc} alt={user.full_name} className="w-full h-full object-cover" />
+                      ) : (
+                        getInitials(user.full_name)
+                      )}
+                    </div>
+                    
+                    <span className="hidden sm:inline text-xs font-bold text-slate-800 max-w-[120px] truncate">
+                      {user.full_name.split(" ")[0]}
+                    </span>
+                    
+                    <ChevronDown
+                      className={`w-3.5 h-3.5 text-slate-400 group-hover:text-slate-700 transition-transform duration-200 ${
+                        isProfileOpen ? "rotate-180" : ""
+                      }`}
+                    />
+                  </button>
+
+                  <AnimatePresence>
+                    {isProfileOpen && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 8, scale: 0.96 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 8, scale: 0.96 }}
+                        transition={{ duration: 0.15 }}
+                        className="absolute right-0 mt-2 w-64 rounded-2xl bg-white border border-slate-200 shadow-xl overflow-hidden z-50 divide-y divide-slate-100"
+                      >
+                        {/* User Bio Header */}
+                        <div className="p-4 bg-slate-50/80">
+                          <p className="text-xs font-black text-slate-900 truncate">
+                            {user.full_name}
+                          </p>
+                          <p className="text-[11px] text-slate-500 truncate mt-0.5">
+                            {user.email}
+                          </p>
+                          <div className="mt-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 text-[10px] font-extrabold uppercase tracking-wider">
+                            {user.role === "candidate"
+                              ? "Ứng viên"
+                              : user.role === "employer"
+                              ? "Nhà tuyển dụng"
+                              : "Quản trị viên"}
+                          </div>
+                        </div>
+
+                        {/* Menu Links */}
+                        <div className="p-1.5 space-y-0.5 text-xs font-semibold text-slate-700">
+                          <Link
+                            to={dashboardLink}
+                            onClick={() => setIsProfileOpen(false)}
+                            className="flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-slate-100 hover:text-emerald-700 transition-colors"
+                          >
+                            <LayoutDashboard className="w-4 h-4 text-slate-400" />
+                            <span>Bàn làm việc (Dashboard)</span>
+                          </Link>
+
+                          {user.role === "employer" && (
+                            <>
+                              <Link
+                                to="/employer/jobs"
+                                onClick={() => setIsProfileOpen(false)}
+                                className="flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-slate-100 hover:text-emerald-700 transition-colors"
+                              >
+                                <Briefcase className="w-4 h-4 text-slate-400" />
+                                <span>Quản lý tin tuyển dụng</span>
+                              </Link>
+                              <Link
+                                to="/employer/candidates"
+                                onClick={() => setIsProfileOpen(false)}
+                                className="flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-slate-100 hover:text-emerald-700 transition-colors"
+                              >
+                                <Users className="w-4 h-4 text-slate-400" />
+                                <span>Quản lý ứng viên</span>
+                              </Link>
+                            </>
+                          )}
+
+                          {user.role === "candidate" && (
+                            <Link
+                              to="/dashboard"
+                              onClick={() => setIsProfileOpen(false)}
+                              className="flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-slate-100 hover:text-emerald-700 transition-colors"
+                            >
+                              <FileText className="w-4 h-4 text-slate-400" />
+                              <span>Hồ sơ ứng viên</span>
+                            </Link>
+                          )}
+
+                          {user.role === "admin" && (
+                            <Link
+                              to="/admin/dashboard"
+                              onClick={() => setIsProfileOpen(false)}
+                              className="flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-slate-100 hover:text-emerald-700 transition-colors"
+                            >
+                              <Shield className="w-4 h-4 text-slate-400" />
+                              <span>Quản trị hệ thống</span>
+                            </Link>
+                          )}
+                        </div>
+
+                        {/* Logout Action */}
+                        <div className="p-1.5">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsProfileOpen(false);
+                              handleLogout();
+                            }}
+                            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                          >
+                            <LogOut className="w-4 h-4 text-rose-500" />
+                            <span>Đăng xuất tài khoản</span>
+                          </button>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              </div>
+            ) : (
+              /* Guest State */
+              <>
+                <a
+                  href="/login"
+                  className="hidden sm:inline-flex px-3.5 py-2 rounded-xl border border-gray-300 text-xs sm:text-sm font-bold text-gray-700 hover:text-emerald-600 hover:border-emerald-300 hover:bg-emerald-50/50 transition-all whitespace-nowrap shrink-0"
+                >
+                  Đăng nhập
+                </a>
+                
+                <a
+                  href="/employer/dashboard"
+                  className="group relative inline-flex items-center gap-1.5 px-4 sm:px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-600 text-white text-xs sm:text-sm font-extrabold shadow-md shadow-emerald-600/25 hover:shadow-lg hover:shadow-emerald-600/30 hover:scale-[1.02] active:scale-[0.98] transition-all overflow-hidden whitespace-nowrap shrink-0"
+                >
+                  <div className="absolute top-0 -left-[100%] w-1/2 h-full bg-white/25 skew-x-12 group-hover:left-[200%] transition-all duration-1000 ease-out pointer-events-none" />
+                  <span>Đăng tin miễn phí</span>
+                  <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform shrink-0" />
+                </a>
+              </>
+            )}
 
             {/* Mobile Menu Toggle Button */}
             <button
@@ -167,20 +369,73 @@ export function LandingHeader() {
                   </a>
                 ))}
               </div>
-              <div className="pt-3 border-t border-gray-100 flex flex-col gap-2">
-                <a
-                  href="/login"
-                  className="block text-center w-full py-2.5 rounded-xl border border-gray-200 text-sm font-bold text-gray-700 hover:bg-gray-50 whitespace-nowrap"
-                >
-                  Đăng nhập Nhà tuyển dụng
-                </a>
-                <a
-                  href="/employer/dashboard"
-                  className="block text-center w-full py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-extrabold shadow-md shadow-emerald-500/20 whitespace-nowrap"
-                >
-                  Đăng tin ngay (Miễn phí)
-                </a>
-              </div>
+
+              {user ? (
+                /* Mobile Authenticated User Panel */
+                <div className="pt-3 border-t border-gray-100 flex flex-col gap-2.5">
+                  <div className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 border border-gray-100">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 text-white font-extrabold text-sm flex items-center justify-center shrink-0">
+                      {userAvatarSrc ? (
+                        <img src={userAvatarSrc} alt={user.full_name} className="w-full h-full object-cover rounded-full" />
+                      ) : (
+                        getInitials(user.full_name)
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-bold text-gray-900 truncate">{user.full_name}</p>
+                      <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                      <span className="inline-block mt-0.5 text-[10px] font-bold text-emerald-700 uppercase">
+                        {user.role === "employer" ? "Nhà tuyển dụng" : user.role}
+                      </span>
+                    </div>
+                  </div>
+
+                  <Link
+                    to={dashboardLink}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="block text-center w-full py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-extrabold shadow-md shadow-emerald-500/20 whitespace-nowrap"
+                  >
+                    Vào Bàn làm việc (Dashboard)
+                  </Link>
+
+                  {user.role === "employer" && (
+                    <Link
+                      to="/employer/jobs/new"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="block text-center w-full py-2.5 rounded-xl border border-emerald-300 text-emerald-700 bg-emerald-50 text-sm font-bold whitespace-nowrap"
+                    >
+                      + Đăng tin tuyển dụng mới
+                    </Link>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      handleLogout();
+                    }}
+                    className="block text-center w-full py-2.5 rounded-xl border border-rose-200 text-rose-600 text-sm font-bold hover:bg-rose-50 transition-colors"
+                  >
+                    Đăng xuất
+                  </button>
+                </div>
+              ) : (
+                /* Mobile Guest Buttons */
+                <div className="pt-3 border-t border-gray-100 flex flex-col gap-2">
+                  <a
+                    href="/login"
+                    className="block text-center w-full py-2.5 rounded-xl border border-gray-200 text-sm font-bold text-gray-700 hover:bg-gray-50 whitespace-nowrap"
+                  >
+                    Đăng nhập Nhà tuyển dụng
+                  </a>
+                  <a
+                    href="/employer/dashboard"
+                    className="block text-center w-full py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-extrabold shadow-md shadow-emerald-500/20 whitespace-nowrap"
+                  >
+                    Đăng tin ngay (Miễn phí)
+                  </a>
+                </div>
+              )}
             </div>
           </motion.div>
         )}

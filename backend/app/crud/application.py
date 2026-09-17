@@ -64,6 +64,17 @@ class CRUDApplication:
         )
         return db.execute(stmt).scalars().first()
 
+    def get_by_candidate_and_job(
+        self, db: Session, *, candidate_id: int, job_id: int
+    ) -> Application | None:
+        stmt = (
+            select(Application)
+            .where(Application.candidate_id == candidate_id, Application.job_id == job_id)
+            .options(joinedload(Application.job))
+            .order_by(Application.applied_at.desc())
+        )
+        return db.execute(stmt).scalars().first()
+
     def get_by_job_with_candidates(self, db: Session, *, job_id: int) -> list[Application]:
         """Get applications for a job, eagerly loading candidate + resume relationships."""
         stmt = (
