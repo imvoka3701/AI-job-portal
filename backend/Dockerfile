@@ -51,12 +51,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Copy application code
 COPY . .
 
-# Create uploads directory
-RUN mkdir -p /app/uploads
+# Create non-root user for runtime security (A1.8 Production Hardening)
+RUN adduser --system --no-create-home --group appuser \
+    && mkdir -p /app/uploads /var/log \
+    && chown -R appuser:appuser /app/uploads /var/log /opt/hf_cache
 
 # Make entrypoint executable
 RUN chmod +x /app/entrypoint.sh
 
 EXPOSE 8000
 
+# Entrypoint runs as root for migrations/seed, then drops to appuser via exec gosu/su-exec
 ENTRYPOINT ["/app/entrypoint.sh"]
