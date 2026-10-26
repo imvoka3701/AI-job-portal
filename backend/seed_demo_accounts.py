@@ -12,9 +12,17 @@ from app.models.notification import Notification  # noqa: F401
 from app.models.company import Company, CompanyMembership, MembershipRole, MembershipStatus
 from app.models.interview_round import InterviewRound, RoundType, RoundStatus
 from app.models.criteria_score import CriteriaScore
+from app.services.embedding_service import generate_embedding
 
 DEMO_PASSWORD = "Employer@123456"
-FAKE_EMBEDDING = [0.02] * EMBEDDING_DIM
+
+
+def safe_generate_embedding(text_content: str) -> list[float]:
+    """Generate normalized 384-dimensional semantic embedding with error fallback."""
+    try:
+        return generate_embedding(text_content)
+    except Exception:
+        return [0.001] * EMBEDDING_DIM
 
 DEMO_ACCOUNTS = [
     {
@@ -188,6 +196,7 @@ def seed_standard_accounts():
         existing_jobs = db.query(Job).filter(Job.employer_id == employer_user.id).all()
         if not existing_jobs:
             print("[SEED] Creating rich jobs for TechCorp VN...")
+            job1_text = "Senior Fullstack Engineer (React & FastAPI)\nChịu trách nhiệm kiến trúc và phát triển hệ thống AI Job Portal với React 19, TypeScript, FastAPI và pgvector.\nTối thiểu 3 năm kinh nghiệm React, TypeScript và Python FastAPI. Thành thạo Tailwind CSS và Docker."
             job1 = Job(
                 title="Senior Fullstack Engineer (React & FastAPI)",
                 description="Chịu trách nhiệm kiến trúc và phát triển hệ thống AI Job Portal với React 19, TypeScript, FastAPI và pgvector.",
@@ -202,8 +211,9 @@ def seed_standard_accounts():
                 employer_id=employer_user.id,
                 company_id=primary_company.id,
                 category_id=cat_map.get("it-phan-mem"),
-                embedding=FAKE_EMBEDDING,
+                embedding=safe_generate_embedding(job1_text),
             )
+            job2_text = "AI & Data Engineer (LLM / pgvector)\nNghiên cứu, tinh chỉnh và triển khai các mô hình AI Matching, RAG Retrieval và CV Parsing trên nền tảng DeepSeek & PyTorch.\nKinh nghiệm làm việc với Vector Database (pgvector/Pinecone), LangChain/LlamaIndex, PyTorch và FastAPI."
             job2 = Job(
                 title="AI & Data Engineer (LLM / pgvector)",
                 description="Nghiên cứu, tinh chỉnh và triển khai các mô hình AI Matching, RAG Retrieval và CV Parsing trên nền tảng DeepSeek & PyTorch.",
@@ -218,8 +228,9 @@ def seed_standard_accounts():
                 employer_id=employer_user.id,
                 company_id=primary_company.id,
                 category_id=cat_map.get("ai-data"),
-                embedding=FAKE_EMBEDDING,
+                embedding=safe_generate_embedding(job2_text),
             )
+            job3_text = "Lead Product Designer (UI/UX SaaS)\nChủ trì thiết kế trải nghiệm người dùng B2B SaaS, xây dựng Design System và phối hợp với Frontend team hoàn thiện UI.\n3+ năm kinh nghiệm UI/UX cho sản phẩm B2B Web/App. Thành thạo Figma, Design Tokens, Micro-interactions."
             job3 = Job(
                 title="Lead Product Designer (UI/UX SaaS)",
                 description="Chủ trì thiết kế trải nghiệm người dùng B2B SaaS, xây dựng Design System và phối hợp với Frontend team hoàn thiện UI.",
@@ -234,8 +245,9 @@ def seed_standard_accounts():
                 employer_id=employer_user.id,
                 company_id=primary_company.id,
                 category_id=cat_map.get("design-ui-ux"),
-                embedding=FAKE_EMBEDDING,
+                embedding=safe_generate_embedding(job3_text),
             )
+            job4_text = "DevOps & Cloud Infrastructure Engineer\nQuản trị hạ tầng đám mây AWS/GCP, thiết lập CI/CD pipelines, Kubernetes cluster và giám sát hệ thống 24/7.\nKinh nghiệm vững vàng với Kubernetes, Docker, Terraform, CI/CD và bảo mật đám mây."
             job4 = Job(
                 title="DevOps & Cloud Infrastructure Engineer",
                 description="Quản trị hạ tầng đám mây AWS/GCP, thiết lập CI/CD pipelines, Kubernetes cluster và giám sát hệ thống 24/7.",
@@ -250,8 +262,9 @@ def seed_standard_accounts():
                 employer_id=employer_user.id,
                 company_id=primary_company.id,
                 category_id=cat_map.get("devops-cloud"),
-                embedding=FAKE_EMBEDDING,
+                embedding=safe_generate_embedding(job4_text),
             )
+            job5_text = "Junior Backend Developer (Python / FastAPI)\nTham gia phát triển RESTful APIs, tối ưu hóa truy vấn PostgreSQL và xây dựng các dịch vụ microservices cùng TechLead.\nTối thiểu 1 năm kinh nghiệm Python, FastAPI/Flask, SQL cơ bản. Tư duy logic tốt, ham học hỏi."
             job5 = Job(
                 title="Junior Backend Developer (Python / FastAPI)",
                 description="Tham gia phát triển RESTful APIs, tối ưu hóa truy vấn PostgreSQL và xây dựng các dịch vụ microservices cùng TechLead.",
@@ -266,7 +279,7 @@ def seed_standard_accounts():
                 employer_id=employer_user.id,
                 company_id=primary_company.id,
                 category_id=cat_map.get("it-phan-mem"),
-                embedding=FAKE_EMBEDDING,
+                embedding=safe_generate_embedding(job5_text),
             )
             db.add_all([job1, job2, job3, job4, job5])
             db.commit()
@@ -275,6 +288,7 @@ def seed_standard_accounts():
             # Check if job5 exists, if not add it
             j5 = db.query(Job).filter(Job.company_id == primary_company.id, Job.title.like("%Junior Backend%")).first()
             if not j5:
+                j5_text = "Junior Backend Developer (Python / FastAPI)\nTham gia phát triển RESTful APIs, tối ưu hóa truy vấn PostgreSQL và xây dựng các dịch vụ microservices cùng TechLead.\nTối thiểu 1 năm kinh nghiệm Python, FastAPI/Flask, SQL cơ bản. Tư duy logic tốt, ham học hỏi."
                 j5 = Job(
                     title="Junior Backend Developer (Python / FastAPI)",
                     description="Tham gia phát triển RESTful APIs, tối ưu hóa truy vấn PostgreSQL và xây dựng các dịch vụ microservices cùng TechLead.",
@@ -289,7 +303,7 @@ def seed_standard_accounts():
                     employer_id=employer_user.id,
                     company_id=primary_company.id,
                     category_id=cat_map.get("it-phan-mem"),
-                    embedding=FAKE_EMBEDDING,
+                    embedding=safe_generate_embedding(j5_text),
                 )
                 db.add(j5)
                 db.commit()
@@ -313,14 +327,15 @@ def seed_standard_accounts():
 
             resume = db.query(Resume).filter(Resume.user_id == cand_user.id).first()
             if not resume:
+                resume_text = f"Hồ sơ ứng viên {cand_info['full_name']}. Kỹ năng chuyên môn: {cand_info['skills']}. 4 năm kinh nghiệm phát triển phần mềm."
                 resume = Resume(
                     user_id=cand_user.id,
                     title=f"CV {cand_info['full_name']}",
                     file_url="/uploads/resumes/demo_cv.pdf",
-                    raw_text=f"Ứng viên chuyên nghiệp với thế mạnh về {cand_info['skills']}. 4 năm kinh nghiệm phát triển phần mềm.",
+                    raw_text=resume_text,
                     parsed_skills=json.dumps(cand_info["skills"].split(", ")),
                     parsed_experience=json.dumps([{"role": "Software Engineer", "company": "Tech Corp", "duration": "3 years"}]),
-                    embedding=FAKE_EMBEDDING,
+                    embedding=safe_generate_embedding(resume_text),
                 )
                 db.add(resume)
                 db.flush()
@@ -414,7 +429,7 @@ def seed_standard_accounts():
                     raw_text="Senior Fullstack Engineer với 5 năm kinh nghiệm React, Node.js, Python, PostgreSQL, Docker.",
                     parsed_skills=json.dumps(["React", "TypeScript", "Python", "FastAPI", "PostgreSQL", "Docker"]),
                     parsed_experience=json.dumps([{"role": "Senior Engineer", "company": "VinaTech", "duration": "4 years"}]),
-                    embedding=FAKE_EMBEDDING,
+                    embedding=safe_generate_embedding("Senior Fullstack Engineer với 5 năm kinh nghiệm React, Node.js, Python, PostgreSQL, Docker."),
                 )
                 db.add(c_resume)
                 db.flush()

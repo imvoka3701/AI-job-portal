@@ -27,6 +27,7 @@ from app.models.admin_audit_log import AdminAuditLog
 from app.models.admin_rbac import AdminRole
 from app.models.document_chunk import DocumentChunk
 from app.services.rag_service import rag_service
+from app.services.embedding_service import generate_embedding
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger("seed_demo")
@@ -36,7 +37,14 @@ ADMIN_PASSWORD = "Admin@123456"
 CANDIDATE_PASSWORD = "Candidate@123456"
 TECHLEAD_PASSWORD = "TechLead@123456"
 
-FAKE_EMBEDDING = [0.035] * EMBEDDING_DIM
+
+def safe_generate_embedding(text_content: str) -> list[float]:
+    """Generate normalized 384-dimensional semantic embedding with error fallback."""
+    try:
+        return generate_embedding(text_content)
+    except Exception as exc:
+        logger.warning("Falling back for embedding generation: %s", exc)
+        return [0.001] * EMBEDDING_DIM
 
 
 def clean_database(db):
@@ -279,19 +287,26 @@ def seed_demo_data():
 
         created_jobs = []
         for jd in jobs_data:
+            job_text = (
+                f"{jd['title']}\n"
+                f"{jd['description']}\n"
+                f"{jd.get('requirements') or ''}\n"
+                f"{jd.get('benefits') or ''}"
+            )
+            job_embedding = safe_generate_embedding(job_text)
             job = Job(
                 **jd,
                 is_active=True,
                 employer_id=employer_user.id,
                 company_id=company.id,
-                embedding=FAKE_EMBEDDING,
+                embedding=job_embedding,
             )
             db.add(job)
             created_jobs.append(job)
         db.commit()
         for j in created_jobs:
             db.refresh(j)
-        logger.info(f"  ✓ Created {len(created_jobs)} rich jobs with embeddings")
+        logger.info(f"  ✓ Created {len(created_jobs)} rich jobs with real 384-d embeddings")
 
         # ── 5. Candidates, Resumes & AI Skill Analysis ────────────────────────
         candidates_data = [
@@ -438,14 +453,20 @@ def seed_demo_data():
                 "summary": f"Ứng viên có {len(cdata['skills'])} kỹ năng cốt lõi phù hợp với thị trường.",
             }
 
+            resume_raw_text = (
+                f"Hồ sơ ứng viên {cand_user.full_name}. Vị trí: {cdata['title']}. "
+                f"Kỹ năng: {', '.join(cdata['skills'])}. {cdata.get('feedback', '')}"
+            )
+            resume_embedding = safe_generate_embedding(resume_raw_text)
+
             resume = Resume(
                 user_id=cand_user.id,
                 title=cdata["title"],
                 file_url=f"/uploads/resumes/cv_sample_{i+1}.pdf",
-                raw_text=f"Hồ sơ ứng viên {cand_user.full_name}. Chuyên môn cao về {', '.join(cdata['skills'])}. 3-5 năm kinh nghiệm.",
+                raw_text=resume_raw_text,
                 parsed_skills=json.dumps(cdata["skills"]),
                 parsed_experience=json.dumps([{"role": "Senior Engineer", "company": "Global Software Ltd", "years": 3}]),
-                embedding=FAKE_EMBEDDING,
+                embedding=resume_embedding,
                 ai_evaluation_json=json.dumps(ai_eval_payload),
                 created_at=user_created_date,
             )

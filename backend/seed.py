@@ -13,9 +13,17 @@ from app.models import Application, Job, JobCategory, Notification, Resume, User
 from app.models.job import ExperienceLevel, JobType
 from app.models.resume import EMBEDDING_DIM
 from app.models.user import UserRole
+from app.services.embedding_service import generate_embedding
 
-FAKE_EMBEDDING = [0.01] * EMBEDDING_DIM
 DEFAULT_PASSWORD = "123456"
+
+
+def safe_generate_embedding(text_content: str) -> list[float]:
+    """Generate normalized 384-dimensional semantic embedding with error fallback."""
+    try:
+        return generate_embedding(text_content)
+    except Exception:
+        return [0.001] * EMBEDDING_DIM
 
 
 def seed_data(db: Session) -> None:
@@ -348,9 +356,10 @@ def seed_data(db: Session) -> None:
     resumes: list[Resume] = []
     for data in resumes_data:
         user = data.pop("user")
+        resume_text = f"{data.get('title', '')} {data.get('raw_text', '')}"
         resume = Resume(
             user_id=user.id,
-            embedding=FAKE_EMBEDDING,
+            embedding=safe_generate_embedding(resume_text),
             **data,
         )
         db.add(resume)

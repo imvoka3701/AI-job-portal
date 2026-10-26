@@ -75,13 +75,10 @@ echo "[3/6] Running database migrations..."
 alembic upgrade head
 echo "  ✅ Migrations complete"
 
-# --- 4. Seed admin & demo accounts ---
-echo "[4/6] Seeding admin & demo accounts..."
+# --- 4. Seed admin account ---
+echo "[4/6] Seeding root admin account..."
 python seed_admin.py
-if [ -f "seed_demo_accounts.py" ]; then
-    python seed_demo_accounts.py
-fi
-echo "  ✅ Accounts ready"
+echo "  ✅ Root admin ready"
 
 # --- 5. Seed demo data (only if DB is empty or FORCE_RESET_DEMO=true) ---
 echo "[5/6] Checking for demo data..."
@@ -102,9 +99,13 @@ if [ "$FORCE_RESET_DEMO" = "true" ] && [ -f "reset_and_seed_demo.py" ]; then
     python reset_and_seed_demo.py
     echo "  ✅ Rich demo dataset ready"
 elif [ "$DB_JOB_COUNT" -eq 0 ] && [ -f "reset_and_seed_demo.py" ]; then
-    echo "  🌟 Initial startup (empty DB): Populating rich presentation dataset..."
+    echo "  🌟 Initial startup (empty DB): Populating rich presentation dataset with real vector embeddings..."
     python reset_and_seed_demo.py
     echo "  ✅ Rich demo dataset initialized"
+elif [ "$DB_JOB_COUNT" -eq 0 ] && [ -f "seed_demo_accounts.py" ]; then
+    echo "  🌟 Initial startup (empty DB): Populating demo accounts..."
+    python seed_demo_accounts.py
+    echo "  ✅ Demo accounts initialized"
 elif [ "$DB_JOB_COUNT" -eq 0 ] && [ -f "seed_demo_data.py" ]; then
     echo "  🌟 Initial startup (empty DB): Populating standard demo data..."
     python seed_demo_data.py
