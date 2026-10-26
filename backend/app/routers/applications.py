@@ -14,6 +14,7 @@ from app.core.company_permissions import (
     require_job_scope,
 )
 from app.core.dependencies import get_current_user, require_role
+from app.core.rate_limiter import rate_limit
 from app.crud.application import crud_application
 from app.crud.cv_document import crud_cv_document
 from app.crud.interview_round import crud_interview_round
@@ -66,6 +67,7 @@ def _send_application_notification_task(
     response_model=ApplicationRead,
     status_code=status.HTTP_201_CREATED,
     summary="Apply for a job",
+    dependencies=[Depends(rate_limit("application_apply"))],
 )
 async def create_application(
     data: ApplicationCreate,
@@ -74,6 +76,16 @@ async def create_application(
     db: Session = Depends(get_db),
 ) -> ApplicationRead:
     """Submit a job application. Notifies the employer."""
+    # ── 1. Anti-spam: Prevent duplicate application for the same job ────────
+    existing_app = crud_application.get_by_candidate_and_job(
+        db, candidate_id=current_user.id, job_id=data.job_id
+    )
+    if existing_app:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Bạn đã nộp hồ sơ ứng tuyển vào vị trí này rồi. Hồ sơ đang được nhà tuyển dụng xem xét.",
+        )
+
     resume = None
     cv_document = None
     if data.resume_id:
@@ -205,6 +217,30 @@ def get_my_interviews(
         }
         for r in rows
     ]
+
+
+@router.get("/check-applied/{job_id}", summary="Check if candidate applied to job")
+def check_applied(
+    job_id: int,
+    current_user: User = Depends(require_role(UserRole.CANDIDATE)),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Check whether current candidate already submitted application for this job."""
+    app = crud_application.get_by_candidate_and_job(
+        db, candidate_id=current_user.id, job_id=job_id
+    )
+    if not app:
+        return {"has_applied": False, "application": None}
+
+    return {
+        "has_applied": True,
+        "application": {
+            "id": app.id,
+            "status": app.status.value if hasattr(app.status, "value") else str(app.status),
+            "applied_at": app.applied_at.isoformat() if app.applied_at else None,
+            "ai_matching_score": app.ai_matching_score,
+        },
+    }
 
 
 @router.get("/{application_id}", response_model=ApplicationRead, summary="Get application details")

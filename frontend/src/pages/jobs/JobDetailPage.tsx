@@ -1,6 +1,12 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { applyJob, getJobById, getJobs } from "@/lib/api/jobs";
+import {
+  applyJob,
+  getJobById,
+  getJobs,
+  checkJobApplicationStatus,
+  type JobApplicationCheckResponse,
+} from "@/lib/api/jobs";
 import { getMyResumes } from "@/lib/api/resumes";
 import { getCvDocuments } from "@/lib/api/cvDocuments";
 import { generateCoverLetter, getAiMatch } from "@/lib/api/ai";
@@ -9,6 +15,7 @@ import { tokenStorage, getApiErrorMessage } from "@/lib/axios";
 import { Button, Card, Badge, Modal } from "@/components/ui";
 import { Header } from "@/pages/jobs/components/Header";
 import { CVSelectorCards } from "@/pages/jobs/components/CVSelectorCards";
+import { AppliedStatusTracker } from "@/pages/jobs/components/AppliedStatusTracker";
 import { SEOMeta } from "@/components/seo/SEOMeta";
 import { motion } from "framer-motion";
 import {
@@ -131,6 +138,9 @@ export const JobDetailPage = () => {
   const [applyModalTab, setApplyModalTab] = useState<"standard" | "cover_letter">("standard");
   const [isApplying, setIsApplying] = useState(false);
   const [applyMessage, setApplyMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [hasApplied, setHasApplied] = useState(false);
+  const [appliedInfo, setAppliedInfo] = useState<JobApplicationCheckResponse["application"] | null>(null);
+  const [isCheckingApplied, setIsCheckingApplied] = useState(false);
   const [resumes, setResumes] = useState<Resume[]>([]);
   const [cvDocuments, setCvDocuments] = useState<CvDocument[]>([]);
   const [selectedDocument, setSelectedDocument] = useState("");
@@ -218,6 +228,39 @@ export const JobDetailPage = () => {
       useAuthStore.getState().fetchMe().catch(() => {});
     }
   }, [user]);
+
+  // Check whether candidate has already applied to this job
+  useEffect(() => {
+    if (!jobId || !tokenStorage.get() || user?.role !== "candidate") {
+      setHasApplied(false);
+      setAppliedInfo(null);
+      return;
+    }
+
+    let active = true;
+    setIsCheckingApplied(true);
+    checkJobApplicationStatus(jobId)
+      .then((res) => {
+        if (!active) return;
+        if (res.has_applied) {
+          setHasApplied(true);
+          setAppliedInfo(res.application);
+        } else {
+          setHasApplied(false);
+          setAppliedInfo(null);
+        }
+      })
+      .catch(() => {
+        // Silently ignore check errors
+      })
+      .finally(() => {
+        if (active) setIsCheckingApplied(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [jobId, user?.role]);
 
   // Load Job Details & Similar Jobs
   useEffect(() => {
@@ -380,6 +423,13 @@ export const JobDetailPage = () => {
       return;
     }
     if (!job) return;
+    if (hasApplied) {
+      setApplyMessage({
+        type: "error",
+        text: "Bạn đã nộp hồ sơ ứng tuyển vào vị trí này rồi. Không thể nộp lại.",
+      });
+      return;
+    }
 
     setApplyMessage(null);
     setIsApplying(true);
@@ -390,7 +440,21 @@ export const JobDetailPage = () => {
       if (documentType === "resume") resumeId = Number(documentId);
       if (documentType === "builder") cvDocumentId = Number(documentId);
 
-      await applyJob({ job_id: job.id, resume_id: resumeId, cv_document_id: cvDocumentId });
+      const app = await applyJob({
+        job_id: job.id,
+        resume_id: resumeId,
+        cv_document_id: cvDocumentId,
+        cover_letter: includeCoverLetterInApply && coverLetterText ? coverLetterText : (candidateNote || undefined),
+      });
+
+      setHasApplied(true);
+      setAppliedInfo({
+        id: app.id,
+        status: app.status,
+        applied_at: app.applied_at || new Date().toISOString(),
+        ai_matching_score: app.ai_matching_score ?? null,
+      });
+
       setApplyMessage({
         type: "success",
         text:
@@ -400,9 +464,16 @@ export const JobDetailPage = () => {
       });
       setTimeout(() => {
         setIsApplyModalOpen(false);
-      }, 1800);
-    } catch {
-      setApplyMessage({ type: "error", text: "Ứng tuyển thất bại. Vui lòng thử lại sau hoặc kiểm tra kết nối." });
+      }, 1500);
+    } catch (err: any) {
+      const msg = getApiErrorMessage(err);
+      if (err.response?.status === 409) {
+        setHasApplied(true);
+      }
+      setApplyMessage({
+        type: "error",
+        text: msg || "Ứng tuyển thất bại. Vui lòng thử lại sau hoặc kiểm tra kết nối.",
+      });
     } finally {
       setIsApplying(false);
     }
@@ -662,14 +733,44 @@ export const JobDetailPage = () => {
                   <span>{isSaved ? "Đã lưu tin" : "Lưu tin"}</span>
                 </button>
 
-                <Button
-                  onClick={() => setIsApplyModalOpen(true)}
-                  disabled={!job.is_active || isCompanyInternal}
-                  className="bg-gradient-to-r from-[#00B86B] to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white px-7 py-3 rounded-2xl font-black text-sm shadow-lg shadow-emerald-600/20 cursor-pointer flex items-center gap-2 transition-all"
-                >
-                  <Send className="w-4 h-4" />
-                  <span>{isCompanyInternal ? "Chỉ ứng viên mới có thể nộp" : "Ứng tuyển ngay"}</span>
-                </Button>
+                {hasApplied ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const el = document.getElementById("apply-box");
+                      if (el) el.scrollIntoView({ behavior: "smooth" });
+                    }}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200/90 text-xs sm:text-sm font-bold text-emerald-900 shadow-2xs hover:border-emerald-300 transition-all cursor-pointer group"
+                    title="Click để xem chi tiết tiến trình hồ sơ"
+                  >
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-600"></span>
+                    </span>
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>
+                      Đã ứng tuyển •{" "}
+                      {appliedInfo?.status === "interview"
+                        ? "Đang phỏng vấn"
+                        : appliedInfo?.status === "shortlisted"
+                        ? "Shortlist"
+                        : appliedInfo?.status === "accepted"
+                        ? "Trúng tuyển"
+                        : appliedInfo?.status === "rejected"
+                        ? "Lưu trữ"
+                        : "Đang xét duyệt"}
+                    </span>
+                  </button>
+                ) : (
+                  <Button
+                    onClick={() => setIsApplyModalOpen(true)}
+                    disabled={!job.is_active || isCompanyInternal || isCheckingApplied}
+                    className="bg-gradient-to-r from-[#00B86B] to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white px-7 py-3 rounded-2xl font-black text-sm shadow-lg shadow-emerald-600/20 cursor-pointer flex items-center gap-2 transition-all"
+                  >
+                    <Send className="w-4 h-4" />
+                    <span>{isCompanyInternal ? "Chỉ ứng viên mới có thể nộp" : "Ứng tuyển ngay"}</span>
+                  </Button>
+                )}
               </div>
 
               {/* Fast Matching Highlight Badge */}
@@ -1104,97 +1205,115 @@ export const JobDetailPage = () => {
 
           {/* ── RIGHT: STICKY APPLICATION SIDEBAR ─────────────────────── */}
           <aside className="space-y-6 sticky top-24">
-            {/* Quick Apply Card */}
-            <Card id="apply-box" className="p-6 sm:p-7 rounded-[32px] border-slate-200/90 bg-white shadow-xs space-y-5">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                <h3 className="font-black text-base text-slate-900 flex items-center gap-2">
-                  <Send className="w-4 h-4 text-[#00B86B]" />
-                  Ứng tuyển công việc
-                </h3>
-                <Badge variant={job.is_active ? "success" : "default"} size="sm">
-                  {job.is_active ? "Đang nhận hồ sơ" : "Đã đóng"}
-                </Badge>
-              </div>
+            {/* Quick Apply / Application Status Tracker */}
+            {hasApplied ? (
+              <AppliedStatusTracker
+                applicationId={appliedInfo?.id}
+                status={appliedInfo?.status}
+                appliedAt={appliedInfo?.applied_at}
+                aiMatchingScore={appliedInfo?.ai_matching_score ?? (aiMatchResult ? aiMatchResult.score : null)}
+                companyName={companyName}
+                jobTitle={job.title}
+                isLoading={isCheckingApplied}
+              />
+            ) : (
+              <Card id="apply-box" className="p-6 sm:p-7 rounded-[32px] border-slate-200/90 bg-white shadow-xs space-y-5">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <h3 className="font-black text-base text-slate-900 flex items-center gap-2">
+                    <Send className="w-4 h-4 text-[#00B86B]" />
+                    Ứng tuyển công việc
+                  </h3>
+                  <Badge variant={job.is_active ? "success" : "default"} size="sm">
+                    {job.is_active ? "Đang nhận hồ sơ" : "Đã đóng"}
+                  </Badge>
+                </div>
 
-              {user?.role === "candidate" ? (
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                      Chọn hồ sơ CV ứng tuyển:
-                    </label>
-                    <select
-                      value={selectedDocument}
-                      onChange={(e) => setSelectedDocument(e.target.value)}
-                      onFocus={() => { void refreshCandidateDocuments(); }}
-                      className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 text-xs font-bold text-slate-900 outline-none focus:border-[#00B86B] focus:ring-2 focus:ring-[#00B86B]/20 transition-all"
+                {user?.role === "candidate" ? (
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                        Chọn hồ sơ CV ứng tuyển:
+                      </label>
+                      <select
+                        value={selectedDocument}
+                        onChange={(e) => setSelectedDocument(e.target.value)}
+                        onFocus={() => { void refreshCandidateDocuments(); }}
+                        className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 text-xs font-bold text-slate-900 outline-none focus:border-[#00B86B] focus:ring-2 focus:ring-[#00B86B]/20 transition-all"
+                      >
+                        <option value="">Không đính kèm CV (Nộp thông tin cơ bản)</option>
+                        {resumes.map((resume) => (
+                          <option key={`resume-${resume.id}`} value={`resume:${resume.id}`}>
+                            📄 PDF: {resume.title}
+                          </option>
+                        ))}
+                        {cvDocuments.map((cv) => (
+                          <option key={`builder-${cv.id}`} value={`builder:${cv.id}`}>
+                            ✨ CV Builder: {cv.title}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="flex items-center justify-between text-xs text-slate-500">
+                      <Link to="/cv" className="text-emerald-700 font-bold hover:underline flex items-center gap-1">
+                        + Tạo CV mới với AI
+                      </Link>
+                      <span>{resumes.length + cvDocuments.length} hồ sơ sẵn có</span>
+                    </div>
+
+                    {/* AI Cover Letter Quick Link */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsApplyModalOpen(true);
+                        setApplyModalTab("cover_letter");
+                        if (!coverLetterText) handleGenerateCoverLetter();
+                      }}
+                      className="w-full p-3 rounded-2xl bg-emerald-50/60 border border-emerald-200/80 text-emerald-800 text-xs font-bold hover:bg-emerald-100 transition-colors flex items-center justify-center gap-2 cursor-pointer"
                     >
-                      <option value="">Không đính kèm CV (Nộp thông tin cơ bản)</option>
-                      {resumes.map((resume) => (
-                        <option key={`resume-${resume.id}`} value={`resume:${resume.id}`}>
-                          📄 PDF: {resume.title}
-                        </option>
-                      ))}
-                      {cvDocuments.map((cv) => (
-                        <option key={`builder-${cv.id}`} value={`builder:${cv.id}`}>
-                          ✨ CV Builder: {cv.title}
-                        </option>
-                      ))}
-                    </select>
+                      <Wand2 size={14} className="text-emerald-600" />
+                      <span>Tạo Cover Letter tự động với AI</span>
+                    </button>
                   </div>
-
-                  <div className="flex items-center justify-between text-xs text-slate-500">
-                    <Link to="/cv" className="text-emerald-700 font-bold hover:underline flex items-center gap-1">
-                      + Tạo CV mới với AI
-                    </Link>
-                    <span>{resumes.length + cvDocuments.length} hồ sơ sẵn có</span>
+                ) : !user ? (
+                  <div className="p-4 rounded-2xl bg-blue-50/80 border border-blue-200/70 text-xs text-blue-900 leading-relaxed font-medium">
+                    Đăng nhập để AI tự động so khớp hồ sơ của bạn với vị trí này và nhận các gợi ý phỏng vấn riêng.
                   </div>
+                ) : (
+                  <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-xs text-amber-900 font-medium">
+                    Bạn đang đăng nhập bằng tài khoản {user.role}. Hãy đăng nhập tài khoản ứng viên để nộp hồ sơ.
+                  </div>
+                )}
 
-                  {/* AI Cover Letter Quick Link */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsApplyModalOpen(true);
-                      setApplyModalTab("cover_letter");
-                      if (!coverLetterText) handleGenerateCoverLetter();
-                    }}
-                    className="w-full p-3 rounded-2xl bg-emerald-50/60 border border-emerald-200/80 text-emerald-800 text-xs font-bold hover:bg-emerald-100 transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                {applyMessage && (
+                  <div
+                    className={`p-3.5 rounded-2xl border text-xs font-bold ${
+                      applyMessage.type === "success"
+                        ? "bg-emerald-50 border-emerald-200 text-emerald-900"
+                        : "bg-rose-50 border-rose-200 text-rose-700"
+                    }`}
                   >
-                    <Wand2 size={14} className="text-emerald-600" />
-                    <span>Tạo Cover Letter tự động với AI</span>
-                  </button>
-                </div>
-              ) : !user ? (
-                <div className="p-4 rounded-2xl bg-blue-50/80 border border-blue-200/70 text-xs text-blue-900 leading-relaxed font-medium">
-                  Đăng nhập để AI tự động so khớp hồ sơ của bạn với vị trí này và nhận các gợi ý phỏng vấn riêng.
-                </div>
-              ) : (
-                <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-xs text-amber-900 font-medium">
-                  Bạn đang đăng nhập bằng tài khoản {user.role}. Hãy đăng nhập tài khoản ứng viên để nộp hồ sơ.
-                </div>
-              )}
+                    {applyMessage.text}
+                  </div>
+                )}
 
-              {applyMessage && (
-                <div
-                  className={`p-3.5 rounded-2xl border text-xs font-bold ${
-                    applyMessage.type === "success"
-                      ? "bg-emerald-50 border-emerald-200 text-emerald-900"
-                      : "bg-rose-50 border-rose-200 text-rose-700"
-                  }`}
+                <Button
+                  onClick={() => setIsApplyModalOpen(true)}
+                  isLoading={isApplying}
+                  disabled={!job.is_active || isCompanyInternal || isCheckingApplied}
+                  fullWidth
+                  className="bg-gradient-to-r from-[#00B86B] to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white py-3.5 rounded-2xl font-black text-sm shadow-md shadow-emerald-600/20 cursor-pointer transition-all"
                 >
-                  {applyMessage.text}
-                </div>
-              )}
-
-              <Button
-                onClick={() => setIsApplyModalOpen(true)}
-                isLoading={isApplying}
-                disabled={!job.is_active || isCompanyInternal}
-                fullWidth
-                className="bg-gradient-to-r from-[#00B86B] to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white py-3.5 rounded-2xl font-black text-sm shadow-md shadow-emerald-600/20 cursor-pointer transition-all"
-              >
-                {user ? (!isCompanyInternal ? "Nộp hồ sơ ngay" : "Chỉ ứng viên mới có thể nộp") : "Đăng nhập để ứng tuyển"}
-              </Button>
-            </Card>
+                  {isCheckingApplied ? (
+                    "Đang kiểm tra hồ sơ..."
+                  ) : user ? (
+                    !isCompanyInternal ? "Nộp hồ sơ ngay" : "Chỉ ứng viên mới có thể nộp"
+                  ) : (
+                    "Đăng nhập để ứng tuyển"
+                  )}
+                </Button>
+              </Card>
+            )}
 
             {/* Company Bento Box */}
             <Card className="p-6 sm:p-7 rounded-[32px] border-slate-200/90 bg-white shadow-xs space-y-5">
@@ -1438,11 +1557,11 @@ export const JobDetailPage = () => {
             <Button
               onClick={handleApply}
               isLoading={isApplying}
-              disabled={!job.is_active || (!!user && user.role !== "candidate")}
+              disabled={!job.is_active || (!!user && user.role !== "candidate") || hasApplied || isApplying}
               className="bg-gradient-to-r from-[#00B86B] to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white rounded-full px-7 text-xs font-black shadow-md shadow-emerald-600/20 cursor-pointer flex items-center gap-2"
             >
-              {user ? "Xác nhận nộp hồ sơ" : "Đăng nhập để nộp"}
-              {!isApplying && aiMatchResult && (
+              {hasApplied ? "Đã nộp hồ sơ" : user ? "Xác nhận nộp hồ sơ" : "Đăng nhập để nộp"}
+              {!isApplying && !hasApplied && aiMatchResult && (
                 <span className="bg-white/20 border border-white/30 px-1.5 py-0.5 rounded-full text-[10px] font-black">
                   {aiMatchResult.score}%
                 </span>

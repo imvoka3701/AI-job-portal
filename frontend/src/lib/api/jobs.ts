@@ -84,6 +84,27 @@ export async function applyJob(payload: ApplicationCreatePayload): Promise<Appli
   return data;
 }
 
+export interface JobApplicationCheckResponse {
+  has_applied: boolean;
+  application: {
+    id: number;
+    status: string;
+    applied_at: string | null;
+    ai_matching_score: number | null;
+  } | null;
+}
+
+/**
+ * Check if the authenticated candidate has already applied to this job.
+ * GET /applications/check-applied/:jobId
+ */
+export async function checkJobApplicationStatus(jobId: number): Promise<JobApplicationCheckResponse> {
+  const { data } = await apiClient.get<JobApplicationCheckResponse>(`/applications/check-applied/${jobId}`, {
+    headers: { "X-Silent-Error": "true" },
+  });
+  return data;
+}
+
 /**
  * Get AI matching score for a specific job (requires auth).
  * POST /ai/match

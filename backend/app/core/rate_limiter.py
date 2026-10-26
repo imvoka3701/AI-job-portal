@@ -99,6 +99,7 @@ RATE_LIMIT_PRESETS: dict[str, tuple[int, int]] = {
     "admin_heavy_ops": (3, 60),  # 3 requests / 60 seconds (Heavy operations like RAG batch re-index)
     "feedback_submit": (5, 60),  # 5 submissions / 60 seconds (Anti-spam / Anti-flooding)
     "file_upload": (10, 60),  # 10 uploads / 60 seconds (Anti-disk flooding / Anti-DoS)
+    "application_apply": (5, 60),  # 5 applications / 60 seconds (Anti-spam / Anti-flooding)
 }
 
 
