@@ -1,7 +1,7 @@
 /**
  * EmployerTalentSearch — Enterprise AI Talent Intelligence Studio
  * Tech stack: React.js, TypeScript, Tailwind CSS, Framer Motion, Lucide React
- * Architecture: Modular Studio Header, Spotlight Command Bar, Talent Discovery Hub & Candidate Dossier Cards
+ * Architecture: Modular Studio Header, Spotlight Command Bar, Dual-Pane Split Workspace & Talent Discovery Hub
  */
 
 import { useState, useEffect, useTransition, useMemo } from "react";
@@ -21,6 +21,8 @@ import {
   TalentSearchCommandBar,
   TalentDiscoveryHub,
   CandidateDossierCard,
+  TalentStreamFeed,
+  TalentDossierInspector,
   type CandidateGroup,
 } from "@/components/employer/talent-search";
 
@@ -86,6 +88,10 @@ export function EmployerTalentSearch() {
   const [selectedDocType, setSelectedDocType] = useState<string>("all");
   const [minScore, setMinScore] = useState<number>(0.55);
 
+  // Workspace View Mode: 'split' (2-column productivity board) or 'grid' (classic cards)
+  const [viewMode, setViewMode] = useState<"split" | "grid">("split");
+  const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(null);
+
   const [rawResults, setRawResults] = useState<RAGSearchResult[]>([]);
   const [totalMatched, setTotalMatched] = useState<number>(0);
   const [hasSearched, setHasSearched] = useState(false);
@@ -130,6 +136,54 @@ export function EmployerTalentSearch() {
   const candidateGroups = useMemo(() => {
     return groupResultsByCandidate(rawResults);
   }, [rawResults]);
+
+  // Keep selected candidate in sync
+  useEffect(() => {
+    if (candidateGroups.length > 0) {
+      setSelectedCandidateId((prev) => {
+        const exists = candidateGroups.some((c) => c.id === prev);
+        return exists ? prev : candidateGroups[0].id;
+      });
+    } else {
+      setSelectedCandidateId(null);
+    }
+  }, [candidateGroups]);
+
+  const selectedCandidate = useMemo(() => {
+    if (!selectedCandidateId) return candidateGroups[0] || null;
+    return candidateGroups.find((c) => c.id === selectedCandidateId) || candidateGroups[0] || null;
+  }, [candidateGroups, selectedCandidateId]);
+
+  // Keyboard navigation for Split View (ArrowUp / ArrowDown)
+  useEffect(() => {
+    if (viewMode !== "split" || candidateGroups.length === 0) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (
+        document.activeElement?.tagName === "INPUT" ||
+        document.activeElement?.tagName === "TEXTAREA"
+      ) {
+        return;
+      }
+
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        const currentIdx = candidateGroups.findIndex((c) => c.id === selectedCandidateId);
+        if (currentIdx < candidateGroups.length - 1) {
+          setSelectedCandidateId(candidateGroups[currentIdx + 1].id);
+        }
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        const currentIdx = candidateGroups.findIndex((c) => c.id === selectedCandidateId);
+        if (currentIdx > 0) {
+          setSelectedCandidateId(candidateGroups[currentIdx - 1].id);
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [viewMode, candidateGroups, selectedCandidateId]);
 
   // ── Search Action ───────────────────────────────────────────────────────────
   const executeSearch = async (
@@ -193,6 +247,16 @@ export function EmployerTalentSearch() {
     }
   };
 
+  const handleResetFilters = () => {
+    setSelectedJobId(null);
+    setSelectedSection(null);
+    setSelectedDocType("all");
+    setMinScore(0.55);
+    if (searchQuery.trim() && hasSearched) {
+      executeSearch(searchQuery, null, 0.55, null, "all");
+    }
+  };
+
   const handleCopyContent = (content: string, chunkId: number) => {
     navigator.clipboard.writeText(content);
     setCopiedChunkId(chunkId);
@@ -231,15 +295,15 @@ export function EmployerTalentSearch() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-7">
-      {/* ── 1. Studio Header & Live Stats ── */}
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-7 space-y-6">
+      {/* ── 1. Studio Header & Live Metrics ── */}
       <TalentSearchHeader
         companyName={companyName}
         candidateCount={totalMatched || 24}
         jobCount={jobs.length || 5}
       />
 
-      {/* ── 2. Spotlight Command Bar & Segmented Facets ── */}
+      {/* ── 2. Unified Command Bar & Filter Ribbon ── */}
       <TalentSearchCommandBar
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
@@ -271,6 +335,9 @@ export function EmployerTalentSearch() {
             executeSearch(searchQuery, selectedJobId, newScore, selectedSection, selectedDocType);
           }
         }}
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
+        onResetFilters={handleResetFilters}
       />
 
       {/* ── 3. Error Alert Banner ── */}
@@ -291,7 +358,7 @@ export function EmployerTalentSearch() {
         </div>
       )}
 
-      {/* ── 4. Main Workspace Area: 4 States (Loading, Empty, Results, Initial Hub) ── */}
+      {/* ── 4. Main Workspace Area: 4 States ── */}
       {isLoading ? (
         /* State 1: Shimmer Loading Skeleton */
         <div className="space-y-4">
@@ -299,31 +366,27 @@ export function EmployerTalentSearch() {
             <div className="h-4 w-48 bg-slate-200 rounded-md" />
             <div className="h-4 w-24 bg-slate-200 rounded-md" />
           </div>
-          {[1, 2].map((i) => (
-            <div
-              key={i}
-              className="p-6 rounded-2xl bg-white border border-slate-200/90 shadow-xs space-y-4 animate-pulse"
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-2xl bg-slate-200" />
-                  <div className="space-y-2">
-                    <div className="h-4 w-44 bg-slate-200 rounded-md" />
-                    <div className="h-3 w-64 bg-slate-100 rounded-md" />
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+            <div className="lg:col-span-5 space-y-3">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="p-4 rounded-xl bg-white border border-slate-200 animate-pulse space-y-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-slate-200" />
+                    <div className="space-y-1.5 flex-1">
+                      <div className="h-3.5 w-32 bg-slate-200 rounded" />
+                      <div className="h-2.5 w-44 bg-slate-100 rounded" />
+                    </div>
                   </div>
+                  <div className="h-5 bg-slate-100 rounded" />
                 </div>
-                <div className="h-10 w-28 bg-slate-100 rounded-xl" />
-              </div>
-              <div className="h-20 bg-slate-50 rounded-xl" />
-              <div className="flex justify-between items-center pt-2">
-                <div className="flex gap-2">
-                  <div className="h-6 w-20 bg-slate-100 rounded-md" />
-                  <div className="h-6 w-24 bg-slate-100 rounded-md" />
-                </div>
-                <div className="h-8 w-44 bg-slate-100 rounded-lg" />
-              </div>
+              ))}
             </div>
-          ))}
+            <div className="lg:col-span-7 p-6 rounded-2xl bg-white border border-slate-200 animate-pulse space-y-4">
+              <div className="h-6 w-56 bg-slate-200 rounded" />
+              <div className="h-16 bg-slate-100 rounded-xl" />
+              <div className="h-40 bg-slate-50 rounded-xl" />
+            </div>
+          </div>
         </div>
       ) : hasSearched && candidateGroups.length === 0 ? (
         /* State 2: Empty State */
@@ -356,7 +419,7 @@ export function EmployerTalentSearch() {
           </div>
         </div>
       ) : hasSearched && candidateGroups.length > 0 ? (
-        /* State 3: Candidate Intelligence Dossiers */
+        /* State 3: Candidates Found — Workspace Switcher (Split Board vs Grid) */
         <div className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-bold text-slate-500 px-1">
             <div className="flex items-center gap-2">
@@ -372,32 +435,74 @@ export function EmployerTalentSearch() {
                 {companyName}
               </span>
             </div>
-            <span className="text-[11px] text-slate-400 font-medium">
-              Sắp xếp theo độ tương đồng AI cao nhất
-            </span>
+
+            <div className="flex items-center gap-2 text-[11px] text-slate-400 font-medium">
+              <span>Sắp xếp theo độ tương đồng AI</span>
+              {viewMode === "split" && (
+                <span className="hidden md:inline bg-slate-100 text-slate-500 px-2 py-0.5 rounded font-mono text-[10px]">
+                  Phím ↑ / ↓ để chọn
+                </span>
+              )}
+            </div>
           </div>
 
-          <div className="space-y-4">
-            {candidateGroups.map((candidate, idx) => (
-              <CandidateDossierCard
-                key={candidate.id}
-                candidate={candidate}
-                index={idx}
-                activeChunkIndex={activeEvidenceTab[candidate.id] ?? 0}
-                onSelectChunk={(candidateId, chunkIdx) =>
-                  setActiveEvidenceTab((prev) => ({
-                    ...prev,
-                    [candidateId]: chunkIdx,
-                  }))
-                }
-                onCopyContent={handleCopyContent}
-                copiedChunkId={copiedChunkId}
-                onOpenDocPreview={handleOpenDocPreview}
-                isPreviewLoading={previewLoadingId === candidate.documentId}
-                onOpenCopilot={handleOpenCopilot}
-              />
-            ))}
-          </div>
+          {viewMode === "split" ? (
+            /* ── Split Workspace: Left Feed + Right Deep Inspector ── */
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+              <div className="lg:col-span-5 xl:col-span-5">
+                <TalentStreamFeed
+                  candidates={candidateGroups}
+                  selectedCandidateId={selectedCandidateId}
+                  onSelectCandidate={(cand) => setSelectedCandidateId(cand.id)}
+                />
+              </div>
+
+              <div className="lg:col-span-7 xl:col-span-7">
+                <TalentDossierInspector
+                  candidate={selectedCandidate}
+                  activeChunkIndex={
+                    selectedCandidate ? (activeEvidenceTab[selectedCandidate.id] ?? 0) : 0
+                  }
+                  onSelectChunk={(chunkIdx) => {
+                    if (selectedCandidate) {
+                      setActiveEvidenceTab((prev) => ({
+                        ...prev,
+                        [selectedCandidate.id]: chunkIdx,
+                      }));
+                    }
+                  }}
+                  onCopyContent={handleCopyContent}
+                  copiedChunkId={copiedChunkId}
+                  onOpenDocPreview={handleOpenDocPreview}
+                  isPreviewLoading={previewLoadingId === selectedCandidate?.documentId}
+                  onOpenCopilot={handleOpenCopilot}
+                />
+              </div>
+            </div>
+          ) : (
+            /* ── Grid Board: Multi-card layout ── */
+            <div className="space-y-4">
+              {candidateGroups.map((candidate, idx) => (
+                <CandidateDossierCard
+                  key={candidate.id}
+                  candidate={candidate}
+                  index={idx}
+                  activeChunkIndex={activeEvidenceTab[candidate.id] ?? 0}
+                  onSelectChunk={(candidateId, chunkIdx) =>
+                    setActiveEvidenceTab((prev) => ({
+                      ...prev,
+                      [candidateId]: chunkIdx,
+                    }))
+                  }
+                  onCopyContent={handleCopyContent}
+                  copiedChunkId={copiedChunkId}
+                  onOpenDocPreview={handleOpenDocPreview}
+                  isPreviewLoading={previewLoadingId === candidate.documentId}
+                  onOpenCopilot={handleOpenCopilot}
+                />
+              ))}
+            </div>
+          )}
         </div>
       ) : (
         /* State 4: Initial Talent Discovery Hub */
