@@ -35,9 +35,9 @@ const DOC_TYPE_OPTIONS = [
 ];
 
 const SCORE_THRESHOLDS = [
-  { value: 0.7, label: "Khắt khe", hint: "≥ 70%", icon: "🎯" },
-  { value: 0.55, label: "Tiêu chuẩn", hint: "≥ 55%", icon: "⚡" },
-  { value: 0.4, label: "Mở rộng", hint: "≥ 40%", icon: "🌐" },
+  { value: 0.5, label: "Khắt khe", hint: "≥ 50%", icon: "🎯" },
+  { value: 0.35, label: "Tiêu chuẩn", hint: "≥ 35%", icon: "⚡" },
+  { value: 0.25, label: "Mở rộng", hint: "≥ 25%", icon: "🌐" },
 ];
 
 const SUGGESTED_QUERIES = [

@@ -5,7 +5,7 @@
  */
 
 import { useState, useEffect, useTransition, useMemo } from "react";
-import { Search, AlertCircle } from "lucide-react";
+import { Search, AlertCircle, Users } from "lucide-react";
 import { Button, Modal } from "@/components/ui";
 import { searchRAG, type RAGSearchResult } from "@/lib/api/rag";
 import { getCompanyJobs } from "@/lib/api/company";
@@ -20,11 +20,14 @@ import {
   TalentSearchHeader,
   TalentSearchCommandBar,
   TalentDiscoveryHub,
+  TALENT_ARCHETYPES,
   CandidateDossierCard,
   TalentStreamFeed,
   TalentDossierInspector,
   type CandidateGroup,
 } from "@/components/employer/talent-search";
+
+const DEFAULT_INITIAL_QUERY = "Frontend React Developer TypeScript";
 
 function groupResultsByCandidate(rawResults: RAGSearchResult[]): CandidateGroup[] {
   const map = new Map<string, CandidateGroup>();
@@ -82,11 +85,11 @@ export function EmployerTalentSearch() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [selectedJobId, setSelectedJobId] = useState<number | null>(null);
 
-  // Search & Filter state
-  const [searchQuery, setSearchQuery] = useState("");
+  // Search & Filter state — Pre-loaded with default search to make workspace active immediately
+  const [searchQuery, setSearchQuery] = useState(DEFAULT_INITIAL_QUERY);
   const [selectedSection, setSelectedSection] = useState<string | null>(null);
   const [selectedDocType, setSelectedDocType] = useState<string>("all");
-  const [minScore, setMinScore] = useState<number>(0.55);
+  const [minScore, setMinScore] = useState<number>(0.35);
 
   // Workspace View Mode: 'split' (2-column productivity board) or 'grid' (classic cards)
   const [viewMode, setViewMode] = useState<"split" | "grid">("split");
@@ -117,7 +120,51 @@ export function EmployerTalentSearch() {
 
   const [, startTransition] = useTransition();
 
-  // Load company jobs on mount
+  // ── Search Action ───────────────────────────────────────────────────────────
+  const executeSearch = async (
+    queryText: string,
+    targetJobId: number | null = selectedJobId,
+    overrideMinScore: number = minScore,
+    overrideSection: string | null = selectedSection,
+    overrideDocType: string = selectedDocType
+  ) => {
+    const trimmed = queryText.trim();
+    if (!trimmed) return;
+
+    setIsLoading(true);
+    setErrorMsg(null);
+    try {
+      const response = await searchRAG({
+        query: trimmed,
+        document_type:
+          overrideDocType !== "all"
+            ? (overrideDocType as "resume" | "cv_document")
+            : null,
+        section_types: overrideSection ? [overrideSection] : null,
+        job_id: targetJobId || undefined,
+        only_company_applicants: true,
+        limit: 30,
+        min_score: overrideMinScore,
+      });
+
+      startTransition(() => {
+        setRawResults(response.results || []);
+        setTotalMatched(response.total_matched || 0);
+        setHasSearched(true);
+        setActiveEvidenceTab({});
+      });
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { detail?: string } } };
+      setErrorMsg(
+        error?.response?.data?.detail ||
+          "Không thể thực hiện tìm kiếm ngữ nghĩa. Vui lòng thử lại sau giây lát."
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Load company jobs & pre-fetch talent workspace on mount
   useEffect(() => {
     let isMounted = true;
     getCompanyJobs()
@@ -127,6 +174,10 @@ export function EmployerTalentSearch() {
       .catch((err) => {
         console.error("Failed to load company jobs:", err);
       });
+
+    // Auto-fetch default candidates on mount so the workspace board is immediately live
+    executeSearch(DEFAULT_INITIAL_QUERY, null, 0.35, null, "all");
+
     return () => {
       isMounted = false;
     };
@@ -185,50 +236,6 @@ export function EmployerTalentSearch() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [viewMode, candidateGroups, selectedCandidateId]);
 
-  // ── Search Action ───────────────────────────────────────────────────────────
-  const executeSearch = async (
-    queryText: string,
-    targetJobId: number | null = selectedJobId,
-    overrideMinScore: number = minScore,
-    overrideSection: string | null = selectedSection,
-    overrideDocType: string = selectedDocType
-  ) => {
-    const trimmed = queryText.trim();
-    if (!trimmed) return;
-
-    setIsLoading(true);
-    setErrorMsg(null);
-    try {
-      const response = await searchRAG({
-        query: trimmed,
-        document_type:
-          overrideDocType !== "all"
-            ? (overrideDocType as "resume" | "cv_document")
-            : null,
-        section_types: overrideSection ? [overrideSection] : null,
-        job_id: targetJobId || undefined,
-        only_company_applicants: true,
-        limit: 30,
-        min_score: overrideMinScore,
-      });
-
-      startTransition(() => {
-        setRawResults(response.results || []);
-        setTotalMatched(response.total_matched || 0);
-        setHasSearched(true);
-        setActiveEvidenceTab({});
-      });
-    } catch (err: unknown) {
-      const error = err as { response?: { data?: { detail?: string } } };
-      setErrorMsg(
-        error?.response?.data?.detail ||
-          "Không thể thực hiện tìm kiếm ngữ nghĩa. Vui lòng thử lại sau giây lát."
-      );
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     executeSearch(searchQuery);
@@ -242,7 +249,7 @@ export function EmployerTalentSearch() {
   const handleJobFilterChange = (jobIdStr: string) => {
     const newJobId = jobIdStr === "all" ? null : Number(jobIdStr);
     setSelectedJobId(newJobId);
-    if (searchQuery.trim() && hasSearched) {
+    if (searchQuery.trim()) {
       executeSearch(searchQuery, newJobId);
     }
   };
@@ -251,10 +258,9 @@ export function EmployerTalentSearch() {
     setSelectedJobId(null);
     setSelectedSection(null);
     setSelectedDocType("all");
-    setMinScore(0.55);
-    if (searchQuery.trim() && hasSearched) {
-      executeSearch(searchQuery, null, 0.55, null, "all");
-    }
+    setMinScore(0.35);
+    executeSearch(DEFAULT_INITIAL_QUERY, null, 0.35, null, "all");
+    setSearchQuery(DEFAULT_INITIAL_QUERY);
   };
 
   const handleCopyContent = (content: string, chunkId: number) => {
@@ -317,21 +323,21 @@ export function EmployerTalentSearch() {
         selectedSection={selectedSection}
         onSectionChange={(newSec) => {
           setSelectedSection(newSec);
-          if (searchQuery.trim() && hasSearched) {
+          if (searchQuery.trim()) {
             executeSearch(searchQuery, selectedJobId, minScore, newSec, selectedDocType);
           }
         }}
         selectedDocType={selectedDocType}
         onDocTypeChange={(newDocType) => {
           setSelectedDocType(newDocType);
-          if (searchQuery.trim() && hasSearched) {
+          if (searchQuery.trim()) {
             executeSearch(searchQuery, selectedJobId, minScore, selectedSection, newDocType);
           }
         }}
         minScore={minScore}
         onMinScoreChange={(newScore) => {
           setMinScore(newScore);
-          if (searchQuery.trim() && hasSearched) {
+          if (searchQuery.trim()) {
             executeSearch(searchQuery, selectedJobId, newScore, selectedSection, selectedDocType);
           }
         }}
@@ -340,7 +346,46 @@ export function EmployerTalentSearch() {
         onResetFilters={handleResetFilters}
       />
 
-      {/* ── 3. Error Alert Banner ── */}
+      {/* ── 3. Quick Talent Archetypes Selector Ribbon ── */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 p-3.5 rounded-2xl bg-white border border-slate-200/90 shadow-2xs">
+        <div className="flex items-center gap-2 text-xs font-bold text-slate-800 shrink-0">
+          <div className="w-6 h-6 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
+            <Users className="w-3.5 h-3.5" />
+          </div>
+          <span>Chân dung nhân tài (Archetypes):</span>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          {TALENT_ARCHETYPES.map((arch) => {
+            const Icon = arch.icon;
+            const isMatch = searchQuery === arch.query;
+            return (
+              <button
+                key={arch.role}
+                type="button"
+                onClick={() => handleSelectPreset(arch.query)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border ${
+                  isMatch
+                    ? "bg-indigo-600 text-white border-indigo-600 shadow-xs"
+                    : "bg-slate-50 hover:bg-indigo-50 hover:text-indigo-700 text-slate-700 border-slate-200/80"
+                }`}
+              >
+                <Icon className="w-3.5 h-3.5" />
+                <span>{arch.role}</span>
+                <span
+                  className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+                    isMatch ? "bg-indigo-700 text-indigo-100" : "bg-white text-slate-500"
+                  }`}
+                >
+                  {arch.badge}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ── 4. Error Alert Banner ── */}
       {errorMsg && (
         <div className="flex items-center justify-between gap-3 p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-sm">
           <div className="flex items-center gap-2">
@@ -358,7 +403,7 @@ export function EmployerTalentSearch() {
         </div>
       )}
 
-      {/* ── 4. Main Workspace Area: 4 States ── */}
+      {/* ── 5. Main Active Workspace Board (Dual-Pane Split vs Grid) ── */}
       {isLoading ? (
         /* State 1: Shimmer Loading Skeleton */
         <div className="space-y-4">
@@ -406,19 +451,19 @@ export function EmployerTalentSearch() {
               variant="outline"
               size="sm"
               onClick={() => {
-                setMinScore(0.4);
+                setMinScore(0.25);
                 setSelectedSection(null);
                 setSelectedDocType("all");
                 setSelectedJobId(null);
-                executeSearch(searchQuery, null, 0.4, null, "all");
+                executeSearch(searchQuery, null, 0.25, null, "all");
               }}
               className="rounded-xl text-xs font-bold cursor-pointer"
             >
-              Hạ ngưỡng về 0.40 & Tìm toàn bộ hồ sơ
+              Hạ ngưỡng về 0.25 & Tìm toàn bộ hồ sơ
             </Button>
           </div>
         </div>
-      ) : hasSearched && candidateGroups.length > 0 ? (
+      ) : candidateGroups.length > 0 ? (
         /* State 3: Candidates Found — Workspace Switcher (Split Board vs Grid) */
         <div className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-bold text-slate-500 px-1">
@@ -505,7 +550,7 @@ export function EmployerTalentSearch() {
           )}
         </div>
       ) : (
-        /* State 4: Initial Talent Discovery Hub */
+        /* State 4: Fallback Hub */
         <TalentDiscoveryHub
           companyName={companyName}
           onSelectPreset={handleSelectPreset}

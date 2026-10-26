@@ -16,7 +16,7 @@ interface TalentDiscoveryHubProps {
   onSelectPreset: (queryText: string) => void;
 }
 
-const TALENT_ARCHETYPES = [
+export const TALENT_ARCHETYPES = [
   {
     role: "Senior Fullstack Lead",
     level: "3-5+ năm kinh nghiệm",
