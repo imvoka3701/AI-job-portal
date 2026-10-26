@@ -154,6 +154,7 @@ def create_job(
 
 
 @router.patch("/{job_id}", response_model=JobRead, summary="Update a job posting")
+@router.put("/{job_id}", response_model=JobRead, summary="Update a job posting (PUT alias)")
 def update_job(
     job_id: int,
     data: JobUpdate,

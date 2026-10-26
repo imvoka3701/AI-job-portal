@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useState, useRef } from "react";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { getMyApplications, withdrawApplication } from "@/lib/api/applications";
+import { getMyApplications, withdrawApplication, getMyScheduledInterviews, type CandidateInterviewRound } from "@/lib/api/applications";
 import { getRounds, getCalendarLinks, downloadIcsFile, type RoundItem } from "@/lib/api/rounds";
 import { uploadResume, getMyResumes, deleteResume, evaluateResume } from "@/lib/api/resumes";
 import { getCvDocuments, deleteCvDocument } from "@/lib/api/cvDocuments";
 import { uploadAvatar } from "@/lib/api/users";
 import { useUser, useAuthStore } from "@/stores/authStore";
-import { tokenStorage, apiClient } from "@/lib/axios";
+import { tokenStorage } from "@/lib/axios";
 import { Button, Card, CardHeader, CardContent, Spinner, ApplicationStatusBadge, EmptyState, ErrorState, PipelineStepper, ConfirmDialog } from "@/components/ui";
 import { getApiErrorMessage } from "@/lib/axios";
 import type { Application } from "@/types/application";
@@ -121,15 +121,7 @@ export const CandidateDashboard = () => {
   };
 
   // ── Interview banner ──────────────────────────────────────────────────────
-  const [interviews, setInterviews] = useState<Array<{
-    round_id: number;
-    scheduled_at: string;
-    location: string | null;
-    round_name: string;
-    job_title: string;
-    company_name: string;
-    status: string;
-  }>>([]);
+  const [interviews, setInterviews] = useState<CandidateInterviewRound[]>([]);
   const [calendarActionLoading, setCalendarActionLoading] = useState(false);
 
   const handleGoogleCalendar = async (roundId: number) => {
@@ -159,9 +151,8 @@ export const CandidateDashboard = () => {
 
   useEffect(() => {
     if (!user) return;
-    apiClient
-      .get("/applications/me/interviews")
-      .then(({ data }) => setInterviews(data))
+    getMyScheduledInterviews()
+      .then(setInterviews)
       .catch(() => {});
   }, [user]);
 

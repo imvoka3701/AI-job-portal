@@ -19,6 +19,7 @@ vi.mock("@/stores/authStore", () => ({
 
 vi.mock("@/lib/api/applications", () => ({
   getMyApplications: vi.fn().mockResolvedValue([]),
+  getMyScheduledInterviews: vi.fn().mockResolvedValue([]),
   withdrawApplication: vi.fn(),
 }));
 

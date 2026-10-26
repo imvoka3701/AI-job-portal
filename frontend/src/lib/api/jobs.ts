@@ -67,7 +67,7 @@ export async function createJob(payload: JobCreatePayload): Promise<Job> {
 }
 
 export async function updateJob(jobId: number, payload: Partial<JobCreatePayload> & { is_active?: boolean }): Promise<Job> {
-  const { data } = await apiClient.put<Job>(`/jobs/${jobId}`, payload);
+  const { data } = await apiClient.patch<Job>(`/jobs/${jobId}`, payload);
   return data;
 }
 
