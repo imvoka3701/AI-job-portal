@@ -58,10 +58,8 @@ const mockCandidate: CandidateGroup = {
 };
 
 describe("TalentSearch Workspace Board Components", () => {
-  it("renders TalentSearchCommandBar with view mode switcher and triggers mode change", () => {
-    const handleViewModeChange = vi.fn();
+  it("renders TalentSearchCommandBar and triggers search submission", () => {
     const handleSubmit = vi.fn();
-    const handlePreset = vi.fn();
 
     render(
       <TalentSearchCommandBar
@@ -70,32 +68,19 @@ describe("TalentSearch Workspace Board Components", () => {
         isLoading={false}
         onSubmit={handleSubmit}
         onClear={vi.fn()}
-        onSelectPreset={handlePreset}
+        onSelectPreset={vi.fn()}
         jobs={[{ id: 10, title: "Senior Frontend Engineer" } as any]}
         selectedJobId={null}
         onJobChange={vi.fn()}
-        selectedSection={null}
-        onSectionChange={vi.fn()}
         selectedDocType="all"
         onDocTypeChange={vi.fn()}
-        minScore={0.55}
+        minScore={0.35}
         onMinScoreChange={vi.fn()}
-        viewMode="split"
-        onViewModeChange={handleViewModeChange}
       />
     );
 
-    expect(screen.getByPlaceholderText(/Nhập tiêu chí nhân tài/i)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/Nhập tiêu chí, kỹ năng hoặc vị trí/i)).toBeInTheDocument();
     expect(screen.getByText("Tìm kiếm AI")).toBeInTheDocument();
-
-    const gridBtn = screen.getByTitle(/Dạng lưới thẻ/i);
-    expect(gridBtn).toBeInTheDocument();
-    fireEvent.click(gridBtn);
-    expect(handleViewModeChange).toHaveBeenCalledWith("grid");
-
-    const presetBtn = screen.getByText("Frontend React & TS");
-    fireEvent.click(presetBtn);
-    expect(handlePreset).toHaveBeenCalled();
   });
 
   it("renders TalentStreamFeed and selects candidate", () => {

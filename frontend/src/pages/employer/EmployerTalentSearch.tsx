@@ -1,11 +1,11 @@
 /**
  * EmployerTalentSearch — Enterprise AI Talent Intelligence Studio
  * Tech stack: React.js, TypeScript, Tailwind CSS, Framer Motion, Lucide React
- * Architecture: Modular Studio Header, Spotlight Command Bar, Dual-Pane Split Workspace & Talent Discovery Hub
+ * Architecture: Clean 1-Row Toolbar + Dual-Pane Split Workspace Board
  */
 
 import { useState, useEffect, useTransition, useMemo } from "react";
-import { Search, AlertCircle, Users } from "lucide-react";
+import { Search, AlertCircle } from "lucide-react";
 import { Button, Modal } from "@/components/ui";
 import { searchRAG, type RAGSearchResult } from "@/lib/api/rag";
 import { getCompanyJobs } from "@/lib/api/company";
@@ -19,8 +19,6 @@ import type { Job } from "@/types/job";
 import {
   TalentSearchHeader,
   TalentSearchCommandBar,
-  TalentDiscoveryHub,
-  TALENT_ARCHETYPES,
   CandidateDossierCard,
   TalentStreamFeed,
   TalentDossierInspector,
@@ -85,9 +83,8 @@ export function EmployerTalentSearch() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [selectedJobId, setSelectedJobId] = useState<number | null>(null);
 
-  // Search & Filter state — Pre-loaded with default search to make workspace active immediately
+  // Search & Filter state
   const [searchQuery, setSearchQuery] = useState(DEFAULT_INITIAL_QUERY);
-  const [selectedSection, setSelectedSection] = useState<string | null>(null);
   const [selectedDocType, setSelectedDocType] = useState<string>("all");
   const [minScore, setMinScore] = useState<number>(0.35);
 
@@ -125,7 +122,6 @@ export function EmployerTalentSearch() {
     queryText: string,
     targetJobId: number | null = selectedJobId,
     overrideMinScore: number = minScore,
-    overrideSection: string | null = selectedSection,
     overrideDocType: string = selectedDocType
   ) => {
     const trimmed = queryText.trim();
@@ -140,7 +136,7 @@ export function EmployerTalentSearch() {
           overrideDocType !== "all"
             ? (overrideDocType as "resume" | "cv_document")
             : null,
-        section_types: overrideSection ? [overrideSection] : null,
+        section_types: null,
         job_id: targetJobId || undefined,
         only_company_applicants: true,
         limit: 30,
@@ -176,7 +172,7 @@ export function EmployerTalentSearch() {
       });
 
     // Auto-fetch default candidates on mount so the workspace board is immediately live
-    executeSearch(DEFAULT_INITIAL_QUERY, null, 0.35, null, "all");
+    executeSearch(DEFAULT_INITIAL_QUERY, null, 0.35, "all");
 
     return () => {
       isMounted = false;
@@ -256,10 +252,9 @@ export function EmployerTalentSearch() {
 
   const handleResetFilters = () => {
     setSelectedJobId(null);
-    setSelectedSection(null);
     setSelectedDocType("all");
     setMinScore(0.35);
-    executeSearch(DEFAULT_INITIAL_QUERY, null, 0.35, null, "all");
+    executeSearch(DEFAULT_INITIAL_QUERY, null, 0.35, "all");
     setSearchQuery(DEFAULT_INITIAL_QUERY);
   };
 
@@ -301,15 +296,15 @@ export function EmployerTalentSearch() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-7 space-y-6">
-      {/* ── 1. Studio Header & Live Metrics ── */}
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 space-y-4">
+      {/* ── 1. Clean Compact Header ── */}
       <TalentSearchHeader
         companyName={companyName}
-        candidateCount={totalMatched || 24}
-        jobCount={jobs.length || 5}
+        candidateCount={totalMatched || candidateGroups.length || 24}
+        jobCount={jobs.length || 4}
       />
 
-      {/* ── 2. Unified Command Bar & Filter Ribbon ── */}
+      {/* ── 2. Minimalist Single-Row Toolbar Ribbon ── */}
       <TalentSearchCommandBar
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
@@ -320,25 +315,18 @@ export function EmployerTalentSearch() {
         jobs={jobs}
         selectedJobId={selectedJobId}
         onJobChange={handleJobFilterChange}
-        selectedSection={selectedSection}
-        onSectionChange={(newSec) => {
-          setSelectedSection(newSec);
-          if (searchQuery.trim()) {
-            executeSearch(searchQuery, selectedJobId, minScore, newSec, selectedDocType);
-          }
-        }}
         selectedDocType={selectedDocType}
         onDocTypeChange={(newDocType) => {
           setSelectedDocType(newDocType);
           if (searchQuery.trim()) {
-            executeSearch(searchQuery, selectedJobId, minScore, selectedSection, newDocType);
+            executeSearch(searchQuery, selectedJobId, minScore, newDocType);
           }
         }}
         minScore={minScore}
         onMinScoreChange={(newScore) => {
           setMinScore(newScore);
           if (searchQuery.trim()) {
-            executeSearch(searchQuery, selectedJobId, newScore, selectedSection, selectedDocType);
+            executeSearch(searchQuery, selectedJobId, newScore, selectedDocType);
           }
         }}
         viewMode={viewMode}
@@ -346,50 +334,11 @@ export function EmployerTalentSearch() {
         onResetFilters={handleResetFilters}
       />
 
-      {/* ── 3. Quick Talent Archetypes Selector Ribbon ── */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 p-3.5 rounded-2xl bg-white border border-slate-200/90 shadow-2xs">
-        <div className="flex items-center gap-2 text-xs font-bold text-slate-800 shrink-0">
-          <div className="w-6 h-6 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
-            <Users className="w-3.5 h-3.5" />
-          </div>
-          <span>Chân dung nhân tài (Archetypes):</span>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          {TALENT_ARCHETYPES.map((arch) => {
-            const Icon = arch.icon;
-            const isMatch = searchQuery === arch.query;
-            return (
-              <button
-                key={arch.role}
-                type="button"
-                onClick={() => handleSelectPreset(arch.query)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border ${
-                  isMatch
-                    ? "bg-indigo-600 text-white border-indigo-600 shadow-xs"
-                    : "bg-slate-50 hover:bg-indigo-50 hover:text-indigo-700 text-slate-700 border-slate-200/80"
-                }`}
-              >
-                <Icon className="w-3.5 h-3.5" />
-                <span>{arch.role}</span>
-                <span
-                  className={`text-[10px] px-1.5 py-0.2 rounded-full ${
-                    isMatch ? "bg-indigo-700 text-indigo-100" : "bg-white text-slate-500"
-                  }`}
-                >
-                  {arch.badge}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* ── 4. Error Alert Banner ── */}
+      {/* ── 3. Error Alert Banner (if any) ── */}
       {errorMsg && (
-        <div className="flex items-center justify-between gap-3 p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-sm">
+        <div className="flex items-center justify-between gap-3 p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs">
           <div className="flex items-center gap-2">
-            <AlertCircle className="w-5 h-5 text-rose-600 shrink-0" />
+            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
             <span>{errorMsg}</span>
           </div>
           <Button
@@ -403,14 +352,10 @@ export function EmployerTalentSearch() {
         </div>
       )}
 
-      {/* ── 5. Main Active Workspace Board (Dual-Pane Split vs Grid) ── */}
+      {/* ── 4. Main Dual-Pane Workspace Board (Directly Visible) ── */}
       {isLoading ? (
         /* State 1: Shimmer Loading Skeleton */
-        <div className="space-y-4">
-          <div className="flex items-center justify-between text-xs text-slate-400 animate-pulse">
-            <div className="h-4 w-48 bg-slate-200 rounded-md" />
-            <div className="h-4 w-24 bg-slate-200 rounded-md" />
-          </div>
+        <div className="space-y-3">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
             <div className="lg:col-span-5 space-y-3">
               {[1, 2, 3].map((i) => (
@@ -434,66 +379,39 @@ export function EmployerTalentSearch() {
           </div>
         </div>
       ) : hasSearched && candidateGroups.length === 0 ? (
-        /* State 2: Empty State */
-        <div className="py-16 text-center rounded-2xl bg-white border border-slate-200/90 p-8 space-y-3 shadow-2xs">
-          <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto">
-            <Search className="w-6 h-6" />
+        /* State 2: Clean Empty State */
+        <div className="py-12 text-center rounded-2xl bg-white border border-slate-200/90 p-8 space-y-3 shadow-2xs">
+          <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto">
+            <Search className="w-5 h-5" />
           </div>
-          <h3 className="text-base font-bold text-slate-800">
-            Không tìm thấy ứng viên phù hợp trong công ty
+          <h3 className="text-sm font-bold text-slate-800">
+            Không tìm thấy ứng viên phù hợp với tiêu chí hiện tại
           </h3>
           <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
-            Không có hồ sơ nào đã nộp khớp với ngưỡng tương đồng {minScore}
-            {selectedJobId ? " cho vị trí đã chọn" : ""}. Bạn có thể hạ thấp ngưỡng hoặc bỏ chọn bộ lọc vị trí.
+            Thử hạ ngưỡng độ khớp hoặc chuyển về "Tất cả vị trí" để quét rộng toàn bộ kho hồ sơ.
           </p>
-          <div className="flex items-center justify-center gap-2 pt-2">
+          <div className="flex items-center justify-center gap-2 pt-1">
             <Button
               variant="outline"
               size="sm"
               onClick={() => {
                 setMinScore(0.25);
-                setSelectedSection(null);
                 setSelectedDocType("all");
                 setSelectedJobId(null);
-                executeSearch(searchQuery, null, 0.25, null, "all");
+                executeSearch(searchQuery, null, 0.25, "all");
               }}
               className="rounded-xl text-xs font-bold cursor-pointer"
             >
-              Hạ ngưỡng về 0.25 & Tìm toàn bộ hồ sơ
+              Hạ ngưỡng về 0.25 & Quét toàn bộ kho hồ sơ
             </Button>
           </div>
         </div>
       ) : candidateGroups.length > 0 ? (
-        /* State 3: Candidates Found — Workspace Switcher (Split Board vs Grid) */
-        <div className="space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-bold text-slate-500 px-1">
-            <div className="flex items-center gap-2">
-              <span>
-                Tìm thấy <strong className="text-indigo-600">{candidateGroups.length}</strong> ứng viên phù hợp
-              </span>
-              <span className="text-slate-300">•</span>
-              <span className="text-slate-400 font-normal">
-                {totalMatched} phân đoạn khớp
-              </span>
-              <span className="text-slate-300">•</span>
-              <span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200 font-semibold text-[11px]">
-                {companyName}
-              </span>
-            </div>
-
-            <div className="flex items-center gap-2 text-[11px] text-slate-400 font-medium">
-              <span>Sắp xếp theo độ tương đồng AI</span>
-              {viewMode === "split" && (
-                <span className="hidden md:inline bg-slate-100 text-slate-500 px-2 py-0.5 rounded font-mono text-[10px]">
-                  Phím ↑ / ↓ để chọn
-                </span>
-              )}
-            </div>
-          </div>
-
+        /* State 3: Candidates Found — Dual-Pane Workspace */
+        <div className="space-y-3">
           {viewMode === "split" ? (
             /* ── Split Workspace: Left Feed + Right Deep Inspector ── */
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
               <div className="lg:col-span-5 xl:col-span-5">
                 <TalentStreamFeed
                   candidates={candidateGroups}
@@ -526,7 +444,7 @@ export function EmployerTalentSearch() {
             </div>
           ) : (
             /* ── Grid Board: Multi-card layout ── */
-            <div className="space-y-4">
+            <div className="space-y-3">
               {candidateGroups.map((candidate, idx) => (
                 <CandidateDossierCard
                   key={candidate.id}
@@ -549,13 +467,7 @@ export function EmployerTalentSearch() {
             </div>
           )}
         </div>
-      ) : (
-        /* State 4: Fallback Hub */
-        <TalentDiscoveryHub
-          companyName={companyName}
-          onSelectPreset={handleSelectPreset}
-        />
-      )}
+      ) : null}
 
       {/* ── Modals & Drawers ── */}
       <Modal
