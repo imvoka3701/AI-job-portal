@@ -39,11 +39,21 @@ HARDCODED_FALLBACK_PROMPTS: dict[str, str] = {
         "QUAN TRONG: Phan hoi PHAI la JSON hop le, khong co markdown hoac text ben ngoai JSON."
     ),
     AIFeature.CV_EVALUATE: (
-        "Ban la mot chuyen gia danh gia CV. Hay phan tich CV duoc cung cap va dua ra danh gia toan dien, bao gom:\n"
-        "- overall_score: Diem tong the tu 0.0 den 10.0.\n"
-        "- summary: Tom tat ngan gon ve diem manh va diem yeu cua CV.\n"
-        "- suggestions: Cac goi y cu the de cai thien CV.\n"
-        "- skill_analysis: object voi key la ten ky nang, value la diem so tu 0.0 den 10.0.\n"
+        "Ban la mot Giam doc Tuyen dung va Chuyen gia Tham dinh CV ATS cap cao. "
+        "Nhiem vu cua ban la phan tich ho so ung vien (CV/Resume) duoc cung cap va dua ra danh gia toan dien theo thang diem 10.\n"
+        "DIEU KIEN TIEN QUYET (GUARDRAIL BAT BUOC):\n"
+        "- Neu van ban duoc cung cap RO RANG KHONG PHAI LA MOT HO SO XIN VIEC (vi du: hoa don thanh toan, hop dong kinh te, bai bao khoa hoc, tai lieu ky thuat, van ban hanh chinh...):\n"
+        "  Ban BAT BUOC phai tra ve:\n"
+        '  - "overall_score": 0.0\n'
+        '  - "summary": "Tai lieu tai len khong dung dinh dang CV/Resume tieu chuan thi truong (phat hien van ban khong phai ho so ung tuyen ca nhan)."\n'
+        '  - "suggestions": ["Vui long tai len file CV hop le co day du thong tin ca nhan, hoc van, kinh nghiem lam viec va ky nang chuyen mon."]\n'
+        '  - "skill_analysis": {}\n'
+        "  TUYET DOI KHONG tu bia ky nang hay cham diem cho tai lieu khong phai CV.\n\n"
+        "DOI VOI CV HOP LE:\n"
+        "- overall_score: Diem tong the tu 0.0 den 10.0 danh gia do hoan thien va chat luong CV.\n"
+        "- summary: Tom tat ngan gon ve diem manh va diem can cai thien cua ho so bang tieng Viet.\n"
+        "- suggestions: Danh sach cac loi khuyen thuc te, cu the de toi uu hoa CV chuan ATS bang tieng Viet.\n"
+        "- skill_analysis: Object key la ten ky nang (VD: Python, React, SQL, Giao tiep...), value la diem danh gia tu 0.0 den 10.0.\n"
         "QUAN TRONG: Phan hoi PHAI la JSON hop le, khong duoc them markdown hay text ben ngoai JSON."
     ),
     AIFeature.ROADMAP: (

@@ -109,23 +109,29 @@ class CVEvaluatorService:
 
         # ── TẦNG 2: LLM structured format validation ────────────────────────
         system_prompt = (
-            "Bạn là một hệ thống AI thẩm định hồ sơ tuyển dụng chuyên nghiệp (B2B ATS Validator). "
-            "Nhiệm vụ của bạn là nhận diện xem đoạn văn bản sau có tuân theo bất kỳ định dạng CV/Resume tiêu chuẩn nào trên thị trường tuyển dụng hay không.\n\n"
-            "TIÊU CHÍ ĐỊNH DẠNG CV HỢP LỆ:\n"
-            "- Phải có thông tin ứng viên (họ tên/chức danh/liên hệ) kết hợp với quá trình học vấn, lịch sử làm việc, hoặc kỹ năng chuyên môn.\n\n"
-            "CÁC TRƯỜNG HỢP BẮT BUỘC COI LÀ KHÔNG HỢP LỆ (is_valid = false):\n"
-            "- Văn bản tùy tiện, code lập trình, đề thi, bài viết kỹ thuật, hợp đồng, hóa đơn, bài báo, tài liệu hành chính.\n"
-            "- Đoạn văn bản cụt lủn chỉ gồm vài gạch đầu dòng từ khóa rời rạc, không có thông tin ứng viên.\n"
-            "- Bất kỳ nội dung nào không thể xác định là một bản hồ sơ ứng tuyển xin việc thực thụ.\n\n"
-            "QUY ĐỊNH ĐẦU RA: Bắt buộc trả về đúng định dạng JSON:\n"
+            "Bạn là Giám đốc Tuyển dụng và Hệ thống AI Thẩm định Hồ sơ Ứng tuyển B2B (Enterprise ATS Validator). "
+            "Nhiệm vụ tối thượng của bạn là phân tích xem đoạn văn bản được cung cấp có phải là một BẢN HỒ SƠ ỨNG TUYỂN XIN VIỆC (CV / Resume) hợp lệ của một cá nhân hay không, "
+            "nhằm loại bỏ hoàn toàn các tài liệu không hợp lệ (hóa đơn, bài báo nghiên cứu, tài liệu kỹ thuật, hợp đồng, biên lai...).\n\n"
+            "TIÊU CHÍ BẮT BUỘC CỦA MỘT CV HỢP LỆ (Dựa trên chuẩn ATS và TopCV/LinkedIn):\n"
+            "1. Danh tính cá nhân ứng viên: Phải có họ tên người cụ thể kèm thông tin liên hệ và/hoặc chức danh mục tiêu ứng tuyển.\n"
+            "2. Mục đích ứng tuyển xin việc: Văn bản phải thể hiện rõ mục đích giới thiệu năng lực bản thân của một cá nhân để xin việc.\n"
+            "3. Lịch sử chuyên môn & Dòng thời gian: Phải có quá trình học vấn (trường lớp/bằng cấp) HOẶC lịch sử kinh nghiệm làm việc (công ty/vị trí/dự án) kèm kỹ năng.\n\n"
+            "CÁC TRƯỜNG HỢP BẮT BUỘC TỪ CHỐI (is_valid = false):\n"
+            "- Hóa đơn giá trị gia tăng, biên lai thu tiền, thông báo cước dịch vụ.\n"
+            "- Bài báo nghiên cứu khoa học, tài liệu học thuật, luận văn tốt nghiệp.\n"
+            "- Hợp đồng kinh tế, hợp đồng đào tạo, biên bản bàn giao, thỏa thuận dịch vụ.\n"
+            "- Tài liệu đặc tả kỹ thuật phần mềm, hướng dẫn sử dụng, checklist dự án, mã nguồn lập trình.\n"
+            "- Bất kỳ tài liệu nào không phải là hồ sơ xin việc của một ứng viên cá nhân.\n\n"
+            "QUY ĐỊNH ĐẦU RA (Bắt buộc trả về đúng định dạng JSON duy nhất):\n"
             "{\n"
             '  "is_valid": true hoặc false,\n'
-            '  "reason": "Lý do súc tích bằng tiếng Việt nếu không hợp lệ (hướng dẫn cụ thể những gì đang thiếu), hoặc chuỗi rỗng nếu hợp lệ"\n'
+            '  "detected_document_type": "cv" | "invoice" | "academic_paper" | "contract" | "technical_doc" | "other",\n'
+            '  "reason": "Lý do súc tích bằng tiếng Việt nêu rõ loại tài liệu phát hiện và phần thông tin CV đang thiếu (chuỗi rỗng nếu là CV hợp lệ)"\n'
             "}\n"
             "QUAN TRỌNG: Chỉ trả về duy nhất JSON hợp lệ, không có markdown hay bất kỳ văn bản nào bên ngoài."
         )
 
-        user_prompt = f"Văn bản cần thẩm định:\n{text_clean[:2000]}"
+        user_prompt = f"Văn bản cần thẩm định:\n{text_clean[:4000]}"
 
         try:
             response = await self.client.create_chat_completion(
@@ -154,7 +160,8 @@ class CVEvaluatorService:
             return True, ""
         except Exception as exc:
             logger.warning("Failed to validate CV format with LLM: %s", exc)
-            if len(heuristic_result.detected_groups) >= 3:
+            # Offline fallback: requires contact + timeline + at least 3 professional sections to qualify
+            if heuristic_result.has_timeline and len(heuristic_result.detected_groups) >= 3:
                 return True, ""
             return (
                 False,

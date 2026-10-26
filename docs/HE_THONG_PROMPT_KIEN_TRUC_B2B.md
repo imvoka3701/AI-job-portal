@@ -1,6 +1,5 @@
 # TÀI LIỆU HỆ THỐNG PROMPTS ĐIỀU PHỐI AI AGENTS PHÁT TRIỂN NỀN TẢNG B2B AI-POWERED JOB PORTAL
 
-> **Dành cho:** Báo cáo đồ án / Bài kiểm tra thường xuyên 3 (KT3) & Thi kết thúc học phần.  
 > **Mục tiêu:** Chứng minh năng lực làm chủ công nghệ, phương pháp **Prompt Engineering có hệ thống (Structured & Layered Prompting)**, và quy trình phản biện kỹ thuật đa tầng kết nối chặt chẽ giữa **Database ➔ Backend ➔ API ➔ Frontend**.  
 > **Nguyên tắc kỹ thuật:** *Contract-First Development*, *Multi-tenant Data Isolation*, *Human-in-the-Loop*, *Zero-PII Leakage*.
 

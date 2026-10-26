@@ -85,6 +85,9 @@ class RAGService:
             if not resume:
                 logger.warning("resume #%s not found for RAG indexing", document_id)
                 return 0
+            if not resume.is_validated:
+                logger.warning("resume #%s is not validated as standard CV, skipping RAG indexing", document_id)
+                return 0
             chunks_data = document_chunker.chunk_resume(resume)
 
         elif document_type == "job":

@@ -578,6 +578,7 @@ def test_employer_talent_search_isolates_company_applicants(client: TestClient, 
         title="React TypeScript Engineer Candidate Alpha",
         desired_role="React TypeScript Engineer",
         raw_text="Senior React Engineer proficient in TypeScript, React 19, and Tailwind CSS",
+        is_validated=True,
     )
     db_session.add(resume_a)
     db_session.commit()
@@ -604,6 +605,7 @@ def test_employer_talent_search_isolates_company_applicants(client: TestClient, 
         title="React TypeScript Engineer Candidate Beta",
         desired_role="React TypeScript Engineer",
         raw_text="Senior React Engineer proficient in TypeScript, React 19, and Tailwind CSS",
+        is_validated=True,
     )
     db_session.add(resume_b)
     db_session.commit()

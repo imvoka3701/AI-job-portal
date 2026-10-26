@@ -91,8 +91,73 @@ class TestCVHeuristicValidator:
         res = validate_cv_heuristic(senior_cv)
         assert res.is_valid is True
         assert res.has_contact is True
+        assert res.has_timeline is True
         assert "experience" in res.detected_groups
         assert "skills" in res.detected_groups
+
+    def test_le_quang_dung_standard_cv_accepted(self):
+        """Standard 1-column CV format: Lê Quang Dũng (Image 1 from user)."""
+        cv_text = (
+            "Lê Quang Dũng\n"
+            "Business Development Executive\n"
+            "Ngày sinh: 05/12/1998 | Giới tính: Nam\n"
+            "Số điện thoại: 0123456789 | Email: dung.le@mail.vn | Địa chỉ: Hoàng Mai, Hà Nội\n"
+            "MỤC TIÊU NGHỀ NGHIỆP\n"
+            "Với hơn 4 năm kinh nghiệm công tác ở vị trí Nhân viên phát triển kinh doanh...\n"
+            "HỌC VẤN\n"
+            "2016 - 2020: Trường Đại học Ngoại Thương - Chuyên ngành Quản trị Kinh doanh (GPA: 3.7/4.0)\n"
+            "KINH NGHIỆM LÀM VIỆC\n"
+            "03/2022 - 02/2025: Công ty TNHH ABC - Business Development Executive\n"
+            "• Thu thập, phân tích thông tin về thị trường và phát triển chiến lược kinh doanh.\n"
+            "06/2020 - 02/2022: Công ty Cổ phần XYZ - Nhân viên kinh doanh\n"
+            "• Tiếp cận 80 khách hàng tiềm năng mỗi tháng, đàm phán và ký kết hợp đồng."
+        )
+        res = validate_cv_heuristic(cv_text)
+        assert res.is_valid is True
+        assert res.has_contact is True
+        assert res.has_timeline is True
+        assert "objective" in res.detected_groups
+        assert "education" in res.detected_groups
+        assert "experience" in res.detected_groups
+
+    def test_tran_manh_dung_topcv_layout_accepted(self):
+        """Modern 2-column TopCV format: Trần Mạnh Dũng (Image 2 from user)."""
+        cv_text = (
+            "Trần Mạnh Dũng - Content Leader\n"
+            "Điện thoại: 0123456789 | Email: tech.growth@topcv.vn | Địa chỉ: Thanh Xuân, Hà Nội\n"
+            "HỌC VẤN\n"
+            "2015 - 2019: Cử nhân Public Relation & Advertising - Đại học Kinh tế TOPCV\n"
+            "KỸ NĂNG\n"
+            "Kỹ năng giao tiếp, làm việc nhóm, kỹ năng giải quyết vấn đề, tin học, ngoại ngữ.\n"
+            "MỤC TIÊU NGHỀ NGHIỆP\n"
+            "Content Leader với 6 năm kinh nghiệm xây dựng và triển khai chiến lược nội dung đa nền tảng...\n"
+            "KINH NGHIỆM LÀM VIỆC\n"
+            "2023 - Nay: Content Leader tại Công ty Công nghệ NTD Tech\n"
+            "• Xây dựng chiến lược nội dung cho website, mạng xã hội, tăng 40% organic traffic.\n"
+            "2019 - 2023: Content Executive tại Agency NDS Marketing"
+        )
+        res = validate_cv_heuristic(cv_text)
+        assert res.is_valid is True
+        assert res.has_contact is True
+        assert res.has_timeline is True
+        assert "education" in res.detected_groups
+        assert "skills" in res.detected_groups
+        assert "objective" in res.detected_groups
+        assert "experience" in res.detected_groups
+
+    def test_scientific_paper_rejected_at_tier1(self):
+        """Academic research paper with author email but only single academic keyword (no skills/experience/timeline)."""
+        paper_text = (
+            "NGHIÊN CỨU GIẢI THUẬT PHÂN TỤ MẬT ĐỘ DBSCAN TRONG XỬ LÝ ẢNH Y TẾ\n"
+            "Tác giả: Nhóm nghiên cứu AI - Liên hệ tác giả: research-group@hust.edu.vn\n"
+            "Tóm tắt: Bài báo trình bày phương pháp tối ưu hóa giải thuật phân cụm mật độ.\n"
+            "Đại học Bách Khoa Hà Nội - Viện Công nghệ Thông tin.\n"
+            "Phương pháp đề xuất đạt độ chính xác 94.5% trên tập dữ liệu benchmark công khai."
+        )
+        res = validate_cv_heuristic(paper_text)
+        assert res.is_valid is False
+        assert res.has_contact is True
+        assert "thiếu các mục chuyên môn" in res.reason
 
 
 @pytest.mark.asyncio

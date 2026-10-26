@@ -23,6 +23,16 @@ EMAIL_REGEX = re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b")
 # Matches Vietnamese and international phone number formats (with spaces, dots, dashes)
 PHONE_REGEX = re.compile(r"(?:(?:\+?84)|0)(?:\s*[\.-]?\s*\d){9,10}\b")
 
+# Regex pattern for career and academic timelines (e.g. '03/2022 - 02/2025', '2019 - 2023', '2023 - Nay')
+TIMELINE_REGEX = re.compile(
+    r"(?:"
+    r"\b(?:19|20)\d{2}\s*[-–—/]\s*(?:(?:19|20)\d{2}|nay|present|hiện\s*tại|hiện\s*nay|current)\b|"
+    r"\b\d{1,2}[\/\.-](?:19|20)\d{2}\s*[-–—/]\s*(?:\d{1,2}[\/\.-](?:19|20)\d{2}|nay|present|hiện\s*tại|hiện\s*nay|current)\b|"
+    r"\b(?:từ|from)?\s*(?:19|20)\d{2}\s*(?:đến|to|-)\s*(?:(?:19|20)\d{2}|nay|present)\b"
+    r")",
+    re.IGNORECASE,
+)
+
 # Section keywords (Vietnamese with & without diacritics, and English)
 SECTION_KEYWORDS: dict[str, list[str]] = {
     "experience": [
@@ -83,13 +93,30 @@ SECTION_KEYWORDS: dict[str, list[str]] = {
         "core competencies",
         "competencies",
         "tech stack",
-        "công nghệ",
-        "cong nghe",
+        "công nghệ sử dụng",
+        "cong nghe su dung",
         "abilities",
         "chứng chỉ",
         "chung chi",
         "certificate",
         "certifications",
+    ],
+    "objective": [
+        "mục tiêu nghề nghiệp",
+        "muc tieu nghe nghiep",
+        "mục tiêu sự nghiệp",
+        "muc tieu su nghiep",
+        "tóm tắt năng lực",
+        "tom tat nang luc",
+        "tóm tắt bản thân",
+        "giới thiệu bản thân",
+        "gioi thieu ban than",
+        "career objective",
+        "objective",
+        "professional summary",
+        "career summary",
+        "profile",
+        "about me",
     ],
 }
 
@@ -98,6 +125,7 @@ GROUP_LABELS_VN: dict[str, str] = {
     "experience": "Kinh nghiệm làm việc",
     "education": "Học vấn / Bằng cấp",
     "skills": "Kỹ năng chuyên môn / Chứng chỉ",
+    "objective": "Mục tiêu nghề nghiệp / Tóm tắt năng lực",
 }
 
 
@@ -126,6 +154,7 @@ class CVHeuristicResult:
     is_valid: bool
     reason: str = ""
     has_contact: bool = False
+    has_timeline: bool = False
     detected_groups: list[str] = field(default_factory=list)
     missing_groups: list[str] = field(default_factory=list)
     matched_keywords: dict[str, list[str]] = field(default_factory=dict)
@@ -165,6 +194,9 @@ def validate_cv_heuristic(text: str | None) -> CVHeuristicResult:
     text_lower = text_clean.lower()
     norm_lower = normalize_vietnamese_pdf_text(text_clean).lower()
 
+    # 3. Timeline Check (e.g. 2019 - 2023, 03/2022 - 02/2025, 2023 - Nay)
+    has_timeline = bool(TIMELINE_REGEX.search(text_clean) or TIMELINE_REGEX.search(norm_lower))
+
     matched_keywords: dict[str, list[str]] = {}
     detected_groups: list[str] = []
     missing_groups: list[str] = []
@@ -182,10 +214,10 @@ def validate_cv_heuristic(text: str | None) -> CVHeuristicResult:
         else:
             missing_groups.append(group)
 
-    # Professional groups are experience, education, skills
+    # Professional groups are experience, education, skills, objective
     professional_detected = [g for g in detected_groups if g != "contact"]
 
-    # Rule: contact is MANDATORY + at least 1 professional group (experience, education, skills)
+    # Rule 1: Contact info is MANDATORY (Email or Phone)
     if not has_contact:
         return CVHeuristicResult(
             is_valid=False,
@@ -194,21 +226,40 @@ def validate_cv_heuristic(text: str | None) -> CVHeuristicResult:
                 "Vui lòng bổ sung thông tin liên hệ để nhà tuyển dụng có thể kết nối với bạn."
             ),
             has_contact=False,
+            has_timeline=has_timeline,
             detected_groups=detected_groups,
             missing_groups=missing_groups,
             matched_keywords=matched_keywords,
         )
 
-    if len(professional_detected) == 0:
-        missing_labels = [GROUP_LABELS_VN[g] for g in ["experience", "education", "skills"]]
+    # Rule 2: Must contain at least 2 core professional sections (e.g. Experience + Skills, Education + Skills)
+    if len(professional_detected) < 2:
+        missing_labels = [GROUP_LABELS_VN[g] for g in ["experience", "education", "skills", "objective"] if g not in detected_groups]
         return CVHeuristicResult(
             is_valid=False,
             reason=(
-                "Hồ sơ tải lên không đúng định dạng CV tiêu chuẩn thị trường (thiếu các mục chuyên môn: "
-                f"{', '.join(missing_labels)}). "
+                "Hồ sơ tải lên không đúng định dạng CV tiêu chuẩn thị trường (thiếu các mục chuyên môn cốt lõi: "
+                "yêu cầu tối thiểu 2 trong các phần Kinh nghiệm làm việc, Học vấn, Kỹ năng, Mục tiêu nghề nghiệp). "
                 "Vui lòng tải lên file CV hợp lệ hoặc sử dụng CV Builder để tạo CV chuẩn ATS."
             ),
             has_contact=True,
+            has_timeline=has_timeline,
+            detected_groups=detected_groups,
+            missing_groups=missing_groups,
+            matched_keywords=matched_keywords,
+        )
+
+    # Rule 3: Must have a verifiable chronological timeline OR explicit work experience
+    # Legitimate CVs document periods of employment or education (e.g. 2019 - 2023, 03/2022 - Nay)
+    if not has_timeline and "experience" not in detected_groups:
+        return CVHeuristicResult(
+            is_valid=False,
+            reason=(
+                "Hồ sơ tải lên thiếu mốc thời gian sự nghiệp hoặc học vấn (Ví dụ: 2020 - 2024, 03/2022 - Hiện tại). "
+                "Vui lòng ghi rõ thời gian học tập hoặc quá trình công tác trong CV."
+            ),
+            has_contact=True,
+            has_timeline=False,
             detected_groups=detected_groups,
             missing_groups=missing_groups,
             matched_keywords=matched_keywords,
@@ -218,6 +269,7 @@ def validate_cv_heuristic(text: str | None) -> CVHeuristicResult:
         is_valid=True,
         reason="",
         has_contact=True,
+        has_timeline=has_timeline,
         detected_groups=detected_groups,
         missing_groups=missing_groups,
         matched_keywords=matched_keywords,
