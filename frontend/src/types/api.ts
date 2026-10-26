@@ -26,6 +26,18 @@ export interface MatchBreakdown {
   skills_score: number;
   experience_score: number;
   domain_score: number;
+  vector_cosine_score?: number;
+  formula?: string;
+}
+
+export interface FormulaMetadata {
+  formula: string;
+  vector_weight: number;
+  skills_weight: number;
+  experience_weight: number;
+  penalty_cap: number;
+  embedding_dimension: number;
+  model_name: string;
 }
 
 /** AI Match response */
@@ -37,6 +49,8 @@ export interface AIMatchResult {
   breakdown?: MatchBreakdown;
   deal_breakers?: string[];
   interview_questions?: string[];
+  vector_sample?: number[];
+  formula_metadata?: FormulaMetadata;
 }
 
 /** CV Evaluation response */

@@ -21,6 +21,8 @@ class MatchBreakdown(BaseModel):
     skills_score: float = 0.0
     experience_score: float = 0.0
     domain_score: float = 0.0
+    vector_cosine_score: float = 0.0
+    formula: str | None = "0.35 * Vector + 0.40 * Skills + 0.25 * Experience"
 
 
 class AIMatchResponse(BaseModel):
@@ -31,6 +33,8 @@ class AIMatchResponse(BaseModel):
     breakdown: MatchBreakdown | None = None
     deal_breakers: list[str] = []
     interview_questions: list[str] = []
+    vector_sample: list[float] = []
+    formula_metadata: dict[str, Any] | None = None
 
 
 class CVEvaluationRequest(BaseModel):

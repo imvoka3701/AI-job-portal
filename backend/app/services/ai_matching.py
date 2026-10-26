@@ -127,6 +127,7 @@ class AIMatchingService:
         job: Any,
         base_cosine_score: float,
         db: Session | None = None,
+        vector_sample: list[float] | None = None,
     ) -> AIMatchResponse:
         """Run deep LLM rubric analysis to evaluate skills, experience, and domain fit."""
         system_prompt = get_system_prompt(AIFeature.MATCHING, db=db)
@@ -157,6 +158,17 @@ class AIMatchingService:
             f"Chỉ giữ nguyên tên riêng của công nghệ (Python, FastAPI, Docker, React...). "
             f"TUYỆT ĐỐI KHÔNG xuất hiện câu chữ tiếng Anh trong phần giải thích và nhận xét."
         )
+
+        sample = vector_sample or []
+        formula_meta = {
+            "formula": "0.35 * Vector + 0.40 * Skills + 0.25 * Experience",
+            "vector_weight": 0.35,
+            "skills_weight": 0.40,
+            "experience_weight": 0.25,
+            "penalty_cap": 100.0,
+            "embedding_dimension": 384,
+            "model_name": "paraphrase-multilingual-MiniLM-L12-v2",
+        }
 
         try:
             response = await deepseek_client.create_chat_completion(
@@ -193,6 +205,7 @@ class AIMatchingService:
             # Deal-breaker Penalty Cap: if serious deal-breaker exists, cap at 60%
             if deal_breakers:
                 final_score = round(min(weighted, 60.0), 1)
+                formula_meta["penalty_cap"] = 60.0
             else:
                 final_score = round(max(0.0, min(100.0, weighted)), 1)
 
@@ -205,9 +218,13 @@ class AIMatchingService:
                     skills_score=round(max(0.0, min(100.0, skills_score)), 1),
                     experience_score=round(max(0.0, min(100.0, experience_score)), 1),
                     domain_score=round(max(0.0, min(100.0, domain_score)), 1),
+                    vector_cosine_score=round(base_cosine_score, 1),
+                    formula="0.35 * Vector + 0.40 * Skills + 0.25 * Experience",
                 ),
                 deal_breakers=deal_breakers,
                 interview_questions=interview_questions,
+                vector_sample=sample,
+                formula_metadata=formula_meta,
             )
         except Exception as exc:
             logger.warning(
@@ -222,9 +239,21 @@ class AIMatchingService:
                     skills_score=base_cosine_score,
                     experience_score=base_cosine_score,
                     domain_score=base_cosine_score,
+                    vector_cosine_score=base_cosine_score,
+                    formula="1.00 * Vector_Cosine",
                 ),
                 deal_breakers=[],
                 interview_questions=[],
+                vector_sample=sample,
+                formula_metadata={
+                    "formula": "1.00 * Vector_Cosine",
+                    "vector_weight": 1.0,
+                    "skills_weight": 0.0,
+                    "experience_weight": 0.0,
+                    "penalty_cap": 100.0,
+                    "embedding_dimension": 384,
+                    "model_name": "paraphrase-multilingual-MiniLM-L12-v2",
+                },
             )
 
     async def compute_match(
@@ -256,6 +285,7 @@ class AIMatchingService:
             )
 
         resume_embedding: list[float] = list(resume.embedding)  # type: ignore[assignment]
+        vector_sample = [round(float(x), 4) for x in resume_embedding[:8]]
         base_match = await self.compute_match_for_embedding(
             db,
             candidate_embedding=resume_embedding,
@@ -269,8 +299,10 @@ class AIMatchingService:
                 job=job,
                 base_cosine_score=base_match.score,
                 db=db,
+                vector_sample=vector_sample,
             )
 
+        base_match.vector_sample = vector_sample
         return base_match
 
     async def compute_match_for_cv_document(
@@ -305,6 +337,7 @@ class AIMatchingService:
                 gaps=["Lỗi sinh vector"],
             )
 
+        vector_sample = [round(float(x), 4) for x in cv_embedding[:8]]
         base_match = await self.compute_match_for_embedding(
             db, candidate_embedding=cv_embedding, job_embedding=job_embedding
         )
@@ -315,8 +348,10 @@ class AIMatchingService:
                 job=job,
                 base_cosine_score=base_match.score,
                 db=db,
+                vector_sample=vector_sample,
             )
 
+        base_match.vector_sample = vector_sample
         return base_match
 
     async def compute_match_for_embedding(
@@ -350,11 +385,29 @@ class AIMatchingService:
             )
 
         score = round(max(0.0, min(100.0, float(similarity) * 100)), 2)
+        sample = [round(float(x), 4) for x in candidate_embedding[:8]] if candidate_embedding else []
         return AIMatchResponse(
             score=score,
             explanation=f"AI matching score based on cosine similarity: {similarity:.4f}",
             strengths=[],
             gaps=[],
+            breakdown=MatchBreakdown(
+                skills_score=score,
+                experience_score=score,
+                domain_score=score,
+                vector_cosine_score=score,
+                formula="1.00 * Vector_Cosine",
+            ),
+            vector_sample=sample,
+            formula_metadata={
+                "formula": "1.00 * Vector_Cosine",
+                "vector_weight": 1.0,
+                "skills_weight": 0.0,
+                "experience_weight": 0.0,
+                "penalty_cap": 100.0,
+                "embedding_dimension": len(candidate_embedding) if candidate_embedding else 384,
+                "model_name": "paraphrase-multilingual-MiniLM-L12-v2",
+            },
         )
 
     async def find_top_matching_jobs(

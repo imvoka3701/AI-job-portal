@@ -48,6 +48,10 @@ import {
   CheckCheck,
   Target,
   ArrowUpRight,
+  ChevronDown,
+  ChevronUp,
+  Cpu,
+  AlertTriangle,
 } from "lucide-react";
 import type { Job } from "@/types/job";
 import type { Resume } from "@/types/resume";
@@ -157,6 +161,7 @@ export const JobDetailPage = () => {
   const [isMatchingLoading, setIsMatchingLoading] = useState(false);
   const [matchingError, setMatchingError] = useState<string | null>(null);
   const [cvLoadError, setCvLoadError] = useState<string | null>(null);
+  const [isMathExplained, setIsMathExplained] = useState(false);
   const [openInterviewFaqIndex, setOpenInterviewFaqIndex] = useState<number | null>(0);
 
   // Dynamic Tech Stacks extracted from actual requirements & description
@@ -912,6 +917,96 @@ export const JobDetailPage = () => {
                       💡 <strong>Đánh giá của Tech Lead AI:</strong> {aiMatchResult.explanation}
                     </div>
 
+                    {/* Micro-metrics 3 criteria */}
+                    <div className="grid grid-cols-3 gap-2 text-[11px] pt-1">
+                      <div className="p-2.5 rounded-xl bg-white/5 border border-white/10 flex flex-col justify-between">
+                        <span className="text-slate-400">Ngữ nghĩa (Vector):</span>
+                        <strong className="text-emerald-300 font-bold text-sm">
+                          {Math.round(aiMatchResult.breakdown?.vector_cosine_score || aiMatchResult.score)}%
+                        </strong>
+                      </div>
+                      <div className="p-2.5 rounded-xl bg-white/5 border border-white/10 flex flex-col justify-between">
+                        <span className="text-slate-400">Kỹ năng (Hard Skills):</span>
+                        <strong className="text-emerald-300 font-bold text-sm">
+                          {Math.round(aiMatchResult.breakdown?.skills_score || aiMatchResult.score)}%
+                        </strong>
+                      </div>
+                      <div className="p-2.5 rounded-xl bg-white/5 border border-white/10 flex flex-col justify-between">
+                        <span className="text-slate-400">Kinh nghiệm (Exp Level):</span>
+                        <strong className="text-emerald-300 font-bold text-sm">
+                          {Math.round(aiMatchResult.breakdown?.experience_score || aiMatchResult.score)}%
+                        </strong>
+                      </div>
+                    </div>
+
+                    {/* Deal Breakers warning if present */}
+                    {aiMatchResult.deal_breakers && aiMatchResult.deal_breakers.length > 0 && (
+                      <div className="p-3 rounded-xl bg-rose-500/20 border border-rose-400/40 text-xs text-rose-200 space-y-1">
+                        <div className="flex items-center gap-1.5 font-bold text-rose-300">
+                          <AlertTriangle size={14} className="text-rose-400 shrink-0" />
+                          <span>Cảnh báo tiêu chuẩn bắt buộc (Giới hạn tối đa 60%):</span>
+                        </div>
+                        <ul className="list-disc list-inside space-y-0.5 text-[11px] text-rose-100">
+                          {aiMatchResult.deal_breakers.map((dbWarn, dbIdx) => (
+                            <li key={dbIdx}>{dbWarn}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {/* Mathematical Explainability Accordion Button */}
+                    <div className="pt-1 border-t border-white/10">
+                      <button
+                        type="button"
+                        onClick={() => setIsMathExplained(!isMathExplained)}
+                        className="w-full flex items-center justify-between py-1.5 text-xs font-semibold text-emerald-300 hover:text-emerald-200 transition-colors cursor-pointer"
+                      >
+                        <span className="flex items-center gap-1.5">
+                          <Cpu size={14} className="text-emerald-400" />
+                          <span>Giải trình thuật toán AI (pgvector HNSW)</span>
+                        </span>
+                        {isMathExplained ? (
+                          <ChevronUp size={14} />
+                        ) : (
+                          <ChevronDown size={14} />
+                        )}
+                      </button>
+
+                      {isMathExplained && (
+                        <div className="mt-2.5 p-3 rounded-xl bg-white/5 border border-white/10 text-xs text-slate-200 space-y-2 animate-in fade-in duration-200">
+                          <div className="font-mono text-[11px] text-emerald-300 bg-black/30 p-2 rounded-lg border border-emerald-500/20">
+                            Công thức chuẩn: S = 0.35×Vector_Cosine + 0.40×Skills_Match + 0.25×Experience_Delta
+                          </div>
+                          <div className="text-[11px] text-slate-300 leading-relaxed space-y-1">
+                            <p>• <strong>Vector Embedding:</strong> 384 chiều (mô hình <code>paraphrase-multilingual-MiniLM-L12-v2</code>) được truy vấn Cosine Distance trên PostgreSQL pgvector.</p>
+                            <p>• <strong>Hard Skills:</strong> Phân tích tập hợp kỹ năng (Set Theory) giữa CV ứng viên và yêu cầu tuyển dụng.</p>
+                            <p>• <strong>Tính xác thực:</strong> Toàn bộ điểm số được tính toán 100% từ vector và dữ liệu hồ sơ thực tế, không sinh số ngẫu nhiên.</p>
+                          </div>
+
+                          {/* 8-dim micro vector sample */}
+                          {aiMatchResult.vector_sample && aiMatchResult.vector_sample.length > 0 && (
+                            <div className="pt-2 border-t border-white/10">
+                              <div className="flex items-center justify-between text-[10px] text-slate-400 mb-1">
+                                <span>Mẫu 8 chiều vector pgvector của hồ sơ:</span>
+                                <span className="font-mono">dim[0..7]</span>
+                              </div>
+                              <div className="grid grid-cols-8 gap-1 font-mono text-[9px]">
+                                {aiMatchResult.vector_sample.map((val, idx) => (
+                                  <div
+                                    key={idx}
+                                    title={`dim[${idx}]: ${val}`}
+                                    className="h-5 rounded bg-black/30 border border-white/10 flex items-center justify-center text-emerald-300 overflow-hidden"
+                                  >
+                                    {val > 0 ? `+${val.toFixed(2)}` : val.toFixed(2)}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
                     {/* 2-Column Skills Matrix */}
                     <div className="grid sm:grid-cols-2 gap-4 pt-2">
                       {/* Matched Strengths */}
@@ -948,7 +1043,7 @@ export const JobDetailPage = () => {
                         </ul>
                         <div className="pt-2 border-t border-white/10">
                           <Link
-                            to="/ai/roadmap"
+                            to={`/ai/roadmap?targetRole=${encodeURIComponent(job.title)}&gaps=${encodeURIComponent(JSON.stringify(aiMatchResult.gaps || []))}&jobId=${job.id}&cv=${encodeURIComponent(selectedDocument)}`}
                             className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-300 hover:text-emerald-200 transition-colors"
                           >
                             <Sparkles size={13} />

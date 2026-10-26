@@ -13,6 +13,7 @@ import {
   TrendingUp,
   ArrowRight,
   Coins,
+  Sparkles,
 } from "lucide-react";
 import { Button, Badge, Card, CardHeader, CardContent } from "@/components/ui";
 import { getRecommendedJobs } from "@/lib/api/ai";
@@ -181,14 +182,14 @@ export function RecommendedJobs({ resumeId, cvDocumentId, isValidated = true }: 
                   exit={{ opacity: 0, y: -6 }}
                   transition={{ duration: 0.18, delay: index * 0.04 }}
                 >
-                  <Link
-                    to={`/jobs/${job.job_id}`}
-                    className="block p-3.5 rounded-2xl border border-slate-200/80 bg-slate-50/40 hover:bg-emerald-50/30 hover:border-emerald-300 hover:shadow-xs transition-all group"
-                  >
+                  <div className="p-3.5 rounded-2xl border border-slate-200/80 bg-slate-50/40 hover:bg-emerald-50/30 hover:border-emerald-300 hover:shadow-xs transition-all group">
                     <div className="flex items-start justify-between gap-2.5 mb-1.5">
-                      <h4 className="text-xs font-black text-slate-900 group-hover:text-emerald-700 transition-colors line-clamp-1 flex-1">
+                      <Link
+                        to={`/jobs/${job.job_id}`}
+                        className="text-xs font-black text-slate-900 group-hover:text-emerald-700 transition-colors line-clamp-1 flex-1 hover:underline"
+                      >
                         {job.title}
-                      </h4>
+                      </Link>
                       <div
                         className={`inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full border shrink-0 ${getScoreColor(
                           job.match_score
@@ -218,12 +219,25 @@ export function RecommendedJobs({ resumeId, cvDocumentId, isValidated = true }: 
                       <Badge variant="default" size="sm" className="text-[9px] px-1.5 py-0 font-bold bg-white border border-slate-200 text-slate-700">
                         {EXPERIENCE_LABEL_MAP[job.experience_level] || job.experience_level}
                       </Badge>
-                      <span className="text-[11px] font-bold text-[#00B86B] flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform">
-                        <span>Ứng tuyển</span>
-                        <ChevronRight size={12} />
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <Link
+                          to={`/ai/roadmap?targetRole=${encodeURIComponent(job.title)}&jobId=${job.job_id}`}
+                          className="text-[10px] font-bold text-amber-700 hover:text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200 px-2 py-0.5 rounded-md flex items-center gap-1 transition-colors"
+                          title="Tạo lộ trình học bù kỹ năng cho vị trí này"
+                        >
+                          <Sparkles size={11} className="text-amber-600" />
+                          <span>Lộ trình bù</span>
+                        </Link>
+                        <Link
+                          to={`/jobs/${job.job_id}`}
+                          className="text-[11px] font-bold text-[#00B86B] hover:text-emerald-800 flex items-center gap-0.5 transition-colors"
+                        >
+                          <span>Xem JD</span>
+                          <ChevronRight size={12} />
+                        </Link>
+                      </div>
                     </div>
-                  </Link>
+                  </div>
                 </motion.div>
               ))}
             </AnimatePresence>

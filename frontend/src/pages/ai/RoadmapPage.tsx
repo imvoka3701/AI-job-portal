@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, useMemo } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { getMyResumes } from "@/lib/api/resumes";
 import { getCvDocuments } from "@/lib/api/cvDocuments";
@@ -586,6 +586,21 @@ const TARGET_ROLE_PRESETS = [
 // ─── COMPONENT ─────────────────────────────────────────────────────────────────
 export const RoadmapPage = () => {
   const user = useUser();
+  const [searchParams] = useSearchParams();
+  const queryTargetRole = searchParams.get("targetRole");
+  const queryGaps = searchParams.get("gaps");
+  const queryJobId = searchParams.get("jobId");
+  const queryCv = searchParams.get("cv");
+
+  const targetedGaps = useMemo<string[]>(() => {
+    if (!queryGaps) return [];
+    try {
+      const parsed = JSON.parse(queryGaps);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return queryGaps.split(",").map((s) => s.trim()).filter(Boolean);
+    }
+  }, [queryGaps]);
 
   // 1. Skill Tree State
   const [skillNodes, setSkillNodes] = useState<SkillNode[]>(INITIAL_SKILL_NODES);
@@ -604,11 +619,31 @@ export const RoadmapPage = () => {
   const [resumes, setResumes] = useState<Resume[]>([]);
   const [cvDocuments, setCvDocuments] = useState<CvDocument[]>([]);
   const [resumesLoading, setResumesLoading] = useState(false);
-  const [selectedCvKey, setSelectedCvKey] = useState<string>("");
-  const [targetRole, setTargetRole] = useState(TARGET_ROLE_PRESETS[0]);
+  const [selectedCvKey, setSelectedCvKey] = useState<string>(queryCv || "");
+  const [targetRole, setTargetRole] = useState(queryTargetRole || TARGET_ROLE_PRESETS[0]);
   const [result, setResult] = useState<RoadmapResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Sync search parameters from Job Detail or Recommended Jobs deep links
+  useEffect(() => {
+    if (queryTargetRole) {
+      setTargetRole(queryTargetRole);
+      const timer = setTimeout(() => {
+        const el = document.getElementById("generator-section");
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth" });
+        }
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [queryTargetRole]);
+
+  useEffect(() => {
+    if (queryCv) {
+      setSelectedCvKey(queryCv);
+    }
+  }, [queryCv]);
 
   // 5. Weekly Planner Checked Tasks (stored in LocalStorage)
   const [completedTasks, setCompletedTasks] = useState<Record<string, boolean>>(() => {
@@ -1193,6 +1228,61 @@ export const RoadmapPage = () => {
             </div>
           ) : (
             <div className="space-y-6">
+              {queryTargetRole && (
+                <motion.div
+                  initial={{ opacity: 0, y: -6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="p-5 rounded-2xl bg-amber-50/80 border border-amber-300 text-slate-800 space-y-3"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black uppercase tracking-wider bg-amber-200 text-amber-900 border border-amber-300">
+                        Mục tiêu chuyển đổi từ JD tuyển dụng
+                      </span>
+                      {queryJobId && (
+                        <Link
+                          to={`/jobs/${queryJobId}`}
+                          className="text-xs font-bold text-amber-800 hover:text-amber-950 underline flex items-center gap-1"
+                        >
+                          <span>Xem lại tin tuyển dụng #{queryJobId}</span>
+                          <IconExternalLink size={13} />
+                        </Link>
+                      )}
+                    </div>
+                    <span className="text-xs text-amber-700 font-semibold">
+                      Đã cấu hình tự động cho hồ sơ của bạn
+                    </span>
+                  </div>
+
+                  <div className="text-sm font-black text-slate-900 flex items-center gap-2">
+                    <IconTarget size={18} className="text-amber-600 shrink-0" />
+                    <span>
+                      Lộ trình học bù kỹ năng cho vị trí:{" "}
+                      <span className="text-emerald-700 font-black">{queryTargetRole}</span>
+                    </span>
+                  </div>
+
+                  {targetedGaps.length > 0 && (
+                    <div className="space-y-1.5 pt-1">
+                      <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                        <IconAlertCircle size={14} className="text-amber-600" />
+                        Kỹ năng còn thiếu đã phát hiện từ đối soát CV:
+                      </span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {targetedGaps.map((gap, i) => (
+                          <span
+                            key={i}
+                            className="px-2.5 py-1 rounded-lg text-xs font-bold bg-white border border-amber-300 text-amber-900 shadow-2xs"
+                          >
+                            {gap}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </motion.div>
+              )}
+
               <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-end">
                 <div className="md:col-span-5 space-y-2">
                   <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
