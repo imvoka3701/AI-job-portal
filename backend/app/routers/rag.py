@@ -17,6 +17,8 @@ from app.models.job import Job
 from app.models.resume import Resume
 from app.models.user import User, UserRole
 from app.schemas.rag import (
+    CandidateCompareRequest,
+    CandidateCompareResponse,
     RAGCVChatRequest,
     RAGCVChatResponse,
     RAGInterviewQuestionsRequest,
@@ -295,6 +297,38 @@ async def chat_with_cv(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Không thể xử lý hội thoại CV Copilot: {str(exc)}",
         )
+
+
+@router.post(
+    "/compare-candidates",
+    response_model=CandidateCompareResponse,
+    summary="Live AI Candidate Contrast (Dual-Candidate Side-by-Side Comparison)",
+    description="So sánh đối chứng song song 2 ứng viên trên một vị trí tuyển dụng dựa trên phân tích vector ngữ nghĩa và bộ kỹ năng thực tế.",
+    dependencies=[Depends(rate_limit("ai_matching"))],
+)
+def compare_candidates(
+    payload: CandidateCompareRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Any:
+    """Evaluate two candidates side-by-side against a job opening."""
+    if current_user.role not in [UserRole.EMPLOYER, UserRole.ADMIN]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Tính năng so sánh đối chứng ứng viên chỉ dành cho Nhà tuyển dụng.",
+        )
+
+    if current_user.role == UserRole.EMPLOYER:
+        context = build_company_context(db, current_user)
+        if not context.has(CompanyPermission.AI_RECRUITMENT) and not context.has(
+            CompanyPermission.APPLICATION_VIEW
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Bạn không có quyền sử dụng tính năng phân tích và so sánh ứng viên AI.",
+            )
+
+    return rag_service.compare_candidates(db, request=payload)
 
 
 @router.post(

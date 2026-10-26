@@ -127,3 +127,44 @@ class RAGCVChatResponse(BaseModel):
     document_title: str | None = None
     cited_chunk_ids: list[int] = Field(default_factory=list)
     referenced_chunks: list[RAGSearchResult] = Field(default_factory=list)
+
+
+class CandidateCompareTarget(BaseModel):
+    document_type: Literal["resume", "cv_document"] = Field(..., description="'resume' hoặc 'cv_document'")
+    document_id: int = Field(..., description="ID của resume hoặc cv_document")
+
+
+class CandidateCompareRequest(BaseModel):
+    job_id: int = Field(..., description="ID của tin tuyển dụng cần đối chứng")
+    candidate_1: CandidateCompareTarget = Field(..., description="Ứng viên thứ nhất")
+    candidate_2: CandidateCompareTarget = Field(..., description="Ứng viên thứ hai")
+
+
+class CandidateContrastProfile(BaseModel):
+    document_type: str
+    document_id: int
+    candidate_name: str
+    candidate_email: str | None = None
+    applied_job_title: str | None = None
+    total_match_score: float = Field(..., ge=0.0, le=100.0, description="Điểm tương thích tổng thể %")
+    vector_cosine_score: float = Field(..., ge=0.0, le=100.0, description="Điểm tương đồng ngữ nghĩa vector %")
+    skills_score: float = Field(..., ge=0.0, le=100.0, description="Điểm khớp kỹ năng chuyên môn %")
+    experience_score: float = Field(..., ge=0.0, le=100.0, description="Điểm tương thích số năm kinh nghiệm %")
+    matched_skills: list[str] = Field(default_factory=list, description="Kỹ năng khớp với yêu cầu Job")
+    missing_skills: list[str] = Field(default_factory=list, description="Kỹ năng còn thiếu so với Job")
+    all_skills: list[str] = Field(default_factory=list, description="Tất cả kỹ năng ứng viên có")
+    years_of_experience: float = Field(0.0, description="Số năm kinh nghiệm ước tính")
+    deal_breakers: list[str] = Field(default_factory=list, description="Cảnh báo thiếu hụt tiêu chí cốt lõi")
+    vector_sample: list[float] = Field(default_factory=list, description="8 giá trị mẫu từ vector 384 chiều")
+
+
+class CandidateCompareResponse(BaseModel):
+    job_id: int
+    job_title: str
+    job_required_skills: list[str] = Field(default_factory=list)
+    job_level: str | None = None
+    candidate_1: CandidateContrastProfile
+    candidate_2: CandidateContrastProfile
+    verdict_summary: str = Field(..., description="Nhận định so sánh tổng quan từ AI")
+    verdict_breakdown: list[str] = Field(default_factory=list, description="Các điểm so sánh chi tiết")
+    formula_metadata: dict[str, Any] = Field(default_factory=dict, description="Metadata công thức toán học minh bạch")

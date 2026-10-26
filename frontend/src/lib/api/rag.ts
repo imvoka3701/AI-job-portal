@@ -146,3 +146,66 @@ export async function chatWithCVCopilot(payload: RAGCVChatRequest): Promise<RAGC
   });
   return data;
 }
+
+export interface CandidateCompareTarget {
+  document_type: "resume" | "cv_document";
+  document_id: number;
+}
+
+export interface CandidateCompareRequest {
+  job_id: number;
+  candidate_1: CandidateCompareTarget;
+  candidate_2: CandidateCompareTarget;
+}
+
+export interface CandidateContrastProfile {
+  document_type: string;
+  document_id: number;
+  candidate_name: string;
+  candidate_email?: string | null;
+  applied_job_title?: string | null;
+  total_match_score: number;
+  vector_cosine_score: number;
+  skills_score: number;
+  experience_score: number;
+  matched_skills: string[];
+  missing_skills: string[];
+  all_skills: string[];
+  years_of_experience: number;
+  deal_breakers: string[];
+  vector_sample: number[];
+}
+
+export interface CandidateCompareResponse {
+  job_id: number;
+  job_title: string;
+  job_required_skills: string[];
+  job_level?: string | null;
+  candidate_1: CandidateContrastProfile;
+  candidate_2: CandidateContrastProfile;
+  verdict_summary: string;
+  verdict_breakdown: string[];
+  formula_metadata: {
+    formula: string;
+    vector_weight: number;
+    skills_weight: number;
+    experience_weight: number;
+    penalty_cap: number;
+    embedding_dimension: number;
+    model_name: string;
+  };
+}
+
+/**
+ * Live AI Candidate Contrast: Dual-candidate side-by-side mathematical & semantic evaluation.
+ */
+export async function compareCandidates(
+  payload: CandidateCompareRequest,
+): Promise<CandidateCompareResponse> {
+  const { data } = await apiClient.post<CandidateCompareResponse>(
+    "/rag/compare-candidates",
+    payload,
+  );
+  return data;
+}
+

@@ -3,6 +3,7 @@ import {
   Briefcase,
   Layers,
   ChevronRight,
+  Scale,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CandidateGroup } from "./CandidateDossierCard";
@@ -11,6 +12,8 @@ interface TalentStreamFeedProps {
   candidates: CandidateGroup[];
   selectedCandidateId: string | null;
   onSelectCandidate: (candidate: CandidateGroup) => void;
+  comparisonCandidateIds?: string[];
+  onToggleComparisonCandidate?: (candidate: CandidateGroup) => void;
 }
 
 const getScoreBadge = (score: number) => {
@@ -43,6 +46,8 @@ export function TalentStreamFeed({
   candidates,
   selectedCandidateId,
   onSelectCandidate,
+  comparisonCandidateIds = [],
+  onToggleComparisonCandidate,
 }: TalentStreamFeedProps) {
   return (
     <div className="flex flex-col h-full space-y-2">
@@ -144,10 +149,29 @@ export function TalentStreamFeed({
 
               {/* Bottom metadata */}
               <div className="flex items-center justify-between text-[11px] text-slate-400 mt-2.5 pt-2 border-t border-slate-100">
-                <span className="flex items-center gap-1">
-                  <Layers className="w-3 h-3 text-indigo-500" />
-                  <span>{candidate.chunks.length} phân đoạn khớp</span>
-                </span>
+                {onToggleComparisonCandidate ? (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onToggleComparisonCandidate(candidate);
+                    }}
+                    className={cn(
+                      "px-2 py-0.5 rounded text-[10px] font-bold border transition-colors flex items-center gap-1 cursor-pointer",
+                      comparisonCandidateIds.includes(candidate.id)
+                        ? "bg-indigo-600 text-white border-indigo-600 shadow-2xs"
+                        : "bg-white text-slate-600 border-slate-200 hover:border-indigo-300 hover:text-indigo-600"
+                    )}
+                  >
+                    <Scale className="w-3 h-3" />
+                    <span>{comparisonCandidateIds.includes(candidate.id) ? "Đã chọn SS" : "So sánh"}</span>
+                  </button>
+                ) : (
+                  <span className="flex items-center gap-1">
+                    <Layers className="w-3 h-3 text-indigo-500" />
+                    <span>{candidate.chunks.length} phân đoạn khớp</span>
+                  </span>
+                )}
                 <span className="flex items-center gap-1 font-medium text-slate-400 group-hover:text-indigo-600 transition-colors">
                   <span className="text-[10px]">Xem chi tiết</span>
                   <ChevronRight className="w-3 h-3" />

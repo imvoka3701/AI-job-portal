@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "react-router-dom";
 import {
@@ -13,6 +14,9 @@ import {
   Layers,
   ArrowUpRight,
   Target,
+  ChevronDown,
+  ChevronUp,
+  Cpu,
 } from "lucide-react";
 import { Button, Spinner } from "@/components/ui";
 import { cn } from "@/lib/utils";
@@ -75,6 +79,8 @@ export function TalentDossierInspector({
   isPreviewLoading,
   onOpenCopilot,
 }: TalentDossierInspectorProps) {
+  const [isMathExplained, setIsMathExplained] = useState(false);
+
   if (!candidate) {
     return (
       <div className="h-full min-h-[500px] flex flex-col items-center justify-center p-8 text-center rounded-2xl bg-white border border-slate-200 shadow-2xs">
@@ -210,6 +216,40 @@ export function TalentDossierInspector({
               <span className="text-slate-500">Từ khóa chính xác (BM25):</span>
               <strong className="text-slate-800">{sparsePct}%</strong>
             </div>
+          </div>
+
+          {/* Mathematical Explainability Accordion Button */}
+          <div className="pt-1 border-t border-slate-200/50">
+            <button
+              type="button"
+              onClick={() => setIsMathExplained(!isMathExplained)}
+              className="w-full flex items-center justify-between py-1 text-[11px] font-semibold text-indigo-700 hover:text-indigo-900 transition-colors"
+            >
+              <span className="flex items-center gap-1">
+                <Cpu className="w-3.5 h-3.5 text-indigo-600" />
+                <span>Giải trình thuật toán AI (pgvector HNSW)</span>
+              </span>
+              {isMathExplained ? (
+                <ChevronUp className="w-3.5 h-3.5" />
+              ) : (
+                <ChevronDown className="w-3.5 h-3.5" />
+              )}
+            </button>
+
+            {isMathExplained && (
+              <div className="mt-2 p-2.5 rounded-lg bg-indigo-50/60 border border-indigo-100 text-[11px] text-slate-700 space-y-1.5 animate-in fade-in duration-200">
+                <div className="font-mono text-[10px] text-indigo-900 bg-white/80 p-1.5 rounded border border-indigo-100/80">
+                  Formula: S = 0.35×Vector_Cosine + 0.40×Skills_Match + 0.25×Experience_Delta
+                </div>
+                <div className="text-[10px] text-slate-600 leading-relaxed">
+                  • <strong>Vector Embedding:</strong> 384 chiều (paraphrase-multilingual-MiniLM-L12-v2), tính toán Cosine Similarity bằng pgvector trên PostgreSQL.
+                  <br />
+                  • <strong>Sparse BM25:</strong> Khớp từ khóa thuật ngữ chính xác từ mô tả yêu cầu công việc.
+                  <br />
+                  • <strong>Tính chân thực:</strong> 100% vector thật được tính toán từ hồ sơ ứng viên và việc làm, hoàn toàn không sinh điểm ngẫu nhiên.
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

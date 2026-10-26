@@ -5,9 +5,14 @@
  */
 
 import { useState, useEffect, useTransition, useMemo } from "react";
-import { Search, AlertCircle } from "lucide-react";
+import { Search, AlertCircle, GitCompareArrows, X } from "lucide-react";
 import { Button, Modal } from "@/components/ui";
-import { searchRAG, type RAGSearchResult } from "@/lib/api/rag";
+import {
+  searchRAG,
+  compareCandidates,
+  type RAGSearchResult,
+  type CandidateCompareResponse,
+} from "@/lib/api/rag";
 import { getCompanyJobs } from "@/lib/api/company";
 import { useEmployerCompany } from "@/contexts/EmployerCompanyContext";
 import { apiClient } from "@/lib/axios";
@@ -22,6 +27,7 @@ import {
   CandidateDossierCard,
   TalentStreamFeed,
   TalentDossierInspector,
+  CandidateContrastModal,
   type CandidateGroup,
 } from "@/components/employer/talent-search";
 
@@ -106,6 +112,13 @@ export function EmployerTalentSearch() {
   const [builderPreviewDoc, setBuilderPreviewDoc] = useState<CvDocument | null>(null);
   const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
   const [previewLoadingId, setPreviewLoadingId] = useState<number | null>(null);
+
+  // Comparison modal & selected candidates state
+  const [comparisonCandidates, setComparisonCandidates] = useState<CandidateGroup[]>([]);
+  const [isContrastModalOpen, setIsContrastModalOpen] = useState(false);
+  const [contrastData, setContrastData] = useState<CandidateCompareResponse | null>(null);
+  const [isContrastLoading, setIsContrastLoading] = useState(false);
+  const [contrastError, setContrastError] = useState<string | null>(null);
 
   // CV Copilot Drawer state
   const [copilotDoc, setCopilotDoc] = useState<{
@@ -295,6 +308,58 @@ export function EmployerTalentSearch() {
     });
   };
 
+  const handleToggleComparisonCandidate = (cand: CandidateGroup) => {
+    setComparisonCandidates((prev) => {
+      const exists = prev.some((c) => c.id === cand.id);
+      if (exists) {
+        return prev.filter((c) => c.id !== cand.id);
+      }
+      if (prev.length >= 2) {
+        return [prev[1], cand];
+      }
+      return [...prev, cand];
+    });
+  };
+
+  const handleExecuteContrast = async () => {
+    if (comparisonCandidates.length < 2) return;
+    const targetJobId =
+      selectedJobId ||
+      comparisonCandidates[0].appliedJobId ||
+      jobs[0]?.id;
+
+    if (!targetJobId) {
+      setErrorMsg("Vui lòng chọn một vị trí tuyển dụng để thực hiện đối chiếu AI.");
+      return;
+    }
+
+    setIsContrastModalOpen(true);
+    setIsContrastLoading(true);
+    setContrastError(null);
+    try {
+      const response = await compareCandidates({
+        job_id: targetJobId,
+        candidate_1: {
+          document_type: comparisonCandidates[0].documentType as "resume" | "cv_document",
+          document_id: comparisonCandidates[0].documentId,
+        },
+        candidate_2: {
+          document_type: comparisonCandidates[1].documentType as "resume" | "cv_document",
+          document_id: comparisonCandidates[1].documentId,
+        },
+      });
+      setContrastData(response);
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { detail?: string } } };
+      setContrastError(
+        error?.response?.data?.detail ||
+          "Không thể thực hiện đối chiếu ứng viên. Vui lòng thử lại sau."
+      );
+    } finally {
+      setIsContrastLoading(false);
+    }
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 space-y-4">
       {/* ── 1. Clean Compact Header ── */}
@@ -417,6 +482,8 @@ export function EmployerTalentSearch() {
                   candidates={candidateGroups}
                   selectedCandidateId={selectedCandidateId}
                   onSelectCandidate={(cand) => setSelectedCandidateId(cand.id)}
+                  comparisonCandidateIds={comparisonCandidates.map((c) => c.id)}
+                  onToggleComparisonCandidate={handleToggleComparisonCandidate}
                 />
               </div>
 
@@ -462,12 +529,81 @@ export function EmployerTalentSearch() {
                   onOpenDocPreview={handleOpenDocPreview}
                   isPreviewLoading={previewLoadingId === candidate.documentId}
                   onOpenCopilot={handleOpenCopilot}
+                  isCompared={comparisonCandidates.some((c) => c.id === candidate.id)}
+                  onToggleComparison={handleToggleComparisonCandidate}
                 />
               ))}
             </div>
           )}
         </div>
       ) : null}
+
+      {/* ── 5. Floating Candidate Comparison Dock ── */}
+      {comparisonCandidates.length > 0 && (
+        <div className="fixed bottom-6 inset-x-0 z-40 flex justify-center px-4 pointer-events-none">
+          <div className="pointer-events-auto bg-slate-900/95 backdrop-blur-md text-white border border-slate-700/80 shadow-2xl rounded-2xl px-5 py-3 flex flex-wrap items-center gap-4 max-w-3xl animate-in slide-in-from-bottom-5 duration-300">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-bold text-xs border border-indigo-500/30">
+                {comparisonCandidates.length}/2
+              </div>
+              <div>
+                <div className="text-xs font-bold text-white flex items-center gap-1.5">
+                  <GitCompareArrows className="w-3.5 h-3.5 text-indigo-400" />
+                  <span>Chế độ đối chiếu AI (Side-by-Side)</span>
+                </div>
+                <p className="text-[11px] text-slate-400">
+                  {comparisonCandidates.length === 1
+                    ? "Chọn thêm 1 ứng viên nữa để đối sánh trực quan"
+                    : "Đã sẵn sàng đối chiếu 2 ứng viên chuyên sâu"}
+                </p>
+              </div>
+            </div>
+
+            {/* Candidate Chips */}
+            <div className="flex items-center gap-2">
+              {comparisonCandidates.map((cand) => (
+                <div
+                  key={cand.id}
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-800 border border-slate-700 text-xs font-medium text-slate-200"
+                >
+                  <span className="truncate max-w-[120px]">{cand.candidateName}</span>
+                  <button
+                    type="button"
+                    onClick={() => handleToggleComparisonCandidate(cand)}
+                    className="text-slate-400 hover:text-white transition-colors"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center gap-2 ml-auto">
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={() => setComparisonCandidates([])}
+                className="text-xs text-slate-400 hover:text-white hover:bg-slate-800 h-8 px-2.5 cursor-pointer"
+              >
+                Hủy chọn
+              </Button>
+
+              <Button
+                type="button"
+                size="sm"
+                disabled={comparisonCandidates.length < 2 || isContrastLoading}
+                onClick={handleExecuteContrast}
+                className="h-8 px-3.5 text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg shadow-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border-0"
+              >
+                <GitCompareArrows className="w-3.5 h-3.5 mr-1.5 text-indigo-200" />
+                <span>Đối Chiếu AI Ngay</span>
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Modals & Drawers ── */}
       <Modal
@@ -498,6 +634,16 @@ export function EmployerTalentSearch() {
         documentTitle={copilotDoc?.documentTitle}
         cvDocumentId={copilotDoc?.cvDocumentId}
         resumeId={copilotDoc?.resumeId}
+      />
+
+      {/* Live AI Candidate Contrast Dual-Column Modal */}
+      <CandidateContrastModal
+        isOpen={isContrastModalOpen}
+        onClose={() => setIsContrastModalOpen(false)}
+        isLoading={isContrastLoading}
+        error={contrastError}
+        data={contrastData}
+        onRetry={handleExecuteContrast}
       />
     </div>
   );

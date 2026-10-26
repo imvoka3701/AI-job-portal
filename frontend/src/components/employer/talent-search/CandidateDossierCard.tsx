@@ -13,6 +13,7 @@ import {
   Eye,
   Bot,
   ArrowUpRight,
+  GitCompareArrows,
 } from "lucide-react";
 import { Button, Spinner } from "@/components/ui";
 import { cn } from "@/lib/utils";
@@ -48,6 +49,8 @@ interface CandidateDossierCardProps {
   onOpenDocPreview: (candidate: CandidateGroup) => void;
   isPreviewLoading: boolean;
   onOpenCopilot: (candidate: CandidateGroup) => void;
+  isCompared?: boolean;
+  onToggleComparison?: (candidate: CandidateGroup) => void;
 }
 
 const getApplicationStatusBadge = (status?: string | null) => {
@@ -122,6 +125,8 @@ export function CandidateDossierCard({
   onOpenDocPreview,
   isPreviewLoading,
   onOpenCopilot,
+  isCompared = false,
+  onToggleComparison,
 }: CandidateDossierCardProps) {
   const isPdf = candidate.documentType === "resume";
   const initials =
@@ -351,6 +356,25 @@ export function CandidateDossierCard({
 
         {/* Action Buttons Toolbar */}
         <div className="flex items-center gap-2 shrink-0">
+          {/* Compare Button */}
+          {onToggleComparison && (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => onToggleComparison(candidate)}
+              className={cn(
+                "h-8.5 px-3 text-xs font-bold cursor-pointer transition-colors shadow-2xs",
+                isCompared
+                  ? "bg-indigo-50 border-indigo-300 text-indigo-700"
+                  : "text-slate-600 border-slate-200 hover:bg-slate-50"
+              )}
+            >
+              <GitCompareArrows className="w-3.5 h-3.5 mr-1 text-indigo-600" />
+              <span>{isCompared ? "Đã chọn" : "So sánh"}</span>
+            </Button>
+          )}
+
           {/* View Full CV */}
           <Button
             type="button"

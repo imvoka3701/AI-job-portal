@@ -2,6 +2,7 @@
 
 import json
 import logging
+import math
 import re
 import time
 
@@ -19,6 +20,10 @@ from app.models.job import Job
 from app.models.resume import Resume
 from app.models.user import User
 from app.schemas.rag import (
+    CandidateCompareRequest,
+    CandidateCompareResponse,
+    CandidateCompareTarget,
+    CandidateContrastProfile,
     RAGCVChatRequest,
     RAGCVChatResponse,
     RAGInterviewQuestionItem,
@@ -609,6 +614,285 @@ class RAGService:
             document_title=document_title,
             cited_chunk_ids=sorted(list(cited_ids)),
             referenced_chunks=referenced_results,
+        )
+
+    def compare_candidates(
+        self,
+        db: Session,
+        request: CandidateCompareRequest,
+    ) -> CandidateCompareResponse:
+        """Live AI Candidate Contrast: Dual-candidate side-by-side mathematical & semantic evaluation."""
+        from app.services.ai_matching import extract_cv_document_text
+
+        job = crud_job.get_by_id(db, job_id=request.job_id)
+        if not job:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Không tìm thấy tin tuyển dụng #{request.job_id}",
+            )
+
+        # 1. Job embedding extraction (or lazily compute & persist)
+        if job.embedding is not None:
+            job_emb = list(job.embedding)
+        else:
+            jd_text = f"{job.title} {job.description} {job.requirements or ''}".strip()
+            job_emb = generate_embedding(jd_text)
+            job.embedding = job_emb
+            db.commit()
+
+        # 2. Extract technical required skills from Job
+        tech_keywords = [
+            "Python", "FastAPI", "Django", "Flask", "React", "TypeScript", "JavaScript",
+            "Node.js", "Express", "Next.js", "Vue", "Angular", "Docker", "Kubernetes",
+            "PostgreSQL", "MySQL", "MongoDB", "Redis", "Elasticsearch", "SQL", "NoSQL",
+            "AWS", "GCP", "Azure", "CI/CD", "Git", "GitHub", "Linux", "REST API", "GraphQL",
+            "Microservices", "Java", "Spring", "Golang", "Go", "C#", ".NET", "PHP", "Laravel",
+            "HTML", "CSS", "Tailwind", "Bootstrap", "Figma", "UI/UX", "Machine Learning",
+            "Deep Learning", "TensorFlow", "PyTorch", "NLP", "LLM", "RAG", "pgvector",
+        ]
+        job_full_text = f"{job.title} {job.requirements or ''} {job.description or ''}"
+        job_required_skills = [
+            kw for kw in tech_keywords
+            if re.search(r"\b" + re.escape(kw.lower()) + r"\b", job_full_text.lower())
+        ]
+        if not job_required_skills:
+            job_required_skills = [w for w in job.title.split() if len(w) > 3][:5]
+
+        # 3. Candidate evaluation helper
+        def _analyze_candidate(target: CandidateCompareTarget) -> CandidateContrastProfile:
+            cand_name = "Ứng viên"
+            cand_email = None
+            cand_text = ""
+            cand_skills: list[str] = []
+            cand_emb: list[float] = []
+
+            if target.document_type == "resume":
+                resume = crud_resume.get_by_id(db, resume_id=target.document_id)
+                if not resume:
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail=f"Không tìm thấy hồ sơ Resume #{target.document_id}",
+                    )
+                cand_name = (
+                    resume.user.full_name if resume.user else None
+                ) or resume.title or f"Ứng viên #{resume.id}"
+                cand_email = resume.user.email if resume.user else None
+                cand_text = resume.raw_text or ""
+                if resume.parsed_skills:
+                    try:
+                        cand_skills = (
+                            json.loads(resume.parsed_skills)
+                            if isinstance(resume.parsed_skills, str)
+                            else list(resume.parsed_skills)
+                        )
+                    except Exception:
+                        cand_skills = []
+                else:
+                    cand_skills = []
+                if resume.embedding is not None:
+                    cand_emb = list(resume.embedding)
+                elif cand_text.strip():
+                    cand_emb = generate_embedding(cand_text)
+                    resume.embedding = cand_emb
+                    db.commit()
+
+            elif target.document_type == "cv_document":
+                cv_doc = crud_cv_document.get_by_id(db, document_id=target.document_id)
+                if not cv_doc:
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail=f"Không tìm thấy hồ sơ CV Builder #{target.document_id}",
+                    )
+                content = cv_doc.content_json or {}
+                personal = content.get("personal", {})
+                cand_name = (
+                    personal.get("full_name")
+                    or cv_doc.title
+                    or (cv_doc.user.full_name if cv_doc.user else f"Ứng viên #{cv_doc.id}")
+                )
+                cand_email = personal.get("email") or (cv_doc.user.email if cv_doc.user else None)
+                cand_text = extract_cv_document_text(cv_doc)
+                skills_raw = content.get("skills", [])
+                for s in skills_raw:
+                    if isinstance(s, str) and s.strip():
+                        cand_skills.append(s.strip())
+                    elif isinstance(s, dict) and s.get("name"):
+                        cand_skills.append(str(s["name"]).strip())
+                if cand_text.strip():
+                    cand_emb = generate_embedding(cand_text)
+
+            if not cand_emb:
+                cand_emb = [0.0] * 384
+
+            # Enrich candidate skills from raw text
+            for kw in tech_keywords:
+                if kw not in cand_skills and re.search(
+                    r"\b" + re.escape(kw.lower()) + r"\b", cand_text.lower()
+                ):
+                    cand_skills.append(kw)
+
+            # Cosine similarity calculation
+            norm_a = math.sqrt(sum(x * x for x in cand_emb))
+            norm_b = math.sqrt(sum(x * x for x in job_emb))
+            if norm_a > 0 and norm_b > 0:
+                dot = sum(a * b for a, b in zip(cand_emb, job_emb))
+                raw_cosine = dot / (norm_a * norm_b)
+                vector_cosine_score = round(max(0.0, min(100.0, raw_cosine * 100)), 1)
+            else:
+                vector_cosine_score = 0.0
+
+            # Match vs Missing Skills
+            matched_skills = [
+                s for s in job_required_skills
+                if any(s.lower() == c.lower() for c in cand_skills)
+                or re.search(r"\b" + re.escape(s.lower()) + r"\b", cand_text.lower())
+            ]
+            missing_skills = [s for s in job_required_skills if s not in matched_skills]
+            skills_score = round(
+                (len(matched_skills) / max(len(job_required_skills), 1)) * 100, 1
+            )
+
+            # Experience calculation heuristic
+            years_found: list[float] = []
+            for match in re.finditer(r"(\d+)\s*(?:\+|-\d+)?\s*(?:năm|year)", cand_text.lower()):
+                try:
+                    val = float(match.group(1))
+                    if 1 <= val <= 30:
+                        years_found.append(val)
+                except ValueError:
+                    pass
+            est_years = max(years_found) if years_found else 1.0
+
+            job_lvl = getattr(job.experience_level, "value", str(job.experience_level)).lower()
+            if "lead" in job_lvl or "senior" in job_lvl:
+                target_years = 4.0
+            elif "middle" in job_lvl:
+                target_years = 2.5
+            elif "junior" in job_lvl:
+                target_years = 1.0
+            else:
+                target_years = 0.5
+
+            if est_years >= target_years:
+                experience_score = min(100.0, round(85.0 + (est_years - target_years) * 5.0, 1))
+            else:
+                experience_score = max(30.0, round(85.0 - (target_years - est_years) * 20.0, 1))
+
+            deal_breakers = []
+            if len(job_required_skills) >= 2 and len(matched_skills) == 0:
+                deal_breakers.append("Không đáp ứng bất kỳ kỹ năng công nghệ cốt lõi nào trong yêu cầu")
+            if est_years < target_years - 1.5:
+                deal_breakers.append(
+                    f"Số năm kinh nghiệm ({est_years:.0f} năm) thấp hơn nhiều so với chuẩn {job_lvl.upper()} ({target_years:.0f}+ năm)"
+                )
+
+            weighted = 0.35 * vector_cosine_score + 0.40 * skills_score + 0.25 * experience_score
+            if deal_breakers:
+                total_match_score = round(min(weighted, 60.0), 1)
+            else:
+                total_match_score = round(max(0.0, min(100.0, weighted)), 1)
+
+            vector_sample = [round(v, 4) for v in cand_emb[:8]]
+
+            return CandidateContrastProfile(
+                document_type=target.document_type,
+                document_id=target.document_id,
+                candidate_name=cand_name,
+                candidate_email=cand_email,
+                applied_job_title=job.title,
+                total_match_score=total_match_score,
+                vector_cosine_score=vector_cosine_score,
+                skills_score=skills_score,
+                experience_score=experience_score,
+                matched_skills=matched_skills,
+                missing_skills=missing_skills,
+                all_skills=cand_skills[:12],
+                years_of_experience=est_years,
+                deal_breakers=deal_breakers,
+                vector_sample=vector_sample,
+            )
+
+        p1 = _analyze_candidate(request.candidate_1)
+        p2 = _analyze_candidate(request.candidate_2)
+
+        # 4. Generate Comparative Verdict
+        breakdown = []
+        diff = round(p1.total_match_score - p2.total_match_score, 1)
+        if abs(diff) < 5.0:
+            verdict_summary = (
+                f"Cả hai ứng viên có mức độ tương thích tương đương ({p1.total_match_score}% so với {p2.total_match_score}%). "
+                f"Nên đánh giá thêm qua phỏng vấn kỹ thuật chuyên sâu để chọn người phù hợp nhất."
+            )
+        elif diff >= 5.0:
+            verdict_summary = (
+                f"{p1.candidate_name} có mức độ phù hợp vượt trội ({p1.total_match_score}% vs {p2.total_match_score}%), "
+                f"đáp ứng sát sao hơn về kỹ năng chuyên môn cốt lõi và tương quan ngữ nghĩa vector."
+            )
+        else:
+            verdict_summary = (
+                f"{p2.candidate_name} có mức độ phù hợp vượt trội ({p2.total_match_score}% vs {p1.total_match_score}%), "
+                f"đáp ứng sát sao hơn về kỹ năng chuyên môn cốt lõi và tương quan ngữ nghĩa vector."
+            )
+
+        # Skills breakdown
+        if len(p1.matched_skills) > len(p2.matched_skills):
+            skills_str = ", ".join(p1.matched_skills[:3])
+            breakdown.append(
+                f"Kỹ năng: {p1.candidate_name} đáp ứng {len(p1.matched_skills)}/{len(job_required_skills)} kỹ năng ({skills_str}), "
+                f"nhiều hơn {p2.candidate_name} ({len(p2.matched_skills)}/{len(job_required_skills)} kỹ năng)."
+            )
+        elif len(p2.matched_skills) > len(p1.matched_skills):
+            skills_str = ", ".join(p2.matched_skills[:3])
+            breakdown.append(
+                f"Kỹ năng: {p2.candidate_name} đáp ứng {len(p2.matched_skills)}/{len(job_required_skills)} kỹ năng ({skills_str}), "
+                f"nhiều hơn {p1.candidate_name} ({len(p1.matched_skills)}/{len(job_required_skills)} kỹ năng)."
+            )
+        else:
+            breakdown.append(f"Kỹ năng: Cả hai ứng viên cùng đáp ứng {len(p1.matched_skills)} kỹ năng cốt lõi.")
+
+        # Vector semantic breakdown
+        if p1.vector_cosine_score > p2.vector_cosine_score + 3.0:
+            breakdown.append(
+                f"Ngữ nghĩa Vector (Cosine): {p1.candidate_name} đạt {p1.vector_cosine_score}%, cao hơn {p2.candidate_name} ({p2.vector_cosine_score}%)."
+            )
+        elif p2.vector_cosine_score > p1.vector_cosine_score + 3.0:
+            breakdown.append(
+                f"Ngữ nghĩa Vector (Cosine): {p2.candidate_name} đạt {p2.vector_cosine_score}%, cao hơn {p1.candidate_name} ({p1.vector_cosine_score}%)."
+            )
+
+        # Experience breakdown
+        breakdown.append(
+            f"Kinh nghiệm: {p1.candidate_name} ({p1.years_of_experience:.0f} năm) so với {p2.candidate_name} ({p2.years_of_experience:.0f} năm)."
+        )
+
+        # Deal-breakers warning
+        if p1.deal_breakers or p2.deal_breakers:
+            warn1 = f"[{p1.candidate_name}]: {'; '.join(p1.deal_breakers)}" if p1.deal_breakers else ""
+            warn2 = f"[{p2.candidate_name}]: {'; '.join(p2.deal_breakers)}" if p2.deal_breakers else ""
+            breakdown.append(f"Cảnh báo rủi ro tiêu chí: {warn1} {warn2}".strip())
+
+        formula_meta = {
+            "formula": "0.35 * Vector + 0.40 * Skills + 0.25 * Experience",
+            "vector_weight": 0.35,
+            "skills_weight": 0.40,
+            "experience_weight": 0.25,
+            "penalty_cap": 60.0,
+            "embedding_dimension": 384,
+            "model_name": "paraphrase-multilingual-MiniLM-L12-v2",
+        }
+
+        job_level_str = getattr(job.experience_level, "value", str(job.experience_level))
+
+        return CandidateCompareResponse(
+            job_id=job.id,
+            job_title=job.title,
+            job_required_skills=job_required_skills,
+            job_level=job_level_str,
+            candidate_1=p1,
+            candidate_2=p2,
+            verdict_summary=verdict_summary,
+            verdict_breakdown=breakdown,
+            formula_metadata=formula_meta,
         )
 
     def index_document_background(self, document_type: str, document_id: int) -> int:
