@@ -150,7 +150,15 @@ finally:
 echo ""
 echo "========================================"
 echo "  Starting uvicorn on 0.0.0.0:8000"
+echo "  Workers: $(nproc 2>/dev/null || echo 2)"
+echo "  User: appuser (non-root)"
 echo "========================================"
 
-exec uvicorn app.main:app --host 0.0.0.0 --port 8000
+# D3.1: Multi-worker for production throughput
+# D3.3: Graceful shutdown to complete in-flight requests
+# A1.8: Drop privileges from root → appuser for runtime security
+WORKERS=${UVICORN_WORKERS:-$(nproc 2>/dev/null || echo 2)}
+
+exec su -s /bin/bash appuser -c \
+  "exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers $WORKERS --timeout-graceful-shutdown 30"
 
