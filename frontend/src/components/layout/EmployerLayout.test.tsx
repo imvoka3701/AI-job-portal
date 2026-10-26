@@ -110,4 +110,18 @@ describe("EmployerLayout permissions", () => {
     expect(screen.getByRole("link", { name: /Nhu cầu tuyển dụng/ })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Đăng tin mới" })).not.toBeInTheDocument();
   });
+
+  it("renders 'Báo sự cố' button in topbar and opens incident feedback modal when clicked", async () => {
+    vi.mocked(companyApi.getCompanyContext).mockResolvedValue(ownerContext);
+    renderLayout();
+
+    const incidentBtn = await waitFor(() => screen.getByRole("button", { name: /Báo sự cố/i }));
+    expect(incidentBtn).toBeInTheDocument();
+
+    incidentBtn.click();
+    await waitFor(() => {
+      expect(screen.getByText("Đóng Góp Ý Kiến & Báo Lỗi")).toBeInTheDocument();
+      expect(screen.getByText("Báo lỗi kỹ thuật")).toBeInTheDocument();
+    });
+  });
 });

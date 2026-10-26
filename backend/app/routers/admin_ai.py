@@ -8,7 +8,7 @@ import logging
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import desc, func
 from sqlalchemy.orm import Session
 
@@ -48,8 +48,8 @@ class AIPromptConfigOut(BaseModel):
 
 
 class AIPromptUpdateIn(BaseModel):
-    system_prompt: str | None = None
-    user_prompt_template: str | None = None
+    system_prompt: str | None = Field(default=None, max_length=4000)
+    user_prompt_template: str | None = Field(default=None, max_length=4000)
     is_active: bool | None = None
 
 
@@ -298,7 +298,7 @@ async def test_prompt(
 
     duration_ms = int((time.monotonic() - start) * 1000)
 
-    # Ghi audit log — test prompt tiêu tốn token thật, cần truy vết (AI_CODE_REVIEW.md — Phát hiện 3.1)
+    # Ghi audit log — truy vết ai test prompt, khi nào, feature gì
     try:
         crud_admin_audit_log.create(
             db,
@@ -306,12 +306,12 @@ async def test_prompt(
             actor_email=current_user.email,
             action="ai_prompt.tested",
             target_type="ai_prompt",
-            target_id=feature.value,
-            target_label=f"[TEST] {feature.value}",
+            target_id=str(feature.value),
+            target_label=feature.value,
             details={
                 "feature": feature.value,
                 "duration_ms": duration_ms,
-                "sample_length": len(sample),
+                "has_custom_system_prompt": bool(body.system_prompt),
             },
         )
     except Exception as log_exc:

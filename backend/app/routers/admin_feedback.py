@@ -118,7 +118,7 @@ def update_feedback(
 
     # Log to audit trail
     try:
-        crud_admin_audit_log.log_action(
+        crud_admin_audit_log.create(
             db,
             actor_user_id=current_admin.id,
             actor_email=current_admin.email,
@@ -126,13 +126,14 @@ def update_feedback(
             target_type="user_feedback",
             target_id=str(feedback_id),
             target_label=f"[{updated.user_role}] {updated.title[:50]}",
-            details_json={
+            details={
                 "old_status": old_status,
                 "new_status": updated.status,
                 "priority": updated.priority,
                 "admin_response_length": len(updated.admin_response or ""),
             },
         )
+        db.commit()
     except Exception as e:
         logger.warning("Failed to write audit log for feedback update: %s", e)
 

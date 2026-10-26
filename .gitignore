@@ -123,6 +123,7 @@ Desktop.ini
 *.ico
 !frontend/public/images/**
 !frontend/src/components/ai-assistant/avatar/**
+!assets/screenshots/**
 docs/screenshots/
 
 # --- Temporary Scratch Files ---

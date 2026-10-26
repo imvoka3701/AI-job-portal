@@ -16,7 +16,7 @@ class FeedbackCreate(BaseModel):
         "bug_report", "feature_request", "ai_experience", "job_report", "general"
     ] = Field("general", description="Category of feedback")
     title: str = Field(..., min_length=3, max_length=255, description="Brief summary / title")
-    content: str = Field(..., min_length=10, description="Detailed explanation of feedback")
+    content: str = Field(..., min_length=10, max_length=5000, description="Detailed explanation of feedback")
     rating: int | None = Field(None, ge=1, le=5, description="Satisfaction score 1-5 stars")
     target_id: str | None = Field(None, max_length=64, description="Optional ID of target entity")
     target_type: str | None = Field(None, max_length=50, description="Type of target (job, cv...)")
@@ -27,8 +27,8 @@ class FeedbackUpdateAdmin(BaseModel):
 
     status: Literal["new", "in_progress", "resolved", "rejected"] | None = None
     priority: Literal["low", "medium", "high", "urgent"] | None = None
-    admin_notes: str | None = Field(None, description="Internal admin note")
-    admin_response: str | None = Field(None, description="Resolution reply to user")
+    admin_notes: str | None = Field(None, max_length=2000, description="Internal admin note")
+    admin_response: str | None = Field(None, max_length=3000, description="Resolution reply to user")
 
 
 class FeedbackResponse(BaseModel):

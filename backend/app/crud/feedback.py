@@ -1,5 +1,6 @@
 """CRUD operations for User Feedback system."""
 
+import html
 from datetime import datetime, timezone
 from typing import Any
 
@@ -23,15 +24,15 @@ class CRUDFeedback:
         db_obj = UserFeedback(
             user_id=user_id,
             user_role=user_role,
-            sender_name=data.sender_name.strip(),
+            sender_name=html.escape(data.sender_name.strip()),
             sender_email=data.sender_email.strip().lower(),
-            sender_phone=data.sender_phone.strip() if data.sender_phone else None,
+            sender_phone=html.escape(data.sender_phone.strip()) if data.sender_phone else None,
             feedback_type=data.feedback_type,
-            title=data.title.strip(),
-            content=data.content.strip(),
+            title=html.escape(data.title.strip()),
+            content=html.escape(data.content.strip()),
             rating=data.rating,
-            target_id=data.target_id.strip() if data.target_id else None,
-            target_type=data.target_type.strip() if data.target_type else None,
+            target_id=html.escape(data.target_id.strip()) if data.target_id else None,
+            target_type=html.escape(data.target_type.strip()) if data.target_type else None,
             status="new",
             priority="urgent" if data.feedback_type == "job_report" else "medium",
         )
@@ -112,10 +113,10 @@ class CRUDFeedback:
             feedback_obj.priority = data.priority
 
         if data.admin_notes is not None:
-            feedback_obj.admin_notes = data.admin_notes
+            feedback_obj.admin_notes = html.escape(data.admin_notes.strip())
 
         if data.admin_response is not None:
-            feedback_obj.admin_response = data.admin_response
+            feedback_obj.admin_response = html.escape(data.admin_response.strip())
 
         db.add(feedback_obj)
         db.commit()

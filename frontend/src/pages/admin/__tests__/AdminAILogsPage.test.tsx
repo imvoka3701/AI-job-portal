@@ -39,7 +39,7 @@ describe('AdminAILogsPage', () => {
       </MemoryRouter>
     );
     
-    expect(screen.getByText('AI Call Logs')).toBeInTheDocument();
+    expect(screen.getByText(/AI Call Logs/i)).toBeInTheDocument();
     expect(screen.queryByText('Calls hôm nay')).not.toBeInTheDocument();
   });
 

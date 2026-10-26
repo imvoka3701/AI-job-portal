@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useLocation } from "react-router-dom";
 import {
   MessageSquareHeart,
   X,
@@ -10,6 +11,7 @@ import {
   Lightbulb,
   Sparkles,
   ShieldAlert,
+  Globe,
 } from "lucide-react";
 import { useUser } from "@/stores/authStore";
 import { submitFeedback, type FeedbackType } from "@/lib/api/feedback";
@@ -20,6 +22,7 @@ interface UserFeedbackModalProps {
   targetId?: string;
   targetType?: string;
   initialType?: FeedbackType;
+  initialTitle?: string;
 }
 
 export function UserFeedbackModal({
@@ -28,19 +31,44 @@ export function UserFeedbackModal({
   targetId,
   targetType,
   initialType = "general",
+  initialTitle = "",
 }: UserFeedbackModalProps) {
   const user = useUser();
+  const location = useLocation();
+
   const [senderName, setSenderName] = useState(user?.full_name || "");
   const [senderEmail, setSenderEmail] = useState(user?.email || "");
   const [senderPhone, setSenderPhone] = useState("");
   const [feedbackType, setFeedbackType] = useState<FeedbackType>(initialType);
-  const [title, setTitle] = useState("");
+  const [title, setTitle] = useState(initialTitle);
   const [content, setContent] = useState("");
   const [rating, setRating] = useState<number>(5);
   const [hoverRating, setHoverRating] = useState<number>(0);
+  const [includeContext, setIncludeContext] = useState<boolean>(true);
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  // Sync user info and reset state when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      if (user) {
+        setSenderName(user.full_name || "");
+        setSenderEmail(user.email || "");
+      }
+      if (initialType) {
+        setFeedbackType(initialType);
+      }
+      if (initialTitle) {
+        setTitle(initialTitle);
+      }
+      setSubmitted(false);
+      setErrorMsg(null);
+    }
+  }, [isOpen, user, initialType, initialTitle]);
+
+  const currentPath = location.pathname + location.search;
+  const currentTitle = typeof document !== "undefined" ? document.title : "AI Job Portal";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,6 +78,16 @@ export function UserFeedbackModal({
     }
     setLoading(true);
     setErrorMsg(null);
+
+    // Context enrichment
+    const effectiveTargetId = targetId || currentPath.slice(0, 64);
+    const effectiveTargetType = targetType || "page";
+    
+    let finalContent = content.trim();
+    if (includeContext) {
+      finalContent += `\n\n---\n📍 [Ngữ cảnh tự động]: Trang: ${window.location.href} | Tiêu đề: ${currentTitle}`;
+    }
+
     try {
       await submitFeedback({
         sender_name: senderName.trim(),
@@ -57,10 +95,10 @@ export function UserFeedbackModal({
         sender_phone: senderPhone.trim() || undefined,
         feedback_type: feedbackType,
         title: title.trim(),
-        content: content.trim(),
+        content: finalContent,
         rating,
-        target_id: targetId,
-        target_type: targetType,
+        target_id: effectiveTargetId,
+        target_type: effectiveTargetType,
       });
       setSubmitted(true);
       setTimeout(() => {
@@ -108,8 +146,9 @@ export function UserFeedbackModal({
               </div>
             </div>
             <button
+              type="button"
               onClick={onClose}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100"
+              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
@@ -133,6 +172,37 @@ export function UserFeedbackModal({
                   {errorMsg}
                 </div>
               )}
+
+              {/* Automatic Context Badge */}
+              <div className="p-3 bg-slate-50/90 border border-slate-200/80 rounded-2xl space-y-1.5">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="p-1 rounded-md bg-white border border-slate-200 text-slate-500 shrink-0">
+                      <Globe className="w-3.5 h-3.5" />
+                    </div>
+                    <span className="text-xs font-semibold text-slate-700 truncate" title={currentTitle}>
+                      {currentTitle}
+                    </span>
+                  </div>
+                  <span className="shrink-0 text-[10px] font-mono font-bold text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-2 py-0.5 rounded-full">
+                    Ngữ cảnh tự động
+                  </span>
+                </div>
+                <div className="flex items-center justify-between pt-1 border-t border-slate-200/50 text-[11px] text-slate-500">
+                  <span className="font-mono truncate max-w-[280px]" title={currentPath}>
+                    {currentPath}
+                  </span>
+                  <label className="flex items-center gap-1.5 cursor-pointer text-slate-600 hover:text-slate-900 select-none">
+                    <input
+                      type="checkbox"
+                      checked={includeContext}
+                      onChange={(e) => setIncludeContext(e.target.checked)}
+                      className="rounded border-slate-300 text-[#00B86B] focus:ring-[#00B86B]"
+                    />
+                    <span>Gửi kèm URL</span>
+                  </label>
+                </div>
+              </div>
 
               {/* Persona Rating stars */}
               <div>
@@ -177,7 +247,7 @@ export function UserFeedbackModal({
                 <label className="text-xs font-bold text-slate-700 block mb-1">
                   Loại phản hồi
                 </label>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   {[
                     { id: "general", label: "Góp ý chung", icon: MessageSquareHeart },
                     { id: "bug_report", label: "Báo lỗi kỹ thuật", icon: Bug },
@@ -194,7 +264,7 @@ export function UserFeedbackModal({
                         onClick={() => setFeedbackType(cat.id as FeedbackType)}
                         className={`flex items-center gap-2 p-2.5 rounded-xl border text-xs font-semibold text-left transition-all ${
                           isSel
-                            ? "border-emerald-500 bg-emerald-50 text-[#00995C] shadow-xs font-bold"
+                            ? "border-emerald-500 bg-emerald-50 text-[#00995C] shadow-xs font-bold ring-1 ring-emerald-500/20"
                             : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
                         }`}
                       >
@@ -303,3 +373,5 @@ export function UserFeedbackModal({
     </AnimatePresence>
   );
 }
+
+export default UserFeedbackModal;

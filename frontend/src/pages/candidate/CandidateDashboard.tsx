@@ -39,6 +39,7 @@ import {
   MessageSquare,
   Eye,
   Trash2,
+  LifeBuoy,
 } from "lucide-react";
 import { CVCard } from "./components/CVCard";
 import { CVPreviewModal } from "./components/CVPreviewModal";
@@ -49,6 +50,7 @@ import { ProfileStrengthWidget } from "./components/ProfileStrengthWidget";
 import { AIQuickTipsWidget } from "./components/AIQuickTipsWidget";
 import { ApplicationDetailDrawer } from "./components/ApplicationDetailDrawer";
 import { DirectChatModal } from "@/components/chat/DirectChatModal";
+import { UserFeedbackModal } from "@/components/feedback/UserFeedbackModal";
 
 // ─── Constants ──────────────────────────────────────────────────────────────────
 const ALLOWED_TYPES = ["application/pdf"];
@@ -86,6 +88,7 @@ export const CandidateDashboard = () => {
   const [selectedDetailApp, setSelectedDetailApp] = useState<Application | null>(null);
   const [activeInterviewIndex, setActiveInterviewIndex] = useState(0);
   const [appPage, setAppPage] = useState(1);
+  const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
   const APPS_PER_PAGE = 5;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const avatarInputRef = useRef<HTMLInputElement>(null);
@@ -532,6 +535,16 @@ export const CandidateDashboard = () => {
                   <span>Lộ Trình AI</span>
                 </Button>
               </Link>
+
+              <Button
+                variant="outline"
+                onClick={() => setIsFeedbackModalOpen(true)}
+                className="rounded-full text-xs font-bold px-4 py-2.5 bg-white hover:bg-rose-50/50 hover:text-rose-700 hover:border-rose-200 border-slate-200 text-slate-700 cursor-pointer flex items-center gap-1.5 transition-all shadow-2xs group"
+                title="Báo cáo sự cố hệ thống hoặc gửi ý kiến đóng góp cho Ban Quản Trị"
+              >
+                <LifeBuoy size={14} className="text-amber-500 group-hover:text-rose-600 transition-colors" />
+                <span>Báo Sự Cố & Góp Ý</span>
+              </Button>
             </div>
           </div>
 
@@ -1382,6 +1395,16 @@ export const CandidateDashboard = () => {
         variant="destructive"
         onClose={() => setDeleteCvDocTarget(null)}
         onConfirm={confirmDeleteCvDocument}
+      />
+
+      {/* User Feedback & Incident Report Modal */}
+      <UserFeedbackModal
+        isOpen={isFeedbackModalOpen}
+        onClose={() => setIsFeedbackModalOpen(false)}
+        initialType="bug_report"
+        initialTitle="[Sự cố] Báo lỗi tại Bàn làm việc Ứng viên"
+        targetType="candidate_dashboard"
+        targetId="candidate_dashboard"
       />
     </div>
   );

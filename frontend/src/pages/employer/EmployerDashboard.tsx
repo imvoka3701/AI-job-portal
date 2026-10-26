@@ -17,9 +17,11 @@ import {
   ClipboardList,
   UserPlus,
   Download,
+  LifeBuoy,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useEmployerCompany } from "@/contexts/EmployerCompanyContext";
+import { UserFeedbackModal } from "@/components/feedback/UserFeedbackModal";
 
 export function EmployerDashboard() {
   const user = useUser();
@@ -32,6 +34,7 @@ export function EmployerDashboard() {
   const [statsLoading, setStatsLoading] = useState(false);
   const [statsError, setStatsError] = useState<string | null>(null);
   const [isExportingMetrics, setIsExportingMetrics] = useState(false);
+  const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
 
   const handleExportMetrics = async () => {
     try {
@@ -216,6 +219,16 @@ export function EmployerDashboard() {
                 )}
                 <span>{isExportingMetrics ? "Đang xuất..." : "Báo Cáo (CSV)"}</span>
               </Button>
+
+              <Button
+                variant="outline"
+                onClick={() => setIsFeedbackModalOpen(true)}
+                className="rounded-full text-xs font-bold px-4 py-2.5 bg-white hover:bg-rose-50/50 hover:text-rose-700 hover:border-rose-200 border-slate-200 text-slate-700 cursor-pointer flex items-center gap-1.5 shadow-2xs group"
+                title="Báo cáo sự cố hệ thống hoặc gửi ý kiến đóng góp cho Ban Quản Trị"
+              >
+                <LifeBuoy size={15} className="text-amber-500 group-hover:text-rose-600 transition-colors" />
+                <span>Báo Sự Cố</span>
+              </Button>
             </div>
           </div>
         </section>
@@ -254,6 +267,16 @@ export function EmployerDashboard() {
           />
         )}
       </div>
+
+      {/* Employer Dashboard Incident Report Modal */}
+      <UserFeedbackModal
+        isOpen={isFeedbackModalOpen}
+        onClose={() => setIsFeedbackModalOpen(false)}
+        initialType="bug_report"
+        initialTitle={`[Sự cố] Bàn điều hành Tuyển dụng - ${companyName}`}
+        targetType="employer_dashboard"
+        targetId="employer_dashboard"
+      />
     </PageTransition>
   );
 }

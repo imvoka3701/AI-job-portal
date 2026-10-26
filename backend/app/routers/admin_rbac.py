@@ -269,6 +269,29 @@ def assign_admin_role(
     if not target_user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Không tìm thấy người dùng.")
 
+    # Safeguard: Prevent removing or demoting the last active Super Admin
+    if (
+        target_user.admin_role
+        and target_user.admin_role.code == "super_admin"
+        and (payload.admin_role_id is None or payload.admin_role_id != target_user.admin_role_id)
+    ):
+        super_admin_count = (
+            db.query(func.count(User.id))
+            .join(AdminRole, User.admin_role_id == AdminRole.id)
+            .filter(
+                AdminRole.code == "super_admin",
+                User.role == UserRole.ADMIN,
+                User.is_active.is_(True),
+            )
+            .scalar()
+            or 0
+        )
+        if super_admin_count <= 1:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Không thể hạ quyền hoặc thu hồi vai trò của Quản trị viên Tối cao (Super Admin) duy nhất còn lại trong hệ thống.",
+            )
+
     if payload.admin_role_id is not None:
         role = db.query(AdminRole).filter(AdminRole.id == payload.admin_role_id).first()
         if not role:
@@ -276,15 +299,16 @@ def assign_admin_role(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Vai trò quản trị được chỉ định không tồn tại.",
             )
-        # If user is not yet an admin, upgrade them to ADMIN
+        # Upgrade user to ADMIN role
         if target_user.role != UserRole.ADMIN:
             target_user.role = UserRole.ADMIN
         target_user.admin_role_id = role.id
         role_name = role.name
         role_code = role.code
     else:
-        # Unassign admin role
+        # Unassign admin role - safely downgrade from admin to candidate
         target_user.admin_role_id = None
+        target_user.role = UserRole.CANDIDATE
         role_name = None
         role_code = None
 

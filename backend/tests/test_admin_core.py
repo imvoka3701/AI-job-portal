@@ -4,8 +4,11 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from app.core.security import hash_password
+from app.models.admin_rbac import AdminRole
 from app.models.application import Application
+from app.models.document_chunk import DocumentChunk
 from app.models.job import ExperienceLevel, Job, JobType
+from app.models.resume import EMBEDDING_DIM
 from app.models.user import User, UserRole
 
 
@@ -39,12 +42,21 @@ def _login(client: TestClient, email: str) -> dict[str, str]:
 
 
 def _admin(client: TestClient, db: Session) -> tuple[User, dict[str, str]]:
+    super_role = db.query(AdminRole).filter(AdminRole.code == "super_admin").first()
+    if not super_role:
+        super_role = AdminRole(code="super_admin", name="Super Admin", is_system=True)
+        db.add(super_role)
+        db.commit()
+        db.refresh(super_role)
     user = _create_user(
         db,
         email="admin-core@example.com",
         role=UserRole.ADMIN,
         full_name="Core Admin",
     )
+    user.admin_role_id = super_role.id
+    db.commit()
+    db.refresh(user)
     return user, _login(client, user.email)
 
 
@@ -244,3 +256,128 @@ def test_company_verify_toggle_and_audit(client: TestClient, db_session: Session
     )
     assert revoke_resp.status_code == 200
     assert revoke_resp.json()["is_verified"] is False
+
+
+def test_non_super_admin_cannot_deactivate_super_admin(client: TestClient, db_session: Session):
+    """Hierarchy Defense: A moderator or non-super admin cannot deactivate a Super Admin."""
+    super_admin, _ = _admin(client, db_session)
+
+    # 1. Create a non-super admin role (moderator)
+    mod_role = db_session.query(AdminRole).filter(AdminRole.code == "compliance_mod").first()
+    if not mod_role:
+        mod_role = AdminRole(code="compliance_mod", name="Compliance Moderator", is_system=False)
+        db_session.add(mod_role)
+        db_session.commit()
+        db_session.refresh(mod_role)
+
+    mod_user = _create_user(
+        db_session,
+        email="mod-attacker@example.com",
+        role=UserRole.ADMIN,
+        full_name="Mod Attacker",
+    )
+    mod_user.admin_role_id = mod_role.id
+    db_session.commit()
+    mod_headers = _login(client, mod_user.email)
+
+    # 2. Mod attempts to deactivate the Super Admin
+    res_attack = client.patch(
+        f"/admin/users/{super_admin.id}/status",
+        headers=mod_headers,
+        json={"is_active": False},
+    )
+    assert res_attack.status_code == 403
+    assert "Chỉ Quản trị viên Tối cao" in res_attack.json()["error"]["message"]
+
+
+def test_deactivating_company_suspends_jobs_and_invalidates_tokens(client: TestClient, db_session: Session):
+    """Company deactivation cascade: Automatically suspends active jobs and bumps token_version."""
+    admin, headers = _admin(client, db_session)
+
+    # 1. Create employer with an active job
+    employer = _create_user(
+        db_session,
+        email="banned-employer@example.com",
+        role=UserRole.EMPLOYER,
+        full_name="Banned Employer",
+        company_name="Banned Corp",
+    )
+    job = Job(
+        title="Spam Senior Job",
+        description="Spam description",
+        job_type=JobType.FULL_TIME,
+        experience_level=ExperienceLevel.SENIOR,
+        location="Hà Nội",
+        employer_id=employer.id,
+        is_active=True,
+    )
+    db_session.add(job)
+    db_session.commit()
+    db_session.refresh(job)
+    assert job.is_active is True
+
+    # 2. Admin rejects/deactivates company
+    res_deactivate = client.patch(f"/admin/companies/{employer.id}/reject", headers=headers)
+    assert res_deactivate.status_code == 200
+
+    # 3. Verify employer token bumped and job suspended
+    db_session.refresh(employer)
+    db_session.refresh(job)
+    assert employer.is_active is False
+    assert employer.token_version >= 2
+    assert job.is_active is False
+
+
+def test_deleting_job_cleans_up_document_chunks(client: TestClient, db_session: Session):
+    """Vector hygiene: Deleting a job removes polymorphic document_chunks from pgvector."""
+    admin, headers = _admin(client, db_session)
+
+    employer = _create_user(
+        db_session,
+        email="vector-cleanup-emp@example.com",
+        role=UserRole.EMPLOYER,
+        full_name="Vector Employer",
+    )
+    job = Job(
+        title="AI Engineer Job",
+        description="RAG Vectorized Job",
+        job_type=JobType.FULL_TIME,
+        experience_level=ExperienceLevel.SENIOR,
+        location="Đà Nẵng",
+        employer_id=employer.id,
+        is_active=True,
+    )
+    db_session.add(job)
+    db_session.commit()
+    db_session.refresh(job)
+
+    # Create dummy vector chunk for this job
+    chunk = DocumentChunk(
+        document_type="job",
+        document_id=job.id,
+        section_type="general",
+        chunk_index=0,
+        content="AI Engineer job content",
+        embedding=[0.01] * EMBEDDING_DIM,
+    )
+    db_session.add(chunk)
+    db_session.commit()
+
+    # Verify chunk exists
+    existing = db_session.query(DocumentChunk).filter(
+        DocumentChunk.document_type == "job",
+        DocumentChunk.document_id == job.id,
+    ).count()
+    assert existing == 1
+
+    # Admin permanently deletes job
+    del_res = client.delete(f"/admin/jobs/{job.id}", headers=headers)
+    assert del_res.status_code == 204
+
+    # Verify chunk was cleaned up
+    remaining = db_session.query(DocumentChunk).filter(
+        DocumentChunk.document_type == "job",
+        DocumentChunk.document_id == job.id,
+    ).count()
+    assert remaining == 0
+

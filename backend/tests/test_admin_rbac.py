@@ -178,3 +178,96 @@ def test_admin_rbac_token_version_invalidation(client: TestClient, db_session: S
     res_success = client.get("/users/me", headers=new_headers)
     assert res_success.status_code == 200
     assert res_success.json()["email"] == email
+
+
+def test_unassigned_admin_has_no_permissions(client: TestClient, db_session: Session):
+    """Least-privilege: An admin account without an assigned admin_role must NOT have any permissions."""
+    _seed_rbac(db_session)
+    orphan_email = "orphan_admin@jobportal.vn"
+    pwd = "Password@123"
+    orphan_admin = User(
+        email=orphan_email,
+        hashed_password=hash_password(pwd),
+        full_name="Orphan Admin",
+        role=UserRole.ADMIN,
+        admin_role_id=None,  # No role assigned
+        is_active=True,
+        token_version=1,
+    )
+    db_session.add(orphan_admin)
+    db_session.commit()
+    db_session.refresh(orphan_admin)
+
+    # In model logic: has_permission must be strictly False
+    assert orphan_admin.has_permission("admin.roles.view") is False
+    assert orphan_admin.has_permission("admin.roles.manage") is False
+
+    # In API logic: Calling a permission-protected endpoint must return 403 Forbidden
+    login_res = client.post("/auth/login", json={"email": orphan_email, "password": pwd})
+    assert login_res.status_code == 200
+    token = login_res.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    res_forbidden = client.get("/admin/rbac/roles", headers=headers)
+    assert res_forbidden.status_code == 403
+    assert "Tài khoản thiếu quyền hạn" in res_forbidden.text
+
+
+def test_cannot_demote_or_unassign_last_super_admin(client: TestClient, db_session: Session):
+    """Protection against self-lockout: Cannot unassign or demote the only remaining Super Admin."""
+    super_admin, admin_headers = _create_admin(client, db_session)
+
+    # Attempt to unassign role from the only super_admin
+    res_unassign = client.post(
+        f"/admin/rbac/users/{super_admin.id}/assign-role",
+        headers=admin_headers,
+        json={"admin_role_id": None},
+    )
+    assert res_unassign.status_code == 400
+    assert "Không thể hạ quyền hoặc thu hồi vai trò của Quản trị viên Tối cao" in res_unassign.text
+
+
+def test_deactivating_user_invalidates_token(client: TestClient, db_session: Session):
+    """Bumping token_version when user is deactivated immediately revokes their active JWT."""
+    super_admin, admin_headers = _create_admin(client, db_session)
+
+    # 1. Create a regular candidate user
+    cand_email = "victim_candidate@jobportal.vn"
+    pwd = "Candidate@123"
+    cand_user = User(
+        email=cand_email,
+        hashed_password=hash_password(pwd),
+        full_name="Victim Candidate",
+        role=UserRole.CANDIDATE,
+        is_active=True,
+        token_version=1,
+    )
+    db_session.add(cand_user)
+    db_session.commit()
+    db_session.refresh(cand_user)
+
+    # 2. Login candidate to get JWT
+    cand_login = client.post("/auth/login", json={"email": cand_email, "password": pwd})
+    assert cand_login.status_code == 200
+    cand_token = cand_login.json()["access_token"]
+    cand_headers = {"Authorization": f"Bearer {cand_token}"}
+
+    # Verify candidate can access /users/me
+    res_me = client.get("/users/me", headers=cand_headers)
+    assert res_me.status_code == 200
+
+    # 3. Super Admin deactivates candidate
+    res_toggle = client.patch(
+        f"/admin/users/{cand_user.id}/status",
+        headers=admin_headers,
+        json={"is_active": False},
+    )
+    assert res_toggle.status_code == 200
+    db_session.refresh(cand_user)
+    assert cand_user.is_active is False
+    assert cand_user.token_version == 2
+
+    # 4. Candidate's old JWT is immediately rejected (401 or 403)
+    res_revoked = client.get("/users/me", headers=cand_headers)
+    assert res_revoked.status_code in (401, 403)
+

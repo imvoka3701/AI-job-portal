@@ -15,12 +15,14 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Sparkles,
+  LifeBuoy,
 } from "lucide-react";
 import { useAuthStore, useUser } from "@/stores/authStore";
 import { getInitials, getFileUrl, cn } from "@/lib/utils";
 import { Badge, Button } from "@/components/ui";
 import { motion, AnimatePresence } from "framer-motion";
 import { EmployerCompanyProvider, useEmployerCompany } from "@/contexts/EmployerCompanyContext";
+import { UserFeedbackModal } from "@/components/feedback/UserFeedbackModal";
 
 const NAV_ITEMS = [
   { label: "Tổng quan", href: "/employer/dashboard", icon: LayoutDashboard, permission: "analytics:view" },
@@ -43,6 +45,7 @@ function EmployerLayoutContent() {
     }
   });
   const [searchQuery, setSearchQuery] = useState("");
+  const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
   const user = useUser();
   const logout = useAuthStore((s) => s.logout);
   const navigate = useNavigate();
@@ -274,12 +277,24 @@ function EmployerLayoutContent() {
                 <Button variant="outline" size="sm">Đăng tin mới</Button>
               </Link>
             )}
+
+            {/* Quick Feedback & Bug Report Button */}
+            <button
+              type="button"
+              onClick={() => setIsFeedbackModalOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-slate-600 hover:text-rose-700 hover:bg-rose-50/60 border border-slate-200 hover:border-rose-200 transition-all cursor-pointer shadow-2xs group"
+              title="Báo cáo sự cố hệ thống hoặc gửi ý kiến đóng góp cho Ban Quản Trị"
+            >
+              <LifeBuoy className="w-4 h-4 text-amber-500 group-hover:text-rose-600 transition-colors" />
+              <span className="hidden sm:inline">Báo sự cố</span>
+            </button>
+
             <Link to="/employer/settings">
-              <button className="p-2 text-gray-500 hover:text-gray-900 rounded-full hover:bg-gray-100 transition-colors" title="Cài đặt">
+              <button className="p-2 text-gray-500 hover:text-gray-900 rounded-full hover:bg-gray-100 transition-colors cursor-pointer" title="Cài đặt">
                 <Settings className="w-5 h-5" />
               </button>
             </Link>
-            <button className="relative p-2 text-gray-500 hover:text-gray-900 rounded-full hover:bg-gray-100 transition-colors" title="Thông báo">
+            <button className="relative p-2 text-gray-500 hover:text-gray-900 rounded-full hover:bg-gray-100 transition-colors cursor-pointer" title="Thông báo">
               <Bell className="w-5 h-5" />
               <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border border-white" />
             </button>
@@ -293,6 +308,16 @@ function EmployerLayoutContent() {
           </div>
         </main>
       </div>
+
+      {/* Employer Feedback & Incident Report Modal */}
+      <UserFeedbackModal
+        isOpen={isFeedbackModalOpen}
+        onClose={() => setIsFeedbackModalOpen(false)}
+        initialType="bug_report"
+        initialTitle={`[Sự cố] Cổng Tuyển Dụng - ${companyContext?.company.name || user?.company_name || "Doanh nghiệp"}`}
+        targetType="employer_portal"
+        targetId="employer_portal"
+      />
     </div>
   );
 }
