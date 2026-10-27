@@ -35,6 +35,7 @@ class AIMatchResponse(BaseModel):
     interview_questions: list[str] = []
     vector_sample: list[float] = []
     formula_metadata: dict[str, Any] | None = None
+    domain_mismatch_warning: str | None = None
 
 
 class CVEvaluationRequest(BaseModel):
@@ -198,6 +199,15 @@ class RecommendedJob(BaseModel):
     match_reason: str  # Vietnamese explanation of why it matches
 
 
+class DomainNotice(BaseModel):
+    """Notice and career transition suggestions when candidate's resume domain has few or no matching jobs."""
+
+    is_unsupported_domain: bool = False
+    detected_industry: str
+    message: str
+    bridge_suggestions: list[str] = []
+
+
 class JobRecommendationResponse(BaseModel):
     """Response for GET /ai/recommend-jobs endpoint."""
 
@@ -206,6 +216,7 @@ class JobRecommendationResponse(BaseModel):
     industry_detected: str
     total_matched: int
     recommendations: list[RecommendedJob]
+    domain_notice: DomainNotice | None = None
 
 
 class GenerateJDRequest(BaseModel):

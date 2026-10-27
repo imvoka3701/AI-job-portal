@@ -268,12 +268,20 @@ export interface RecommendedJob {
   match_reason: string;
 }
 
+export interface DomainNotice {
+  is_unsupported_domain: boolean;
+  detected_industry: string;
+  message: string;
+  bridge_suggestions: string[];
+}
+
 export interface JobRecommendationResponse {
   resume_id?: number | null;
   cv_document_id?: number | null;
   industry_detected: string;
   total_matched: number;
   recommendations: RecommendedJob[];
+  domain_notice?: DomainNotice | null;
 }
 
 export interface JobRecommendationParams {

@@ -14,11 +14,13 @@ import {
   ArrowRight,
   Coins,
   Sparkles,
+  Compass,
+  Lightbulb,
 } from "lucide-react";
 import { Button, Badge, Card, CardHeader, CardContent } from "@/components/ui";
 import { getRecommendedJobs } from "@/lib/api/ai";
 import { getJobs } from "@/lib/api/jobs";
-import type { RecommendedJob, JobRecommendationResponse } from "@/lib/api/ai";
+import type { RecommendedJob, JobRecommendationResponse, DomainNotice } from "@/lib/api/ai";
 import type { Job } from "@/types/job";
 
 interface RecommendedJobsProps {
@@ -63,6 +65,7 @@ function formatSalary(min: number | null, max: number | null): string {
 
 export function RecommendedJobs({ resumeId, cvDocumentId, isValidated = true }: RecommendedJobsProps) {
   const [data, setData] = useState<JobRecommendationResponse | null>(null);
+  const [domainNotice, setDomainNotice] = useState<DomainNotice | null>(null);
   const [fallbackJobs, setFallbackJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -70,7 +73,7 @@ export function RecommendedJobs({ resumeId, cvDocumentId, isValidated = true }: 
 
   const hasCv = Boolean(resumeId || cvDocumentId);
 
-  // Lấy việc làm mới nhất khi không có gợi ý AI
+  // Lấy việc làm mới nhất khi không có gợi ý AI hoặc CV trái ngành
   const fetchFallbackJobs = useCallback(async () => {
     try {
       const res = await getJobs({ page_size: 4 });
@@ -83,6 +86,7 @@ export function RecommendedJobs({ resumeId, cvDocumentId, isValidated = true }: 
 
   const fetchRecommendations = useCallback(async () => {
     if (!hasCv || !isValidated) {
+      setDomainNotice(null);
       await fetchFallbackJobs();
       return;
     }
@@ -96,16 +100,24 @@ export function RecommendedJobs({ resumeId, cvDocumentId, isValidated = true }: 
         limit: 5,
       });
 
-      if (result && result.recommendations && result.recommendations.length > 0) {
-        setData(result);
-        setIsUsingFallback(false);
+      if (result) {
+        setDomainNotice(result.domain_notice || null);
+        if (result.recommendations && result.recommendations.length > 0) {
+          setData(result);
+          setIsUsingFallback(false);
+        } else {
+          // AI không tìm thấy kết quả hoặc đã lọc do lệch ngành (ngưỡng 40%)
+          setData(result);
+          await fetchFallbackJobs();
+        }
       } else {
-        // AI không tìm thấy kết quả -> fallback về danh sách việc làm mới nhất
+        setDomainNotice(null);
         setData(null);
         await fetchFallbackJobs();
       }
     } catch {
       // Khi lỗi AI endpoint -> fallback sang việc làm thông thường
+      setDomainNotice(null);
       await fetchFallbackJobs();
     } finally {
       setLoading(false);
@@ -129,7 +141,9 @@ export function RecommendedJobs({ resumeId, cvDocumentId, isValidated = true }: 
               <span>{isUsingFallback ? "Việc Làm Đề Xuất Dành Cho Bạn" : "Việc Làm AI Khớp Năng Lực"}</span>
             </h3>
             <p className="text-[11px] text-slate-500 font-medium">
-              {isUsingFallback
+              {domainNotice?.is_unsupported_domain
+                ? `Định hướng vị trí theo chuyên môn ${domainNotice.detected_industry}`
+                : isUsingFallback
                 ? "Việc làm công nghệ tuyển gấp mới nhất"
                 : `${data?.total_matched || data?.recommendations.length || 0} vị trí phù hợp với CV của bạn`}
             </p>
@@ -168,6 +182,83 @@ export function RecommendedJobs({ resumeId, cvDocumentId, isValidated = true }: 
               Thử lại
             </Button>
           </div>
+        )}
+
+        {/* Smart Domain Guard Alert: Khi hồ sơ trái ngành hoặc chưa có việc làm CNTT khớp trực tiếp (dưới 40%) */}
+        {!loading && domainNotice && domainNotice.is_unsupported_domain && (
+          <motion.div
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="p-4 rounded-2xl bg-amber-50/80 border border-amber-200/90 text-amber-950 space-y-3 shadow-xs"
+          >
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg bg-amber-100 flex items-center justify-center text-amber-700 shrink-0">
+                  <Compass size={16} />
+                </div>
+                <div>
+                  <span className="text-xs font-black text-amber-900">Định Hướng Cơ Hội Chuyên Môn</span>
+                  <p className="text-[10px] text-amber-700/90 font-medium">Smart Domain Guard</p>
+                </div>
+              </div>
+              <Badge
+                variant="default"
+                className="bg-amber-100 text-amber-900 border-amber-300 font-bold text-[10px] px-2 py-0.5"
+              >
+                {domainNotice.detected_industry}
+              </Badge>
+            </div>
+
+            <p className="text-[11px] leading-relaxed text-amber-900/90 font-medium">
+              {domainNotice.message}
+            </p>
+
+            {domainNotice.bridge_suggestions && domainNotice.bridge_suggestions.length > 0 && (
+              <div className="pt-2 border-t border-amber-200/60 space-y-1.5">
+                <p className="text-[10px] font-bold text-amber-800 uppercase tracking-wider flex items-center gap-1">
+                  <Lightbulb size={12} className="text-amber-600" />
+                  <span>Gợi ý hướng công nghệ liên ngành:</span>
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {domainNotice.bridge_suggestions.map((suggestion, idx) => (
+                    <Link
+                      key={idx}
+                      to={`/jobs?q=${encodeURIComponent(suggestion)}`}
+                      className="inline-flex items-center gap-1 text-[11px] font-bold bg-white hover:bg-amber-100/80 text-amber-900 border border-amber-200 hover:border-amber-300 px-2.5 py-1 rounded-xl shadow-2xs transition-all"
+                    >
+                      <span>{suggestion}</span>
+                      <ChevronRight size={11} className="text-amber-500" />
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+          </motion.div>
+        )}
+
+        {/* Soft Cross-Domain Notice: Khi có việc làm nhưng độ phù hợp trung bình (40-60%) hoặc khác chuyên ngành */}
+        {!loading && domainNotice && !domainNotice.is_unsupported_domain && (
+          <motion.div
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="p-3 rounded-2xl bg-sky-50/70 border border-sky-200/90 text-sky-950 space-y-1.5"
+          >
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5 text-xs font-black text-sky-900">
+                <Sparkles size={14} className="text-sky-600 shrink-0" />
+                <span>Giao thoa kỹ năng liên ngành</span>
+              </div>
+              <Badge
+                variant="default"
+                className="bg-sky-100/80 text-sky-800 border-sky-300 font-bold text-[10px] px-2 py-0.5"
+              >
+                Hồ sơ: {domainNotice.detected_industry}
+              </Badge>
+            </div>
+            <p className="text-[11px] text-sky-900/90 leading-relaxed font-medium">
+              {domainNotice.message}
+            </p>
+          </motion.div>
         )}
 
         {/* AI Recommendations List (1-column vertical stack in sidebar) */}
@@ -247,6 +338,12 @@ export function RecommendedJobs({ resumeId, cvDocumentId, isValidated = true }: 
         {/* Fallback Jobs List (Khi AI rỗng hoặc chưa khớp) */}
         {!loading && isUsingFallback && fallbackJobs.length > 0 && (
           <div className="space-y-2.5">
+            {domainNotice?.is_unsupported_domain && (
+              <div className="flex items-center justify-between px-1 text-[11px] font-bold text-slate-500 pt-1">
+                <span>Cơ hội việc làm nổi bật trên sàn:</span>
+                <span className="text-[10px] text-slate-400 font-normal">Tham khảo thị trường</span>
+              </div>
+            )}
             {fallbackJobs.map((job) => (
               <Link
                 key={job.id}

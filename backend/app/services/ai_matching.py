@@ -16,6 +16,67 @@ from app.services.prompt_loader import get_system_prompt
 
 logger = logging.getLogger(__name__)
 
+# Career bridge suggestions when candidate domain differs from available digital/tech jobs
+INDUSTRY_BRIDGE_SUGGESTIONS: dict[str, list[str]] = {
+    "kế toán": [
+        "Tư vấn triển khai ERP / SAP (ERP Consultant)",
+        "IT Business Analyst (Fintech)",
+        "Chuyên viên Phân tích Dữ liệu Tài chính (Financial Data Analyst)",
+    ],
+    "tài chính": [
+        "Chuyên viên Fintech & Thanh toán số",
+        "Phân tích Dữ liệu Đầu tư / AI Quant",
+        "IT Business Analyst",
+    ],
+    "marketing": [
+        "Digital Product Growth Specialist",
+        "UI/UX Content & Copywriter",
+        "Chuyên viên MarTech & Phân tích Dữ liệu Khách hàng",
+    ],
+    "kinh doanh": [
+        "IT Sales & Account Manager B2B SaaS",
+        "Chuyên viên Phát triển Đối tác Công nghệ",
+        "Product Owner / Business Development",
+    ],
+    "thiết kế": [
+        "UI/UX Designer",
+        "Product Designer",
+        "Game 2D/3D Graphic Artist",
+    ],
+    "y tế": [
+        "Chuyên viên Triển khai Hệ thống Y tế số (HealthTech)",
+        "IT Support Cơ sở Y tế / Quản trị Dữ liệu Y khoa",
+    ],
+    "giáo dục": [
+        "Chuyên viên EdTech & Thiết kế Khóa học Trực tuyến",
+        "Đào tạo Công nghệ & Hướng dẫn Sử dụng Phần mềm",
+    ],
+    "nhúng": [
+        "Kỹ sư Lập trình IoT & Firmware",
+        "Kỹ sư C/C++ Linux Hệ thống",
+        "Kỹ sư Robotics & Tự động hóa",
+    ],
+}
+
+DEFAULT_BRIDGE_SUGGESTIONS: list[str] = [
+    "Khám phá các vị trí chuyển đổi công nghệ (Tech Transition)",
+    "Học thêm kỹ năng lập trình hoặc phân tích dữ liệu (Python / SQL)",
+    "Tìm kiếm cơ hội việc làm liên ngành (FinTech, MarTech, HealthTech)",
+]
+
+MIN_RECOMMEND_SIMILARITY: float = 0.40  # 40% minimum cosine similarity threshold
+
+
+def get_bridge_suggestions_for_industry(industry: str | None) -> list[str]:
+    """Return relevant tech bridge/transition suggestions for a detected industry."""
+    if not industry:
+        return DEFAULT_BRIDGE_SUGGESTIONS
+    ind_lower = industry.lower().strip()
+    for key, suggestions in INDUSTRY_BRIDGE_SUGGESTIONS.items():
+        if key in ind_lower:
+            return suggestions
+    return DEFAULT_BRIDGE_SUGGESTIONS
+
 
 def extract_cv_document_text(cv_doc: CvDocument | dict[str, Any] | None) -> str:
     """Extract concatenated plain text from structured CV Builder document for embedding and matching."""
@@ -199,6 +260,16 @@ class AIMatchingService:
             )
             interview_questions = [str(q) for q in data.get("interview_questions", []) if q]
 
+            domain_warning: str | None = None
+            if domain_score < 35.0 or base_cosine_score < 35.0:
+                domain_warning = (
+                    f"Lưu ý: Hồ sơ có sự khác biệt lớn về chuyên môn (Điểm chuyên môn: {domain_score:.1f}%) "
+                    f"so với vị trí '{job_title}'."
+                )
+                domain_breaker = f"Chuyên môn của ứng viên khác biệt đáng kể so với yêu cầu vị trí {job_title}"
+                if domain_breaker not in deal_breakers:
+                    deal_breakers.append(domain_breaker)
+
             # Weighted Formula: 35% Vector Semantic + 40% Hard Skills + 25% Experience Level
             weighted = 0.35 * base_cosine_score + 0.40 * skills_score + 0.25 * experience_score
 
@@ -225,6 +296,7 @@ class AIMatchingService:
                 interview_questions=interview_questions,
                 vector_sample=sample,
                 formula_metadata=formula_meta,
+                domain_mismatch_warning=domain_warning,
             )
         except Exception as exc:
             logger.warning(
@@ -547,12 +619,19 @@ class AIMatchingService:
         skills_list = json.loads(skills_json) if skills_json else []
         skills_text = ", ".join(skills_list[:5]) if skills_list else "N/A"
 
-        for r in results:
+        filtered_results = [
+            r for r in results if float(r.get("similarity", 0.0)) >= MIN_RECOMMEND_SIMILARITY
+        ]
+
+        has_same_category_match = False
+        for r in filtered_results:
             score = round(max(0.0, min(100.0, r["similarity"] * 100)), 1)
             is_same_category = (
                 resume.industry_category_id is not None
                 and r.get("category_id") == resume.industry_category_id
             )
+            if is_same_category:
+                has_same_category_match = True
 
             if is_same_category and score >= 60:
                 reason = f"Phù hợp ngành {industry}, kỹ năng {skills_text} trùng khớp cao."
@@ -577,11 +656,38 @@ class AIMatchingService:
                 }
             )
 
+        domain_notice: dict[str, Any] | None = None
+        if not recommendations:
+            domain_notice = {
+                "is_unsupported_domain": True,
+                "detected_industry": industry,
+                "message": (
+                    f"Hệ thống nhận diện hồ sơ của bạn thuộc chuyên môn '{industry}'. "
+                    "Hiện tại sàn tuyển dụng chưa có việc làm công nghệ phù hợp sát với chuyên môn này "
+                    f"(ngưỡng phù hợp tối thiểu {int(MIN_RECOMMEND_SIMILARITY * 100)}%). "
+                    "Dưới đây là một số hướng tiếp cận công nghệ liên ngành gợi ý cho bạn:"
+                ),
+                "bridge_suggestions": get_bridge_suggestions_for_industry(industry),
+            }
+        else:
+            max_score = max((r["match_score"] for r in recommendations), default=0.0)
+            if not has_same_category_match or max_score < 60.0:
+                domain_notice = {
+                    "is_unsupported_domain": False,
+                    "detected_industry": industry,
+                    "message": (
+                        f"Các công việc dưới đây có điểm giao thoa kỹ năng với hồ sơ chuyên môn '{industry}' của bạn. "
+                        "Vui lòng đọc kỹ yêu cầu tuyển dụng trước khi nộp hồ sơ."
+                    ),
+                    "bridge_suggestions": get_bridge_suggestions_for_industry(industry),
+                }
+
         return {
             "resume_id": resume.id,
             "industry_detected": industry,
             "total_matched": len(recommendations),
             "recommendations": recommendations,
+            "domain_notice": domain_notice,
         }
 
     async def recommend_jobs_for_cv_document(
@@ -599,6 +705,12 @@ class AIMatchingService:
                 "industry_detected": "Tùy biến (CV Builder)",
                 "total_matched": 0,
                 "recommendations": [],
+                "domain_notice": {
+                    "is_unsupported_domain": True,
+                    "detected_industry": "Tùy biến (CV Builder)",
+                    "message": "Nội dung CV chưa đủ thông tin kỹ năng để gợi ý việc làm.",
+                    "bridge_suggestions": DEFAULT_BRIDGE_SUGGESTIONS,
+                },
             }
 
         try:
@@ -612,6 +724,7 @@ class AIMatchingService:
                 "industry_detected": "Tùy biến (CV Builder)",
                 "total_matched": 0,
                 "recommendations": [],
+                "domain_notice": None,
             }
 
         results = await self.find_top_matching_jobs(
@@ -638,8 +751,12 @@ class AIMatchingService:
                 skill_names.append(str(s["name"]).strip())
         skills_text = ", ".join(skill_names[:5]) if skill_names else "Kỹ năng trong CV"
 
+        filtered_results = [
+            r for r in results if float(r.get("similarity", 0.0)) >= MIN_RECOMMEND_SIMILARITY
+        ]
+
         recommendations = []
-        for r in results:
+        for r in filtered_results:
             score = round(max(0.0, min(100.0, r["similarity"] * 100)), 1)
             if score >= 60:
                 reason = f"Kỹ năng {skills_text} có độ tương đồng cao với yêu cầu công việc."
@@ -660,11 +777,34 @@ class AIMatchingService:
                 }
             )
 
+        cv_domain_notice: dict[str, Any] | None = None
+        if not recommendations:
+            cv_domain_notice = {
+                "is_unsupported_domain": True,
+                "detected_industry": "Tùy biến (CV Builder)",
+                "message": (
+                    "Hiện tại sàn tuyển dụng chưa có vị trí công việc có độ tương đồng kỹ năng phù hợp "
+                    f"(ngưỡng phù hợp tối thiểu {int(MIN_RECOMMEND_SIMILARITY * 100)}%). "
+                    "Bạn có thể tham khảo các định hướng phát triển kỹ năng dưới đây:"
+                ),
+                "bridge_suggestions": DEFAULT_BRIDGE_SUGGESTIONS,
+            }
+        else:
+            max_score = max((r["match_score"] for r in recommendations), default=0.0)
+            if max_score < 60.0:
+                cv_domain_notice = {
+                    "is_unsupported_domain": False,
+                    "detected_industry": "Tùy biến (CV Builder)",
+                    "message": "Các công việc dưới đây có độ tương đồng kỹ năng ở mức trung bình. Hãy cân nhắc xem xét kỹ yêu cầu.",
+                    "bridge_suggestions": DEFAULT_BRIDGE_SUGGESTIONS,
+                }
+
         return {
             "cv_document_id": cv_document.id,
             "industry_detected": "Tùy biến (CV Builder)",
             "total_matched": len(recommendations),
             "recommendations": recommendations,
+            "domain_notice": cv_domain_notice,
         }
 
 

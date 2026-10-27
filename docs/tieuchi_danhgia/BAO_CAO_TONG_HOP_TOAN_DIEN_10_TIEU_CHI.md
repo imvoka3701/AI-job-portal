@@ -182,6 +182,9 @@ flowchart TD
 * **Phân cấp thị giác khoa học:**
   - Badge màu sắc nhận diện mức độ tương thích: Xanh lá (>80% - Rất phù hợp), Xanh dương (65-80% - Phù hợp), Vàng (50-64% - Cần cân nhắc), Đỏ (<50% - Kém phù hợp).
   - Tách bạch 3 khối nội dung: Điểm mạnh cốt lõi (`strengths`), Lỗ hổng kỹ năng (`gaps`), Cảnh báo điều kiện tiên quyết (`deal_breakers`).
+* **Lá chắn chuyên môn & Xử lý CV trái ngành (Smart Domain Guard):**
+  - Thiết lập ngưỡng sàn `MIN_RECOMMEND_SIMILARITY = 0.40` (40%), loại bỏ hoàn toàn các gợi ý rác lệch ngành.
+  - Tự động sinh `DomainNotice` và cảnh báo chuyên môn `domain_mismatch_warning` khi phát hiện CV trái ngành CNTT (Kế toán, Marketing, Y tế...), đồng thời gợi ý các vị trí cầu nối liên ngành (`bridge_suggestions`: ERP Consultant, Fintech BA, MarTech...).
 * **Trải nghiệm chờ đợi thông minh (Progressive Loading):**
   - Thành phần `AIProgressiveLoader` hiển thị 3 pha tiến trình: "Đang phân tích cấu trúc..." ➔ "So khớp tiêu chí JD..." ➔ "Tổng hợp khuyến nghị...".
 * **Biểu ngữ cảnh báo minh bạch (`AIDisclaimerBanner`):**
@@ -203,14 +206,14 @@ Hệ thống thiết lập **5 tầng phòng vệ liên hoàn (5-Layer Resilienc
 
 ### TIÊU CHÍ 08: KIỂM THỬ TOÀN DIỆN CHỨC NĂNG QUẢN LÝ VÀ AI
 * **Quy mô bộ kiểm thử:**
-  - **41 tệp kiểm thử tự động**, hơn **308 test cases**.
-  - **Tỷ lệ vượt qua:** **100% Tests Passed (Zero Failure)** trên container Docker.
+  - **42 tệp kiểm thử tự động**, hơn **313 test cases**.
+  - **Tỷ lệ vượt qua:** **100% Tests Passed (Zero Failure)** trên container Docker (bao gồm test suite mới [test_ai_domain_mismatch.py](file:///d:/ai-job-portal/backend/tests/test_ai_domain_mismatch.py)).
   - **Độ bao phủ mã nguồn (Code Coverage):** Đạt **81.08%** (vượt chuẩn kiểm định CI $\ge 80\%$).
 * **Ma trận kiểm thử bao phủ 4 nhóm kịch bản:**
   - **Nhóm 1 - Đúng (Happy Path):** AI Matching 3 trục, CV Review, Interview questions, Email generation, Export CSV tiếng Việt UTF-8 BOM, Quote RFC 4180.
   - **Nhóm 2 - Sai (Negative):** Chặn không token (401), chặn truy cập chéo Multi-tenant (403), chặn Prompt Injection (400), chặn nộp đơn trùng (409), chặn status sai (400), chặn ngày đảo ngược (400), chặn limit ngoài biên (422).
   - **Nhóm 3 - Biên (Boundary):** CV rỗng không nội dung (score = 0.0), CSDL rỗng khi xuất CSV (chỉ trả về Header + BOM), Tokens = 0 hoặc null, lỗi dài tối đa cột CSDL (500 ký tự).
-  - **Nhóm 4 - Bảo mật lỗ hổng (CWE-1236):** Phòng chống triệt để CSV / Formula Injection, vô hiệu hóa các ký tự `=`, `+`, `-`, `@`, `\t`, `\r` bằng dấu `'`.
+  - **Nhóm 4 - Bảo mật lỗ hổng (CWE-1236 & Domain Mismatch):** Phòng chống CSV Formula Injection; xử lý chuẩn xác biên độ khớp lệnh ngành (ngưỡng 40%), phân loại và định hướng liên ngành.
 
 ---
 
@@ -229,6 +232,7 @@ Dự án ghi nhận **5 ca Review Code và Refactoring chuyên sâu** bằng AI 
   - Nút "Phân tích AI 3 trục" đính kèm trực tiếp trên từng thẻ ứng viên Kanban.
   - "CV Copilot" xuất hiện dạng Drawer trượt êm ái cạnh form soạn thảo CV.
   - Admin AI Console cung cấp biểu đồ Stacked Bar Chart theo dõi lưu lượng cuộc gọi thành công/thất bại và số dư ví DeepSeek Cloud theo thời gian thực.
+  - **Trải nghiệm Smart Domain Guard UX:** Khi ứng viên tải lên CV trái ngành, hệ thống hiển thị Card định hướng cơ hội chuyên môn lịch sự, cung cấp các nút gợi ý vị trí liên ngành có thể tương tác ngay lập tức, không gây ngõ cụt trải nghiệm (Zero Dead-ends).
 * **Nguyên tắc cốt lõi: Human-in-the-Loop (Con người nắm quyền quyết định tối hậu):**
   - AI không bao giờ tự ý chuyển trạng thái ứng viên sang `Accepted` hoặc `Rejected`.
   - AI không tự động gửi email mà chỉ tạo bản nháp (Draft) để HR phê duyệt.

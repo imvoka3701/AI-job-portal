@@ -21,6 +21,7 @@ import {
   HelpCircle,
   AlertTriangle,
   RefreshCw,
+  Compass,
 } from "lucide-react";
 import { getMyResumes } from "@/lib/api/resumes";
 import { getCvDocuments } from "@/lib/api/cvDocuments";
@@ -792,6 +793,19 @@ export function AIMatchingPage() {
                         </div>
                       )}
                     </div>
+
+                    {/* Domain Mismatch Warning Card */}
+                    {activeMatchResult.domain_mismatch_warning && (
+                      <div className="p-4 rounded-2xl bg-amber-50/90 border border-amber-300 space-y-1.5 shadow-xs">
+                        <div className="text-xs sm:text-sm font-bold text-amber-900 flex items-center gap-1.5">
+                          <Compass size={15} className="text-amber-700 shrink-0" />
+                          <span>Lưu Ý Chuyên Môn / Trái Ngành</span>
+                        </div>
+                        <p className="text-xs text-amber-900 font-medium leading-relaxed">
+                          {activeMatchResult.domain_mismatch_warning}
+                        </p>
+                      </div>
+                    )}
 
                     {/* Deal Breakers Warning Card (if any) */}
                     {activeMatchResult.deal_breakers && activeMatchResult.deal_breakers.length > 0 && (

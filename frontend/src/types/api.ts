@@ -51,6 +51,7 @@ export interface AIMatchResult {
   interview_questions?: string[];
   vector_sample?: number[];
   formula_metadata?: FormulaMetadata;
+  domain_mismatch_warning?: string | null;
 }
 
 /** CV Evaluation response */

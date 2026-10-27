@@ -57,6 +57,13 @@ Hệ thống Frontend (React 18 + TypeScript Strict Mode + Tailwind CSS) loại 
 #### C. Thẻ cảnh báo rủi ro chí mạng (Deal-breakers Banner)
 Khi ứng viên nộp hồ sơ nhưng bị lệch cấp bậc quá lớn (ví dụ: Fresher ứng tuyển vị trí Tech Lead) hoặc thiếu chứng chỉ bắt buộc, hệ thống hiển thị khối cảnh báo viền đỏ nổi bật với icon `AlertTriangle`, giúp HR không bỏ sót rủi ro tuyển dụng.
 
+#### D. Cảnh báo định hướng chuyên môn & Xử lý CV trái ngành (Smart Domain Guard)
+Khi ứng viên tải lên CV **không đúng chuyên ngành CNTT** (Kế toán, Marketing, Y tế, Giáo dục...) hoặc CV đúng chuyên ngành nhưng không khớp với các JD hiện có trên sàn:
+* **Bộ lọc ngưỡng sàn thông minh (`MIN_RECOMMEND_SIMILARITY = 0.40`):** Ngăn chặn triệt để tình trạng ép gợi ý các job lệch ngành với điểm số thấp vô nghĩa (15-30%).
+* **Cảnh báo chuyên môn minh bạch (`DomainNotice`):** Hiển thị Badge định hướng ngành nghề phát hiện, thông điệp lịch sự giải thích tình trạng thị trường việc làm hiện tại của sàn tuyển dụng.
+* **Gợi ý vị trí chuyển đổi công nghệ liên ngành (`bridge_suggestions`):** Đề xuất các cơ hội việc làm giao thoa thực tế (Ví dụ: CV Kế toán được gợi ý *Tư vấn ERP / SAP*, *Fintech BA*, *Financial Data Analyst*; CV Marketing được gợi ý *MarTech*, *Growth Product Specialist*...).
+* **Kiểm thử tự động:** Toàn bộ cơ chế được bảo đảm bởi test suite [backend/tests/test_ai_domain_mismatch.py](file:///d:/ai-job-portal/backend/tests/test_ai_domain_mismatch.py) đạt 100% tỷ lệ đỗ.
+
 ---
 
 ### 4. TIẾN TRÌNH XỬ LÝ TRỰC QUAN (AI PROGRESSIVE LOADER)

@@ -63,6 +63,13 @@ Tại [frontend/src/pages/admin/AdminAILogsPage.tsx](file:///d:/ai-job-portal/fr
 * **Thử nghiệm Prompt an toàn (Live Test):** Cho phép Quản trị viên thử prompt với dữ liệu mẫu và xem trước kết quả JSON trước khi lưu, bảo đảm không gây gián đoạn môi trường vận hành thực tế.
 * **Xuất báo cáo phục vụ kiểm toán (CSV Export):** Tích hợp nút xuất CSV chuẩn UTF-8 BOM hiển thị tiếng Việt sắc nét trên Excel, cho phép lọc linh hoạt theo thời gian, tính năng và trạng thái.
 
+#### E. Trải nghiệm Xử lý CV Trái ngành & Định hướng Liên ngành (Smart Domain UX)
+Tại [frontend/src/pages/candidate/components/RecommendedJobs.tsx](file:///d:/ai-job-portal/frontend/src/pages/candidate/components/RecommendedJobs.tsx):
+* **Loại bỏ trạng thái trống cụt lủn (No Dead-ends):** Khi ứng viên tải lên CV chuyên môn phi CNTT (ví dụ: Kế toán, Y tế, Marketing) hoặc lĩnh vực chưa có JD khớp trên sàn: Hệ thống không bao giờ báo lỗi vô nghĩa hoặc ép ghép việc làm trái ngành với điểm số thấp.
+* **Giao diện Định hướng Tôn trọng & Minh bạch:** Hiển thị thẻ thông báo màu vàng hổ phách trang trọng kèm icon `Compass`, Badge nhận diện chuyên môn phát hiện và phân tích thị trường rõ ràng.
+* **Thẻ chuyển đổi nghề nghiệp (Interactive Bridge Suggestions):** Render các nút gợi ý vị trí công nghệ liên ngành có thể click ngay (ví dụ: *Tư vấn ERP / SAP*, *IT Business Analyst Fintech*...) dẫn đến bộ lọc tìm kiếm thực tế hoặc trang tạo lộ trình học bù kỹ năng.
+* **Tôn trọng quyền tự chủ của người dùng (Empowered User Choice):** Bên dưới thông báo định hướng, hệ thống vẫn hiển thị danh sách các vị trí công nghệ tiêu biểu để người dùng tham khảo xu hướng thị trường nếu họ có nguyện vọng chuyển đổi nghề nghiệp.
+
 ---
 
 ### 4. NGUYÊN TẮC MINH BẠCH & TRÁNH NHẦM LẪN (HUMAN-IN-THE-LOOP)
