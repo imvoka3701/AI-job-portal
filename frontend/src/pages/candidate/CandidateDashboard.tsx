@@ -1322,7 +1322,14 @@ export const CandidateDashboard = () => {
 
             {/* 2. Technical Radar Chart Widget */}
             <div className="rounded-[32px] overflow-hidden">
-              <RadarChartWidget />
+              <RadarChartWidget
+                resume={resumes.length > 0 ? resumes[0] : null}
+                cvDocument={cvDocuments.length > 0 ? cvDocuments[0] : null}
+                onScrollToUpload={() => {
+                  setCvActiveTab("pdf");
+                  document.getElementById("cv-upload-dropzone")?.scrollIntoView({ behavior: "smooth", block: "center" });
+                }}
+              />
             </div>
 
             {/* 3. AI Recommended Jobs & Fallback */}
