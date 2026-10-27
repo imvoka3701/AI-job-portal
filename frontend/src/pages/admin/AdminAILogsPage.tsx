@@ -17,6 +17,7 @@ import {
   TrendingUp,
   ChevronLeft,
   ChevronRight,
+  Download,
   RefreshCw,
   Minus,
   ScrollText,
@@ -27,6 +28,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { SEOMeta } from "@/components/seo/SEOMeta";
 import {
+  exportAICallLogsCSV,
   getAIBalance,
   getAICallLogs,
   getAIStats,
@@ -228,6 +230,32 @@ export function AdminAILogsPage() {
   const [filters, setFilters] = useState<AILogFilters>({ page: 1, page_size: PAGE_SIZE });
 
   const [chartData, setChartData] = useState<BarChartPoint[]>([]);
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExportCSV = useCallback(async () => {
+    setIsExporting(true);
+    try {
+      const blob = await exportAICallLogsCSV({
+        feature: filters.feature,
+        status: filters.status,
+        from_date: filters.from_date,
+        to_date: filters.to_date,
+      });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const dateStr = new Date().toISOString().slice(0, 10);
+      a.download = `ai_call_logs_${dateStr}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err) {
+      console.error("Export AI call logs failed:", err);
+    } finally {
+      setIsExporting(false);
+    }
+  }, [filters]);
 
   // ── Fetch ──────────────────────────────────────────────────────────────────
 
@@ -340,6 +368,16 @@ export function AdminAILogsPage() {
                 </span>
               </div>
             )}
+            <button
+              id="btn-export-ai-logs"
+              onClick={handleExportCSV}
+              disabled={isExporting}
+              className="flex items-center gap-2 px-3.5 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-semibold rounded-xl shadow-xs transition-colors disabled:opacity-50"
+              title="Xuất lịch sử gọi AI ra tệp CSV"
+            >
+              <Download className="w-3.5 h-3.5 text-slate-500" />
+              <span>{isExporting ? "Đang xuất..." : "Xuất CSV"}</span>
+            </button>
             <button
               id="btn-refresh-ai-logs"
               onClick={handleRefresh}
@@ -465,6 +503,16 @@ export function AdminAILogsPage() {
               </button>
             )}
             <span className="ml-auto text-xs text-slate-400 tabular-nums">{total.toLocaleString()} bản ghi</span>
+            <button
+              id="btn-export-csv-inline"
+              onClick={handleExportCSV}
+              disabled={isExporting}
+              className="flex items-center gap-1.5 h-8 px-2.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-600 text-xs font-medium rounded-xl shadow-xs transition-all disabled:opacity-50"
+              title="Xuất CSV danh sách đã lọc"
+            >
+              <Download className="w-3.5 h-3.5 text-slate-400" />
+              <span>{isExporting ? "Đang xuất..." : "Xuất CSV"}</span>
+            </button>
             <button id="btn-refresh-inline" onClick={handleRefresh} aria-label="Làm mới"
               className="w-8 h-8 rounded-xl border border-slate-200 flex items-center justify-center text-slate-400 hover:text-slate-700 hover:border-slate-300 transition-all">
               <RefreshCw className="w-3.5 h-3.5" />

@@ -158,3 +158,85 @@ def generate_pipeline_metrics_csv(metrics_data: dict[str, Any]) -> str:
         )
 
     return output.getvalue()
+
+
+AI_FEATURE_LABELS: dict[str, str] = {
+    "matching": "So khớp AI (Vector)",
+    "cv_evaluate": "Đánh giá CV",
+    "cv_parse": "Trích xuất CV",
+    "roadmap": "Lộ trình",
+    "summarize_cv": "Tóm tắt CV",
+    "interview_questions": "Câu hỏi PV",
+    "generate_email": "Tạo email",
+    "generate_jd": "Tạo JD tuyển dụng",
+    "cover_letter": "Viết Cover Letter",
+    "assistant_chat": "Trợ lý AI Chat",
+}
+
+AI_STATUS_LABELS: dict[str, str] = {
+    "success": "Thành công",
+    "failed": "Thất bại",
+    "retried_success": "Thử lại OK",
+}
+
+
+def generate_ai_call_logs_csv(logs: Iterable[Any]) -> str:
+    """Generate RFC 4180 CSV string with UTF-8 BOM for AI call log records."""
+    output = io.StringIO()
+    output.write(UTF8_BOM)
+    writer = csv.writer(output, quoting=csv.QUOTE_MINIMAL)
+
+    headers = [
+        "Mã Log",
+        "Thời gian",
+        "Tính năng",
+        "Trạng thái",
+        "Độ trễ (ms)",
+        "Input Tokens",
+        "Output Tokens",
+        "Tổng Tokens",
+        "Chi phí (USD)",
+        "User ID",
+        "Ref ID",
+        "Thông báo lỗi",
+    ]
+    writer.writerow(headers)
+
+    for log in logs:
+        feat_raw = getattr(log, "feature", "")
+        feat_val = feat_raw.value if hasattr(feat_raw, "value") else str(feat_raw or "")
+        feat_label = AI_FEATURE_LABELS.get(feat_val, feat_val)
+
+        status_raw = getattr(log, "status", "")
+        status_val = status_raw.value if hasattr(status_raw, "value") else str(status_raw or "")
+        status_label = AI_STATUS_LABELS.get(status_val, status_val)
+
+        created_at = getattr(log, "created_at", None)
+        created_str = created_at.strftime("%Y-%m-%d %H:%M:%S") if hasattr(created_at, "strftime") else str(created_at or "")
+
+        inp = getattr(log, "input_tokens", None)
+        outp = getattr(log, "output_tokens", None)
+        total_tokens = (inp or 0) + (outp or 0) if (inp is not None or outp is not None) else ""
+
+        cost = getattr(log, "cost_usd", None)
+        cost_str = f"${float(cost):.5f}" if cost is not None else "$0.00000"
+
+        writer.writerow(
+            [
+                getattr(log, "id", ""),
+                created_str,
+                feat_label,
+                status_label,
+                getattr(log, "duration_ms", "") if getattr(log, "duration_ms", None) is not None else "",
+                inp if inp is not None else "",
+                outp if outp is not None else "",
+                total_tokens,
+                cost_str,
+                getattr(log, "user_id", "") or "",
+                getattr(log, "related_id", "") or "",
+                getattr(log, "error_message", "") or "",
+            ]
+        )
+
+    return output.getvalue()
+

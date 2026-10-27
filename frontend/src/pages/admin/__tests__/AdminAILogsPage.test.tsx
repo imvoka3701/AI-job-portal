@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { AdminAILogsPage } from '../AdminAILogsPage';
 import * as adminAI from '@/lib/api/adminAI';
 import { MemoryRouter } from 'react-router-dom';
@@ -8,6 +8,7 @@ vi.mock('@/lib/api/adminAI', () => ({
   getAIStats: vi.fn(),
   getAICallLogs: vi.fn(),
   getAIBalance: vi.fn(),
+  exportAICallLogsCSV: vi.fn(),
 }));
 
 vi.mock('framer-motion', () => ({
@@ -114,5 +115,51 @@ describe('AdminAILogsPage', () => {
     });
     
     expect(screen.getByText('Không thể tải danh sách logs')).toBeInTheDocument();
+  });
+
+  it('triggers exportAICallLogsCSV when clicking export button', async () => {
+    (adminAI.getAIStats as any).mockResolvedValue({
+      total_calls_today: 10,
+      total_calls_week: 50,
+      total_cost_today_usd: 0.1,
+      total_cost_month_usd: 2.0,
+      total_cost_week_usd: 1.0,
+      error_rate_pct: 0,
+      by_feature: [],
+    });
+    (adminAI.getAICallLogs as any).mockResolvedValue({
+      items: [],
+      total: 0,
+      page: 1,
+      page_size: 15,
+      total_pages: 1,
+    });
+
+    const mockBlob = new Blob(['mock,csv,data\n1,2,3'], { type: 'text/csv' });
+    (adminAI.exportAICallLogsCSV as any).mockResolvedValue(mockBlob);
+
+    window.URL.createObjectURL = vi.fn().mockReturnValue('blob:http://localhost/mock-url');
+    window.URL.revokeObjectURL = vi.fn();
+
+    render(
+      <MemoryRouter>
+        <AdminAILogsPage />
+      </MemoryRouter>
+    );
+
+    const exportBtn = screen.getAllByRole('button', { name: /Xuất CSV/i })[0];
+    expect(exportBtn).toBeInTheDocument();
+
+    fireEvent.click(exportBtn);
+
+    await waitFor(() => {
+      expect(adminAI.exportAICallLogsCSV).toHaveBeenCalledWith({
+        feature: undefined,
+        status: undefined,
+        from_date: undefined,
+        to_date: undefined,
+      });
+      expect(window.URL.createObjectURL).toHaveBeenCalledWith(mockBlob);
+    });
   });
 });

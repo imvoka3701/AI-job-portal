@@ -151,4 +151,20 @@ export interface AIBalanceResponse {
 export async function getAIBalance(): Promise<AIBalanceResponse> {
   const { data } = await apiClient.get<AIBalanceResponse>("/admin/ai/balance");
   return data;
-}
+}
+
+export async function exportAICallLogsCSV(
+  filters: Omit<AILogFilters, "page" | "page_size"> = {},
+): Promise<Blob> {
+  const params = new URLSearchParams();
+  if (filters.feature) params.set("feature", filters.feature);
+  if (filters.status) params.set("status", filters.status);
+  if (filters.from_date) params.set("from_date", filters.from_date);
+  if (filters.to_date) params.set("to_date", filters.to_date);
+
+  const response = await apiClient.get<Blob>(`/admin/ai/logs/export?${params.toString()}`, {
+    responseType: "blob",
+  });
+  return response.data;
+}
+

@@ -8,7 +8,7 @@ import logging
 import time
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from pydantic import BaseModel, Field
 from sqlalchemy import desc, func
 from sqlalchemy.orm import Session
@@ -390,6 +390,58 @@ def list_logs(
         q.order_by(desc(AICallLog.created_at)).offset((page - 1) * page_size).limit(page_size).all()
     )
     return PaginatedLogsOut(items=items, total=total, page=page, page_size=page_size)
+
+
+@router.get(
+    "/logs/export",
+    summary="Xuat lich su goi AI ra tep CSV (chi Admin)",
+)
+def export_logs_csv(
+    feature: AIFeature | None = Query(None),
+    log_status: str | None = Query(None, alias="status"),
+    from_date: datetime | None = Query(None),
+    to_date: datetime | None = Query(None),
+    limit: int = Query(5000, ge=1, le=10000),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.ADMIN)),
+) -> Response:
+    """Export AI call logs to RFC 4180 CSV with UTF-8 BOM encoding for Excel compatibility."""
+    from datetime import timezone
+
+    from app.services.export_service import generate_ai_call_logs_csv
+
+    q = db.query(AICallLog)
+    if feature:
+        q = q.filter(AICallLog.feature == feature)
+    if log_status:
+        try:
+            q = q.filter(AICallLog.status == AICallStatus(log_status))
+        except ValueError:
+            valid_statuses = [s.value for s in AICallStatus]
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Trạng thái log '{log_status}' không hợp lệ. Các trạng thái được hỗ trợ: {', '.join(valid_statuses)}",
+            )
+    if from_date:
+        q = q.filter(AICallLog.created_at >= from_date)
+    if to_date:
+        q = q.filter(AICallLog.created_at <= to_date)
+
+    logs = q.order_by(desc(AICallLog.created_at)).limit(limit).all()
+    csv_content = generate_ai_call_logs_csv(logs)
+
+    now_str = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    filename = f"ai_call_logs_{now_str}.csv"
+
+    return Response(
+        content=csv_content.encode("utf-8"),
+        media_type="text/csv; charset=utf-8",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Access-Control-Expose-Headers": "Content-Disposition",
+        },
+    )
+
 
 
 @router.get(

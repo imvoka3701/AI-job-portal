@@ -456,3 +456,102 @@ class TestAIBalance:
         r = client.get("/admin/ai/balance", headers=headers)
         assert r.status_code == 403
 
+
+class TestAICallLogsExport:
+    def test_admin_can_export_ai_call_logs_csv(self, client, db_session):
+        admin = _create_user(
+            db_session, email="admin-export@ai-test.example.com", role=UserRole.ADMIN
+        )
+        headers = _login(client, admin.email)
+
+        log1 = AICallLog(
+            feature=AIFeature.CV_EVALUATE,
+            status=AICallStatus.SUCCESS,
+            duration_ms=850,
+            input_tokens=120,
+            output_tokens=60,
+            cost_usd=0.00015,
+            user_id=admin.id,
+        )
+        log2 = AICallLog(
+            feature=AIFeature.MATCHING,
+            status=AICallStatus.FAILED,
+            duration_ms=250,
+            input_tokens=50,
+            output_tokens=0,
+            cost_usd=0.00002,
+            error_message="Simulated error test",
+            user_id=admin.id,
+        )
+        db_session.add_all([log1, log2])
+        db_session.commit()
+
+        try:
+            r = client.get("/admin/ai/logs/export", headers=headers)
+            assert r.status_code == 200
+            assert "text/csv" in r.headers["content-type"]
+            assert "attachment; filename=" in r.headers["content-disposition"]
+            assert "ai_call_logs_" in r.headers["content-disposition"]
+
+            content = r.content.decode("utf-8")
+            assert content.startswith("\ufeff")  # UTF-8 BOM present
+            assert "Mã Log,Thời gian,Tính năng,Trạng thái" in content
+            assert "Đánh giá CV" in content
+            assert "Thành công" in content
+            assert "Simulated error test" in content
+        finally:
+            db_session.delete(log1)
+            db_session.delete(log2)
+            db_session.commit()
+
+    def test_export_filters_by_feature_and_status(self, client, db_session):
+        admin = _create_user(
+            db_session, email="admin-export-filters@ai-test.example.com", role=UserRole.ADMIN
+        )
+        headers = _login(client, admin.email)
+
+        log_match = AICallLog(
+            feature=AIFeature.MATCHING,
+            status=AICallStatus.SUCCESS,
+            duration_ms=400,
+            input_tokens=100,
+            output_tokens=50,
+            cost_usd=0.0001,
+            user_id=admin.id,
+        )
+        log_eval = AICallLog(
+            feature=AIFeature.CV_EVALUATE,
+            status=AICallStatus.FAILED,
+            duration_ms=100,
+            input_tokens=20,
+            output_tokens=0,
+            cost_usd=0.00001,
+            error_message="Eval failed",
+            user_id=admin.id,
+        )
+        db_session.add_all([log_match, log_eval])
+        db_session.commit()
+
+        try:
+            r = client.get(
+                "/admin/ai/logs/export?feature=matching&status=success",
+                headers=headers,
+            )
+            assert r.status_code == 200
+            content = r.content.decode("utf-8")
+            assert "So khớp AI (Vector)" in content
+            assert "Eval failed" not in content
+        finally:
+            db_session.delete(log_match)
+            db_session.delete(log_eval)
+            db_session.commit()
+
+    def test_non_admin_cannot_export_logs(self, client, db_session):
+        candidate = _create_user(
+            db_session, email="cand-export@ai-test.example.com", role=UserRole.CANDIDATE
+        )
+        headers = _login(client, candidate.email)
+        r = client.get("/admin/ai/logs/export", headers=headers)
+        assert r.status_code == 403
+
+
