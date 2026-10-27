@@ -96,6 +96,12 @@ db.add(log_entry)
 db.commit()
 ```
 
+*Tính năng Xuất Báo Cáo AI Logs ra CSV phục vụ Kiểm Toán Chi Phí (UTF-8 BOM):*
+- Hệ thống cung cấp endpoint chuyên dụng `GET /admin/ai/logs/export` tại [backend/app/routers/admin_ai.py](file:///d:/ai-job-portal/backend/app/routers/admin_ai.py) cho phép Quản trị viên trích xuất toàn bộ lịch sử gọi AI phục vụ đối soát chi phí và kiểm toán tài chính.
+- Sử dụng [backend/app/services/export_service.py](file:///d:/ai-job-portal/backend/app/services/export_service.py) để sinh file CSV chuẩn UTF-8 BOM (`\ufeff`) hiển thị tiếng Việt hoàn hảo trên Microsoft Excel và Google Sheets mà không bị lỗi font chữ.
+- Hỗ trợ lọc linh hoạt theo tính năng (`feature`), trạng thái (`status`), khoảng ngày (`from_date` -> `to_date`).
+- Giao diện Frontend [AdminAILogsPage.tsx](file:///d:/ai-job-portal/frontend/src/pages/admin/AdminAILogsPage.tsx) tích hợp 2 nút bấm xuất file tiện lợi: 1 nút trên Page Header và 1 nút inline tại thanh Filter Bar.
+
 ---
 
 ### 5. CƠ CHẾ BẢO VỆ AN TOÀN API KEY & DỮ LIỆU NHẠY CẢM
@@ -154,6 +160,6 @@ def mask_secrets(text: str) -> str:
 
 ### 6. KẾT LUẬN TIÊU CHÍ 02
 * Kết nối thành công mô hình **DeepSeek V3** theo giao thức chuẩn công nghiệp **OpenAI Chat Completions**.
-* Có cơ chế đo đếm token, tự động tính toán chi phí thời gian thực lưu vào CSDL và tích hợp API đối soát số dư ví đám mây trực tiếp (`https://api.deepseek.com/user/balance`).
+* Có cơ chế đo đếm token, tự động tính toán chi phí thời gian thực lưu vào CSDL, tích hợp API đối soát số dư ví đám mây trực tiếp (`https://api.deepseek.com/user/balance`) và cung cấp tính năng xuất báo cáo CSV (UTF-8 BOM) phục vụ kiểm toán tài chính.
 * Bảo vệ an toàn tuyệt đối API Key thông qua biến môi trường, quy tắc gitignore và bộ lọc che giấu bí mật `mask_secrets()`.
 * **Mức độ đáp ứng:** **100% - ĐẠT XUẤT SẮC**.
