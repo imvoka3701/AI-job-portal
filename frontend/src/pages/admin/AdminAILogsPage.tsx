@@ -162,7 +162,7 @@ const TABLE_COLUMNS = [
   { header: "Input Tokens", className: "px-4 py-3 text-right w-[125px]" },
   { header: "Output Tokens", className: "px-4 py-3 text-right w-[125px]" },
   { header: "Chi phí", className: "px-4 py-3 text-right w-[115px]" },
-  { header: "Lỗi", className: "px-4 py-3 text-left min-w-[150px]" },
+  { header: "Lỗi", className: "px-4 py-3 text-center min-w-[150px]" },
 ] as const;
 
 // ── Log Row ────────────────────────────────────────────────────────────────────
@@ -197,9 +197,9 @@ function LogRow({ log }: { log: AICallLog }) {
       <td className="px-4 py-3 text-right text-slate-600 tabular-nums w-[125px]">{log.input_tokens != null ? log.input_tokens.toLocaleString() : "—"}</td>
       <td className="px-4 py-3 text-right text-slate-600 tabular-nums w-[125px]">{log.output_tokens != null ? log.output_tokens.toLocaleString() : "—"}</td>
       <td className="px-4 py-3 text-right font-bold text-slate-800 tabular-nums w-[115px]">{log.cost_usd != null ? `$${log.cost_usd.toFixed(5)}` : "—"}</td>
-      <td className="px-4 py-3 min-w-[150px] text-xs text-left">
+      <td className="px-4 py-3 min-w-[150px] text-xs text-center">
         {log.error_message ? (
-          <span className="text-red-500 font-medium truncate block max-w-[240px]" title={log.error_message}>
+          <span className="inline-block text-red-500 font-medium truncate max-w-[280px]" title={log.error_message}>
             {log.error_message}
           </span>
         ) : (
