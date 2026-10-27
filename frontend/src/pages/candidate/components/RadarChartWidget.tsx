@@ -15,8 +15,21 @@ interface RadarChartWidgetProps {
 
 interface RadarDataPoint {
   subject: string;
+  fullName: string;
   A: number;
   fullMark: number;
+}
+
+function truncateLabel(text: string, maxLen = 18): string {
+  if (!text) return "";
+  const trimmed = text.trim();
+  if (trimmed.length <= maxLen) return trimmed;
+  const sub = trimmed.slice(0, maxLen);
+  const lastSpace = sub.lastIndexOf(" ");
+  if (lastSpace > 8) {
+    return trimmed.slice(0, lastSpace) + "…";
+  }
+  return trimmed.slice(0, maxLen - 1) + "…";
 }
 
 export const RadarChartWidget = ({
@@ -43,7 +56,7 @@ export const RadarChartWidget = ({
 
     if (rawAnalysis && Object.keys(rawAnalysis).length > 0) {
       const points: RadarDataPoint[] = Object.entries(rawAnalysis)
-        .map(([subject, value]) => {
+        .map(([rawSubject, value]) => {
           const raw =
             typeof value === "number"
               ? value
@@ -51,7 +64,13 @@ export const RadarChartWidget = ({
               ? (value as any).score
               : 0;
           const score = raw > 10 ? raw : raw * 10;
-          return { subject, A: Math.min(100, Math.max(10, Math.round(score))), fullMark: 100 };
+          const cleanSubject = String(rawSubject).trim();
+          return {
+            subject: truncateLabel(cleanSubject, 18),
+            fullName: cleanSubject,
+            A: Math.min(100, Math.max(10, Math.round(score))),
+            fullMark: 100,
+          };
         })
         .filter((item) => item.A > 0)
         .slice(0, 6);
@@ -114,7 +133,8 @@ export const RadarChartWidget = ({
         const variance = (seed % 15) - 7;
         const score = Math.min(95, Math.max(40, baseScore + variance - index * 2));
         return {
-          subject: skill,
+          subject: truncateLabel(skill, 18),
+          fullName: skill,
           A: score,
           fullMark: 100,
         };
@@ -172,23 +192,38 @@ export const RadarChartWidget = ({
       <CardContent className="p-0 pt-2 space-y-4">
         {hasRealData && data.length >= 3 ? (
           <>
-            <div className="h-[220px] w-full">
+            <div className="h-[235px] w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <RadarChart cx="50%" cy="50%" outerRadius="75%" data={data}>
+                <RadarChart
+                  cx="50%"
+                  cy="50%"
+                  outerRadius="58%"
+                  margin={{ top: 10, right: 28, bottom: 10, left: 28 }}
+                  data={data}
+                >
                   <PolarGrid stroke="#E2E8F0" />
                   <PolarAngleAxis
                     dataKey="subject"
-                    tick={{ fill: "#334155", fontSize: 11, fontWeight: 700 }}
+                    tick={{ fill: "#334155", fontSize: 10, fontWeight: 700 }}
                   />
                   <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
                   <Tooltip
                     cursor={{ fill: "#F8FAFC" }}
-                    contentStyle={{
-                      borderRadius: "16px",
-                      border: "1px solid #CBD5E1",
-                      boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
-                      fontSize: "12px",
-                      fontWeight: 700,
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        const item = payload[0].payload as RadarDataPoint;
+                        return (
+                          <div className="bg-white/95 backdrop-blur-sm border border-slate-200/90 rounded-2xl px-3.5 py-2 shadow-lg text-xs space-y-1 z-50">
+                            <p className="font-bold text-slate-800 leading-snug">{item.fullName || item.subject}</p>
+                            <div className="flex items-center gap-1.5 text-emerald-700 font-semibold pt-0.5">
+                              <span className="text-[11px] text-slate-500 font-medium">Điểm năng lực:</span>
+                              <span className="text-sm font-black text-emerald-700">{item.A}</span>
+                              <span className="text-[10px] text-slate-400 font-normal">/ 100</span>
+                            </div>
+                          </div>
+                        );
+                      }
+                      return null;
                     }}
                   />
                   <Radar
@@ -203,18 +238,34 @@ export const RadarChartWidget = ({
               </ResponsiveContainer>
             </div>
 
-            <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
-              <span className="text-slate-600 font-medium">
-                {weakestSkill ? `Cần cải thiện ${weakestSkill.subject} (${weakestSkill.A}%)?` : "Muốn nâng cao kỹ năng?"}
-              </span>
+            <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between gap-2 text-xs">
+              <div className="min-w-0 flex-1">
+                <p
+                  className="text-slate-600 font-medium text-[11px] truncate"
+                  title={
+                    weakestSkill
+                      ? `Cần cải thiện ${weakestSkill.fullName || weakestSkill.subject} (${weakestSkill.A}%)?`
+                      : "Muốn nâng cao kỹ năng?"
+                  }
+                >
+                  <span className="text-amber-600 font-bold mr-1">⚡ Cải thiện:</span>
+                  {weakestSkill
+                    ? `${weakestSkill.fullName || weakestSkill.subject} (${weakestSkill.A}%)`
+                    : "Nâng cao kỹ năng chuyên môn"}
+                </p>
+              </div>
               <Link
-                to={weakestSkill ? `/ai/roadmap?targetRole=${encodeURIComponent(weakestSkill.subject)}` : "/ai/roadmap"}
-                className="font-bold text-emerald-700 hover:text-emerald-800 flex items-center gap-1 transition-colors"
+                to={
+                  weakestSkill
+                    ? `/ai/roadmap?targetRole=${encodeURIComponent(weakestSkill.fullName || weakestSkill.subject)}`
+                    : "/ai/roadmap"
+                }
+                className="shrink-0 whitespace-nowrap inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100/80 px-2.5 py-1 rounded-lg border border-emerald-200/60 transition-colors shadow-2xs"
                 title="Tạo lộ trình học bù kỹ năng bằng AI"
               >
-                <Sparkles size={13} className="text-amber-500" />
+                <Sparkles size={12} className="text-amber-500 shrink-0" />
                 <span>Mở Lộ Trình Học</span>
-                <ArrowUpRight size={13} />
+                <ArrowUpRight size={12} className="shrink-0" />
               </Link>
             </div>
           </>
