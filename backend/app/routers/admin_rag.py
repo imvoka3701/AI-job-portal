@@ -28,7 +28,7 @@ router = APIRouter(
 )
 
 
-# ─── Pydantic Request Models ──────────────────────────────────────────────────
+# ─── Pydantic Request & Response Models ───────────────────────────────────────
 class RAGConfigUpdateIn(BaseModel):
     is_rag_enabled: bool | None = None
     hybrid_alpha_dense: float | None = Field(default=None, ge=0.0, le=1.0)
@@ -36,6 +36,10 @@ class RAGConfigUpdateIn(BaseModel):
     default_min_score: float | None = Field(default=None, ge=0.0, le=1.0)
     default_top_k: int | None = Field(default=None, ge=1, le=100)
     maintenance_message: str | None = Field(default=None, max_length=500)
+    chunk_size: int | None = Field(default=None, ge=200, le=3000)
+    chunk_overlap: int | None = Field(default=None, ge=0, le=500)
+    min_chunk_length: int | None = Field(default=None, ge=10, le=200)
+    chunking_strategy: str | None = Field(default=None)
 
 
 class BatchReindexRequest(BaseModel):
@@ -47,6 +51,88 @@ class PaginatedSearchLogsOut(BaseModel):
     total: int
     page: int
     page_size: int
+
+
+class SimulateChunkItem(BaseModel):
+    chunk_index: int
+    section_type: str
+    char_count: int
+    word_count: int
+    preview: str
+    content: str
+    metadata: dict[str, Any]
+
+
+class SimulateChunkingIn(BaseModel):
+    document_type: str = Field(default="cv_document", description="'cv_document' | 'resume' | 'job'")
+    text: str | None = None
+    content_json: dict[str, Any] | None = None
+    chunk_size: int | None = Field(default=None, ge=200, le=3000)
+    chunk_overlap: int | None = Field(default=None, ge=0, le=500)
+    min_chunk_length: int | None = Field(default=None, ge=10, le=200)
+
+
+class SimulateChunkingOut(BaseModel):
+    document_type: str
+    total_chunks: int
+    total_characters: int | None = None
+    average_chunk_size: float
+    effective_chunk_size: int
+    effective_chunk_overlap: int
+    effective_min_length: int
+    warnings: list[str]
+    chunks: list[SimulateChunkItem]
+
+
+class DocumentChunkDetailOut(BaseModel):
+    id: int
+    chunk_index: int
+    section_type: str
+    char_count: int
+    content: str
+    has_embedding: bool
+    created_at: str | None = None
+    metadata: dict[str, Any] | None = None
+
+
+class DocumentChunksResponse(BaseModel):
+    document_type: str
+    document_id: int
+    document_title: str
+    owner_email: str | None = None
+    is_validated: bool | None = True
+    status: str | None = None
+    total_chunks: int
+    chunks: list[DocumentChunkDetailOut]
+
+
+class DocumentReindexResponse(BaseModel):
+    status: str
+    document_type: str
+    document_id: int
+    indexed_chunks_count: int
+    message: str
+
+
+class DocumentPurgeResponse(BaseModel):
+    status: str
+    document_type: str
+    document_id: int
+    chunks_deleted: int
+
+
+class OrphanStatsOut(BaseModel):
+    total_orphans: int
+    orphan_resume_chunks: int
+    orphan_cv_document_chunks: int
+    orphan_job_chunks: int
+    orphan_chunk_ids: list[int]
+
+
+class PurgeOrphansOut(BaseModel):
+    status: str
+    purged_count: int
+    message: str
 
 
 # ─── Endpoints ────────────────────────────────────────────────────────────────
@@ -65,7 +151,7 @@ def get_rag_stats(
 @router.get(
     "/config",
     response_model=RAGRuntimeConfig,
-    summary="Lấy cấu hình thời gian thực của thuật toán Hybrid Search",
+    summary="Lấy cấu hình thời gian thực của thuật toán Hybrid Search & Chunking",
 )
 def get_rag_config(
     current_admin: User = Depends(require_role(UserRole.ADMIN)),
@@ -76,7 +162,7 @@ def get_rag_config(
 @router.patch(
     "/config",
     response_model=RAGRuntimeConfig,
-    summary="Cân chỉnh trọng số Hybrid và công tắc khẩn cấp Kill-Switch",
+    summary="Cân chỉnh trọng số Hybrid, Chunking parameters và Kill-Switch",
 )
 def update_rag_config(
     payload: RAGConfigUpdateIn,
@@ -91,6 +177,10 @@ def update_rag_config(
         default_min_score=payload.default_min_score,
         default_top_k=payload.default_top_k,
         maintenance_message=payload.maintenance_message,
+        chunk_size=payload.chunk_size,
+        chunk_overlap=payload.chunk_overlap,
+        min_chunk_length=payload.min_chunk_length,
+        chunking_strategy=payload.chunking_strategy,
         updated_by_email=current_admin.email,
     )
 
@@ -102,7 +192,7 @@ def update_rag_config(
         action="rag_config.updated",
         target_type="system_config",
         target_id="rag_runtime",
-        target_label="AI RAG Hybrid Configuration",
+        target_label="AI RAG Hybrid & Chunking Configuration",
         details={
             "old_config": old_cfg.model_dump(mode="json"),
             "new_config": updated_cfg.model_dump(mode="json"),
@@ -111,6 +201,155 @@ def update_rag_config(
     db.commit()
 
     return updated_cfg
+
+
+@router.post(
+    "/simulate-chunking",
+    response_model=SimulateChunkingOut,
+    summary="Mô phỏng phân mảnh (Chunking Sandbox) thời gian thực không ghi DB",
+)
+def simulate_chunking(
+    payload: SimulateChunkingIn,
+    current_admin: User = Depends(require_role(UserRole.ADMIN)),
+) -> Any:
+    try:
+        return rag_governance_service.simulate_chunking(
+            document_type=payload.document_type,
+            text=payload.text,
+            content_json=payload.content_json,
+            chunk_size=payload.chunk_size,
+            chunk_overlap=payload.chunk_overlap,
+            min_chunk_length=payload.min_chunk_length,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@router.get(
+    "/documents/{document_type}/{document_id}/chunks",
+    response_model=DocumentChunksResponse,
+    summary="Soi chiếu chi tiết toàn bộ các chunk đã lập chỉ mục của một tài liệu",
+)
+def get_document_chunks_inspection(
+    document_type: str,
+    document_id: int,
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(require_role(UserRole.ADMIN)),
+) -> Any:
+    try:
+        return rag_governance_service.get_document_chunks(
+            db=db,
+            document_type=document_type,
+            document_id=document_id,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+
+@router.post(
+    "/documents/{document_type}/{document_id}/reindex",
+    response_model=DocumentReindexResponse,
+    summary="Tái lập chỉ mục đơn lẻ (Surgical Re-index) cho một tài liệu cụ thể",
+    dependencies=[Depends(rate_limit("admin_heavy_ops"))],
+)
+def reindex_single_document(
+    document_type: str,
+    document_id: int,
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(require_role(UserRole.ADMIN)),
+) -> Any:
+    try:
+        result = rag_governance_service.reindex_single_document(
+            db=db,
+            document_type=document_type,
+            document_id=document_id,
+        )
+        # Audit Log
+        crud_admin_audit_log.create(
+            db,
+            actor_user_id=current_admin.id,
+            actor_email=current_admin.email,
+            action="rag_document.surgical_reindex",
+            target_type=document_type,
+            target_id=str(document_id),
+            target_label=f"Surgical Reindex ({document_type} #{document_id})",
+            details=result,
+        )
+        db.commit()
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@router.delete(
+    "/documents/{document_type}/{document_id}/chunks",
+    response_model=DocumentPurgeResponse,
+    summary="Thu hồi toàn bộ chunk vector của tài liệu khỏi kho tìm kiếm RAG",
+)
+def delete_document_chunks(
+    document_type: str,
+    document_id: int,
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(require_role(UserRole.ADMIN)),
+) -> Any:
+    try:
+        result = rag_governance_service.delete_document_chunks(
+            db=db,
+            document_type=document_type,
+            document_id=document_id,
+        )
+        # Audit Log
+        crud_admin_audit_log.create(
+            db,
+            actor_user_id=current_admin.id,
+            actor_email=current_admin.email,
+            action="rag_document.chunks_purged",
+            target_type=document_type,
+            target_id=str(document_id),
+            target_label=f"Purge Document Chunks ({document_type} #{document_id})",
+            details=result,
+        )
+        db.commit()
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@router.get(
+    "/orphans",
+    response_model=OrphanStatsOut,
+    summary="Chẩn đoán vector mồ côi (Orphan Chunks không còn bản ghi gốc)",
+)
+def get_orphan_chunks_stats(
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(require_role(UserRole.ADMIN)),
+) -> Any:
+    return rag_governance_service.get_orphan_chunks_stats(db)
+
+
+@router.post(
+    "/purge-orphans",
+    response_model=PurgeOrphansOut,
+    summary="Dọn dẹp triệt để các vector mồ côi giải phóng dung lượng pgvector",
+    dependencies=[Depends(rate_limit("admin_heavy_ops"))],
+)
+def purge_orphan_chunks(
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(require_role(UserRole.ADMIN)),
+) -> Any:
+    result = rag_governance_service.purge_orphan_chunks(db)
+    crud_admin_audit_log.create(
+        db,
+        actor_user_id=current_admin.id,
+        actor_email=current_admin.email,
+        action="rag_vector.orphans_purged",
+        target_type="document_chunks",
+        target_id="orphan_cleanup",
+        target_label="Purge Orphan Vector Chunks",
+        details=result,
+    )
+    db.commit()
+    return result
 
 
 @router.post(

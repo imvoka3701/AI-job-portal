@@ -21,6 +21,10 @@ export interface RAGVectorStats {
   hybrid_alpha_dense: number;
   hybrid_alpha_sparse: number;
   default_min_score: number;
+  chunk_size?: number;
+  chunk_overlap?: number;
+  min_chunk_length?: number;
+  chunking_strategy?: string;
   total_searches_today: number;
   total_searches_week: number;
   avg_latency_ms: number;
@@ -42,6 +46,10 @@ export interface RAGRuntimeConfig {
   default_min_score: number;
   default_top_k: number;
   maintenance_message: string;
+  chunk_size: number;
+  chunk_overlap: number;
+  min_chunk_length: number;
+  chunking_strategy: string;
   updated_at: string;
   updated_by_email: string | null;
 }
@@ -53,6 +61,10 @@ export interface RAGRuntimeConfigUpdatePayload {
   default_min_score?: number;
   default_top_k?: number;
   maintenance_message?: string;
+  chunk_size?: number;
+  chunk_overlap?: number;
+  min_chunk_length?: number;
+  chunking_strategy?: string;
 }
 
 export interface RAGSearchLogEntry {
@@ -129,3 +141,138 @@ export async function getAdminRAGSearchLogs(params?: {
   });
   return res.data;
 }
+
+// ── Control Plane V2: Simulation, Granular Surgery & Orphan Diagnostics ─────────
+
+export interface SimulateChunkItem {
+  chunk_index: number;
+  section_type: string;
+  char_count: number;
+  word_count: number;
+  preview: string;
+  content: string;
+  metadata: Record<string, any>;
+}
+
+export interface SimulateChunkingPayload {
+  document_type: "cv_document" | "resume" | "job";
+  text?: string;
+  content_json?: Record<string, any>;
+  chunk_size?: number;
+  chunk_overlap?: number;
+  min_chunk_length?: number;
+}
+
+export interface SimulateChunkingResponse {
+  document_type: string;
+  total_chunks: number;
+  total_characters?: number;
+  average_chunk_size: number;
+  effective_chunk_size: number;
+  effective_chunk_overlap: number;
+  effective_min_length: number;
+  warnings: string[];
+  chunks: SimulateChunkItem[];
+}
+
+export interface DocumentChunkDetail {
+  id: number;
+  chunk_index: number;
+  section_type: string;
+  char_count: number;
+  content: string;
+  has_embedding: boolean;
+  created_at?: string | null;
+  metadata?: Record<string, any> | null;
+}
+
+export interface DocumentChunksResponse {
+  document_type: string;
+  document_id: number;
+  document_title: string;
+  owner_email?: string | null;
+  is_validated: boolean;
+  status?: string | null;
+  total_chunks: number;
+  chunks: DocumentChunkDetail[];
+}
+
+export interface DocumentReindexResponse {
+  status: string;
+  document_type: string;
+  document_id: number;
+  indexed_chunks_count: number;
+  message: string;
+}
+
+export interface DocumentPurgeResponse {
+  status: string;
+  document_type: string;
+  document_id: number;
+  chunks_deleted: number;
+}
+
+export interface OrphanStatsResponse {
+  total_orphans: number;
+  orphan_resume_chunks: number;
+  orphan_cv_document_chunks: number;
+  orphan_job_chunks: number;
+  orphan_chunk_ids: number[];
+}
+
+export interface PurgeOrphansResponse {
+  status: string;
+  purged_count: number;
+  message: string;
+}
+
+export async function simulateAdminRAGChunking(
+  payload: SimulateChunkingPayload
+): Promise<SimulateChunkingResponse> {
+  const res = await apiClient.post<SimulateChunkingResponse>(
+    "/admin/rag/simulate-chunking",
+    payload
+  );
+  return res.data;
+}
+
+export async function getAdminRAGDocumentChunks(
+  document_type: string,
+  document_id: number
+): Promise<DocumentChunksResponse> {
+  const res = await apiClient.get<DocumentChunksResponse>(
+    `/admin/rag/documents/${document_type}/${document_id}/chunks`
+  );
+  return res.data;
+}
+
+export async function reindexAdminRAGDocument(
+  document_type: string,
+  document_id: number
+): Promise<DocumentReindexResponse> {
+  const res = await apiClient.post<DocumentReindexResponse>(
+    `/admin/rag/documents/${document_type}/${document_id}/reindex`
+  );
+  return res.data;
+}
+
+export async function purgeAdminRAGDocumentChunks(
+  document_type: string,
+  document_id: number
+): Promise<DocumentPurgeResponse> {
+  const res = await apiClient.delete<DocumentPurgeResponse>(
+    `/admin/rag/documents/${document_type}/${document_id}/chunks`
+  );
+  return res.data;
+}
+
+export async function getAdminRAGOrphanStats(): Promise<OrphanStatsResponse> {
+  const res = await apiClient.get<OrphanStatsResponse>("/admin/rag/orphans");
+  return res.data;
+}
+
+export async function purgeAdminRAGOrphans(): Promise<PurgeOrphansResponse> {
+  const res = await apiClient.post<PurgeOrphansResponse>("/admin/rag/purge-orphans");
+  return res.data;
+}
+

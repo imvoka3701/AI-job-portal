@@ -21,6 +21,9 @@ import { RAGAlgorithmTuningCard } from "./rag/RAGAlgorithmTuningCard";
 import { RAGBatchReindexCard } from "./rag/RAGBatchReindexCard";
 import { RAGTrendCharts } from "./rag/RAGTrendCharts";
 import { RAGSearchLogsTable } from "./rag/RAGSearchLogsTable";
+import { RAGChunkSimulatorCard } from "./rag/RAGChunkSimulatorCard";
+import { RAGDocumentSurgeryCard } from "./rag/RAGDocumentSurgeryCard";
+import { RAGOrphanHealthCard } from "./rag/RAGOrphanHealthCard";
 
 export function AdminRAGGovernancePage() {
   const [stats, setStats] = useState<RAGVectorStats | null>(null);
@@ -248,10 +251,31 @@ export function AdminRAGGovernancePage() {
           />
         </div>
 
-        {/* 4. Trends & Query Intelligence */}
+        {/* 4. pgvector Storage Health & Orphan Diagnostics (Pillar 4) */}
+        <RAGOrphanHealthCard />
+
+        {/* 5. Advanced RAG Control Plane: Simulator & Document Surgery (Pillar 2 & 3) */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+            <div>
+              <h2 className="text-base font-bold text-slate-900">
+                Bộ Điều Khiển Can Thiệp Phân Mảnh & Phẫu Thuật Vector (AI RAG Control Plane V2)
+              </h2>
+              <p className="text-xs text-slate-500">
+                Mô phỏng phân đoạn văn bản thời gian thực và soi chiếu/can thiệp chi tiết từng tài liệu trong pgvector
+              </p>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
+            <RAGChunkSimulatorCard />
+            <RAGDocumentSurgeryCard />
+          </div>
+        </div>
+
+        {/* 6. Trends & Query Intelligence */}
         <RAGTrendCharts stats={stats} loading={loadingStats} />
 
-        {/* 5. Search Telemetry & Audit Logs */}
+        {/* 7. Search Telemetry & Audit Logs */}
         <RAGSearchLogsTable
           logs={logs}
           total={logsTotal}

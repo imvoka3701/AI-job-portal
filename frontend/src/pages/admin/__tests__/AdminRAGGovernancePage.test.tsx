@@ -10,6 +10,18 @@ vi.mock("@/lib/api/adminRAG", () => ({
   updateAdminRAGConfig: vi.fn(),
   triggerAdminRAGReindex: vi.fn(),
   getAdminRAGSearchLogs: vi.fn(),
+  getAdminRAGOrphanStats: vi.fn().mockResolvedValue({
+    total_orphans: 0,
+    orphan_resume_chunks: 0,
+    orphan_cv_document_chunks: 0,
+    orphan_job_chunks: 0,
+    orphan_chunk_ids: [],
+  }),
+  purgeAdminRAGOrphans: vi.fn().mockResolvedValue({ status: "purged", purged_count: 0, message: "OK" }),
+  simulateAdminRAGChunking: vi.fn(),
+  getAdminRAGDocumentChunks: vi.fn(),
+  reindexAdminRAGDocument: vi.fn(),
+  purgeAdminRAGDocumentChunks: vi.fn(),
 }));
 
 vi.mock("framer-motion", () => ({
@@ -63,6 +75,10 @@ const mockConfig: adminRAG.RAGRuntimeConfig = {
   hybrid_alpha_sparse: 0.3,
   default_min_score: 0.55,
   default_top_k: 20,
+  chunk_size: 1200,
+  chunk_overlap: 120,
+  min_chunk_length: 40,
+  chunking_strategy: "semantic_sections",
   maintenance_message: "Hệ thống RAG đang bảo trì.",
   updated_at: new Date().toISOString(),
   updated_by_email: "admin@jobportal.vn",

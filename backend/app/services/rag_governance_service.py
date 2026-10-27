@@ -37,6 +37,10 @@ class RAGRuntimeConfig(BaseModel):
     hybrid_alpha_sparse: float = Field(default=0.30, ge=0.0, le=1.0, description="Sparse BM25 Lexical Weight")
     default_min_score: float = Field(default=0.55, ge=0.0, le=1.0, description="System-wide Default Min Score Cutoff")
     default_top_k: int = Field(default=20, ge=1, le=100, description="Max Chunks Retrieved Per Search")
+    chunk_size: int = Field(default=1200, ge=200, le=3000, description="Max characters per chunk")
+    chunk_overlap: int = Field(default=120, ge=0, le=500, description="Overlap characters between chunks")
+    min_chunk_length: int = Field(default=40, ge=10, le=200, description="Minimum characters required per chunk")
+    chunking_strategy: str = Field(default="semantic_sections", description="Chunking strategy ('semantic_sections' | 'recursive_character')")
     maintenance_message: str = Field(
         default="Hệ thống AI Semantic Search đang được bảo trì hoặc cập nhật kho vector. Vui lòng thử lại sau ít phút.",
         description="Message shown when Kill-Switch is active",
@@ -79,6 +83,10 @@ class RAGVectorStats(BaseModel):
     hybrid_alpha_dense: float
     hybrid_alpha_sparse: float
     default_min_score: float
+    chunk_size: int = 1200
+    chunk_overlap: int = 120
+    min_chunk_length: int = 40
+    chunking_strategy: str = "semantic_sections"
     total_searches_today: int
     total_searches_week: int
     avg_latency_ms: float
@@ -236,6 +244,10 @@ class RAGGovernanceService:
         hybrid_alpha_sparse: float | None = None,
         default_min_score: float | None = None,
         default_top_k: int | None = None,
+        chunk_size: int | None = None,
+        chunk_overlap: int | None = None,
+        min_chunk_length: int | None = None,
+        chunking_strategy: str | None = None,
         maintenance_message: str | None = None,
         updated_by_email: str | None = None,
     ) -> RAGRuntimeConfig:
@@ -253,6 +265,14 @@ class RAGGovernanceService:
                 self._config.default_min_score = round(max(0.0, min(1.0, default_min_score)), 2)
             if default_top_k is not None:
                 self._config.default_top_k = max(1, min(100, default_top_k))
+            if chunk_size is not None:
+                self._config.chunk_size = max(200, min(3000, chunk_size))
+            if chunk_overlap is not None:
+                self._config.chunk_overlap = max(0, min(500, chunk_overlap))
+            if min_chunk_length is not None:
+                self._config.min_chunk_length = max(10, min(200, min_chunk_length))
+            if chunking_strategy is not None:
+                self._config.chunking_strategy = chunking_strategy
             if maintenance_message is not None:
                 self._config.maintenance_message = maintenance_message
 
@@ -454,12 +474,310 @@ class RAGGovernanceService:
             hybrid_alpha_dense=cfg.hybrid_alpha_dense,
             hybrid_alpha_sparse=cfg.hybrid_alpha_sparse,
             default_min_score=cfg.default_min_score,
+            chunk_size=cfg.chunk_size,
+            chunk_overlap=cfg.chunk_overlap,
+            min_chunk_length=cfg.min_chunk_length,
+            chunking_strategy=cfg.chunking_strategy,
             total_searches_today=total_searches_today,
             total_searches_week=total_searches_week,
             avg_latency_ms=avg_latency_ms,
             daily_search_trends=daily_search_trends,
             top_searched_queries=top_searched_queries,
         )
+
+    # ── Simulation Sandbox ──
+    def simulate_chunking(
+        self,
+        *,
+        document_type: str = "resume",
+        text: str | None = None,
+        content_json: dict[str, Any] | None = None,
+        chunk_size: int | None = None,
+        chunk_overlap: int | None = None,
+        min_chunk_length: int | None = None,
+    ) -> dict[str, Any]:
+        """Sandbox simulator for previewing and verifying chunking output in real-time."""
+        cfg = self.get_config()
+        eff_size = chunk_size or cfg.chunk_size
+        eff_overlap = chunk_overlap if chunk_overlap is not None else cfg.chunk_overlap
+        eff_min = min_chunk_length if min_chunk_length is not None else cfg.min_chunk_length
+
+        from app.services.document_chunker import document_chunker
+
+        raw_chunks = []
+        warnings = []
+
+        if document_type == "cv_document":
+            sample_json = content_json or {}
+            if not sample_json and text:
+                sample_json = {
+                    "personal": {"full_name": "Ứng viên mẫu", "headline": "Chuyên viên"},
+                    "skills": [s.strip() for s in text.split(",")[:10] if s.strip()],
+                    "experience": [{"role": "Chuyên viên", "company": "Doanh nghiệp", "description": text}],
+                }
+            temp_doc = CvDocument(id=0, user_id=0, title="Bản mô phỏng", content_json=sample_json)
+            is_valid, reason = document_chunker.validate_cv_document_for_rag(temp_doc)
+            if not is_valid:
+                warnings.append(f"Cảnh báo Tiền kiểm RAG: {reason}")
+            raw_chunks = document_chunker.chunk_cv_document(
+                temp_doc,
+                max_chars=eff_size,
+                overlap=eff_overlap,
+                min_chunk_len=eff_min,
+            )
+        elif document_type == "job":
+            temp_job = Job(id=0, title="Tin tuyển dụng mẫu", description=text or "Mô tả công việc mẫu.")
+            raw_chunks = document_chunker.chunk_job(
+                temp_job,
+                max_chars=eff_size,
+                overlap=eff_overlap,
+            )
+        else:  # resume
+            temp_resume = Resume(
+                id=0,
+                user_id=0,
+                title="Hồ sơ CV mẫu",
+                desired_role="Chuyên viên",
+                raw_text=text or "Nội dung CV mẫu.",
+                is_validated=True,
+            )
+            raw_chunks = document_chunker.chunk_resume(
+                temp_resume,
+                max_chars=eff_size,
+                overlap=eff_overlap,
+                min_chunk_len=eff_min,
+            )
+
+        items = []
+        total_chars = 0
+        for i, c in enumerate(raw_chunks):
+            clen = len(c.content)
+            wlen = len(c.content.split())
+            total_chars += clen
+            preview = c.content[:140] + ("..." if clen > 140 else "")
+            if clen < eff_min + 15:
+                warnings.append(f"Chunk #{i + 1} có độ dài {clen} ký tự, sát ngưỡng tối thiểu {eff_min}.")
+            items.append({
+                "chunk_index": i,
+                "section_type": c.section_type,
+                "char_count": clen,
+                "word_count": wlen,
+                "content": c.content,
+                "preview": preview,
+                "metadata": json.loads(c.metadata_json) if c.metadata_json else {},
+            })
+
+        avg_size = round(total_chars / len(items), 1) if items else 0.0
+
+        return {
+            "document_type": document_type,
+            "total_chunks": len(items),
+            "total_characters": total_chars,
+            "average_chunk_size": avg_size,
+            "effective_chunk_size": eff_size,
+            "effective_chunk_overlap": eff_overlap,
+            "effective_min_length": eff_min,
+            "chunks": items,
+            "warnings": warnings,
+        }
+
+    # ── Granular Document Chunks Inspection & Surgery ──
+    def get_document_chunks(
+        self,
+        db: Session,
+        document_type: str,
+        document_id: int,
+    ) -> dict[str, Any]:
+        """Fetch all vector chunks and metadata of a specific document for surgical inspection."""
+        doc_title = None
+        owner_email = None
+        is_validated = None
+        doc_status = None
+
+        if document_type == "resume":
+            r = db.query(Resume).filter(Resume.id == document_id).first()
+            if not r:
+                raise HTTPException(status_code=404, detail=f"Không tìm thấy Resume #{document_id}")
+            doc_title = r.title
+            is_validated = r.is_validated
+            owner_email = r.user.email if r.user else None
+        elif document_type == "cv_document":
+            c = db.query(CvDocument).filter(CvDocument.id == document_id).first()
+            if not c:
+                raise HTTPException(status_code=404, detail=f"Không tìm thấy CV Document #{document_id}")
+            doc_title = c.title
+            doc_status = c.status
+            owner_email = c.user.email if c.user else None
+            from app.services.document_chunker import document_chunker
+            is_valid, _ = document_chunker.validate_cv_document_for_rag(c)
+            is_validated = is_valid
+        elif document_type == "job":
+            j = db.query(Job).filter(Job.id == document_id).first()
+            if not j:
+                raise HTTPException(status_code=404, detail=f"Không tìm thấy Job #{document_id}")
+            doc_title = j.title
+            doc_status = j.status
+            is_validated = True
+        else:
+            raise HTTPException(status_code=400, detail=f"Unsupported document_type: {document_type}")
+
+        chunks = (
+            db.query(DocumentChunk)
+            .filter(
+                DocumentChunk.document_type == document_type,
+                DocumentChunk.document_id == document_id,
+            )
+            .order_by(DocumentChunk.chunk_index.asc())
+            .all()
+        )
+
+        chunk_items = []
+        for ch in chunks:
+            chunk_items.append({
+                "id": ch.id,
+                "chunk_index": ch.chunk_index,
+                "section_type": ch.section_type,
+                "char_count": len(ch.content),
+                "content": ch.content,
+                "has_embedding": ch.embedding is not None,
+                "created_at": ch.created_at.isoformat() if ch.created_at else None,
+                "metadata": ch.metadata_dict,
+            })
+
+        return {
+            "document_type": document_type,
+            "document_id": document_id,
+            "document_title": doc_title,
+            "owner_email": owner_email,
+            "is_validated": is_validated,
+            "status": doc_status,
+            "total_chunks": len(chunk_items),
+            "chunks": chunk_items,
+        }
+
+    def reindex_single_document(
+        self,
+        db: Session,
+        document_type: str,
+        document_id: int,
+    ) -> dict[str, Any]:
+        """Surgically re-index a single document into PostgreSQL vector DB."""
+        count = rag_service.index_document(db, document_type=document_type, document_id=document_id)
+        return {
+            "document_type": document_type,
+            "document_id": document_id,
+            "indexed_chunks_count": count,
+            "status": "success" if count > 0 else "skipped_or_invalid",
+            "message": (
+                f"Tái lập chỉ mục hoàn tất: {count} chunks đã được băm và nạp vector."
+                if count > 0
+                else "Tài liệu bị bỏ qua (chưa đạt chuẩn validation hoặc không tồn tại)."
+            ),
+        }
+
+    def delete_document_chunks(
+        self,
+        db: Session,
+        document_type: str,
+        document_id: int,
+    ) -> dict[str, Any]:
+        """Surgically purge vector chunks for a specific document."""
+        deleted = (
+            db.query(DocumentChunk)
+            .filter(
+                DocumentChunk.document_type == document_type,
+                DocumentChunk.document_id == document_id,
+            )
+            .delete(synchronize_session=False)
+        )
+        db.commit()
+        return {
+            "status": "purged",
+            "document_type": document_type,
+            "document_id": document_id,
+            "chunks_deleted": deleted,
+            "deleted_chunks_count": deleted,
+            "message": f"Đã xóa thành công {deleted} chunks của {document_type} #{document_id}.",
+        }
+
+    # ── Orphan Chunks Diagnostics & Purge ──
+    def get_orphan_chunks_stats(self, db: Session) -> dict[str, Any]:
+        """Identify orphaned chunks in PostgreSQL where parent document has been deleted."""
+        orphan_resumes = (
+            db.query(DocumentChunk.id)
+            .filter(
+                DocumentChunk.document_type == "resume",
+                ~DocumentChunk.document_id.in_(db.query(Resume.id)),
+            )
+            .all()
+        )
+        orphan_cv_docs = (
+            db.query(DocumentChunk.id)
+            .filter(
+                DocumentChunk.document_type == "cv_document",
+                ~DocumentChunk.document_id.in_(db.query(CvDocument.id)),
+            )
+            .all()
+        )
+        orphan_jobs = (
+            db.query(DocumentChunk.id)
+            .filter(
+                DocumentChunk.document_type == "job",
+                ~DocumentChunk.document_id.in_(db.query(Job.id)),
+            )
+            .all()
+        )
+        r_ids = [r[0] for r in orphan_resumes]
+        c_ids = [c[0] for c in orphan_cv_docs]
+        j_ids = [j[0] for j in orphan_jobs]
+        all_orphan_ids = r_ids + c_ids + j_ids
+
+        return {
+            "total_orphans": len(all_orphan_ids),
+            "orphan_resume_chunks": len(r_ids),
+            "orphan_cv_document_chunks": len(c_ids),
+            "orphan_job_chunks": len(j_ids),
+            "orphan_chunk_ids": all_orphan_ids[:50],
+        }
+
+    def purge_orphan_chunks(self, db: Session) -> dict[str, Any]:
+        """Purge all orphaned chunks to ensure clean vector database health."""
+        stats = self.get_orphan_chunks_stats(db)
+        total = stats["total_orphans"]
+        if total == 0:
+            return {"status": "purged", "purged_count": 0, "message": "Không có vector chunk mồ côi nào. Kho dữ liệu hoàn toàn sạch sẽ."}
+
+        deleted_resumes = (
+            db.query(DocumentChunk)
+            .filter(
+                DocumentChunk.document_type == "resume",
+                ~DocumentChunk.document_id.in_(db.query(Resume.id)),
+            )
+            .delete(synchronize_session=False)
+        )
+        deleted_cv_docs = (
+            db.query(DocumentChunk)
+            .filter(
+                DocumentChunk.document_type == "cv_document",
+                ~DocumentChunk.document_id.in_(db.query(CvDocument.id)),
+            )
+            .delete(synchronize_session=False)
+        )
+        deleted_jobs = (
+            db.query(DocumentChunk)
+            .filter(
+                DocumentChunk.document_type == "job",
+                ~DocumentChunk.document_id.in_(db.query(Job.id)),
+            )
+            .delete(synchronize_session=False)
+        )
+        db.commit()
+        purged = deleted_resumes + deleted_cv_docs + deleted_jobs
+        return {
+            "status": "purged",
+            "purged_count": purged,
+            "message": f"Đã quét và xóa thành công {purged} vector chunks mồ côi (Resume: {deleted_resumes}, CV Builder: {deleted_cv_docs}, Job: {deleted_jobs}).",
+        }
 
     # ── Batch Re-indexing ──
     def trigger_batch_reindex(self, db: Session, scope: str = "all") -> dict[str, Any]:

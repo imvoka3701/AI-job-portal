@@ -22,6 +22,17 @@ OVERLAP_CHARACTERS = 150
 MIN_CHUNK_CHARACTERS = 40
 
 
+def _get_runtime_chunk_config() -> tuple[int, int, int]:
+    """Dynamically fetch tuned chunk parameters from RAG Governance runtime config."""
+    try:
+        from app.services.rag_governance_service import rag_governance_service
+
+        cfg = rag_governance_service.get_config()
+        return (cfg.chunk_size, cfg.chunk_overlap, cfg.min_chunk_length)
+    except Exception:
+        return (MAX_CHUNK_CHARACTERS, OVERLAP_CHARACTERS, MIN_CHUNK_CHARACTERS)
+
+
 def _split_text_with_overlap(text: str, max_chars: int = MAX_CHUNK_CHARACTERS, overlap: int = OVERLAP_CHARACTERS) -> list[str]:
     """Fallback recursive splitter on sentence/paragraph boundaries for unusually long sections."""
     text = text.strip()
@@ -114,8 +125,18 @@ class DocumentChunkerService:
         return True, "Hợp lệ"
 
     @staticmethod
-    def chunk_cv_document(cv_doc: CvDocument) -> list[DocumentChunkCreate]:
+    def chunk_cv_document(
+        cv_doc: CvDocument,
+        max_chars: int | None = None,
+        overlap: int | None = None,
+        min_chunk_len: int | None = None,
+    ) -> list[DocumentChunkCreate]:
         """Convert a structured CV Builder document into granular semantic chunks."""
+        def_max, def_ovl, def_min = _get_runtime_chunk_config()
+        eff_max = max_chars if max_chars is not None else def_max
+        eff_ovl = overlap if overlap is not None else def_ovl
+        eff_min = min_chunk_len if min_chunk_len is not None else def_min
+
         chunks: list[DocumentChunkCreate] = []
         content = cv_doc.content_json or {}
         chunk_idx = 0
@@ -141,7 +162,7 @@ class DocumentChunkerService:
                 summary_parts.append(f"Địa điểm: {personal['location']}")
 
             summary_text = "\n".join(summary_parts)
-            if summary_parts and len(summary_text) >= MIN_CHUNK_CHARACTERS:
+            if summary_parts and len(summary_text) >= eff_min:
                 chunks.append(
                     DocumentChunkCreate(
                         document_type="cv_document",
@@ -178,9 +199,9 @@ class DocumentChunkerService:
                     bullets_text = ""
 
                 content_block = f"[{ctx_prefix}] Kinh nghiệm làm việc: {role} tại {company} ({period})\n{bullets_text}".strip()
-                if len(content_block) >= MIN_CHUNK_CHARACTERS:
-                    for sub_text in _split_text_with_overlap(content_block):
-                        if len(sub_text) >= MIN_CHUNK_CHARACTERS:
+                if len(content_block) >= eff_min:
+                    for sub_text in _split_text_with_overlap(content_block, max_chars=eff_max, overlap=eff_ovl):
+                        if len(sub_text) >= eff_min:
                             chunks.append(
                                 DocumentChunkCreate(
                                     document_type="cv_document",
@@ -212,9 +233,9 @@ class DocumentChunkerService:
                 desc = proj.get("description", "")
 
                 content_block = f"[{ctx_prefix}] Dự án: {name} (Vai trò: {role})\nCông nghệ: {tech_str}\nMô tả & Kết quả: {desc}".strip()
-                if len(content_block) >= MIN_CHUNK_CHARACTERS:
-                    for sub_text in _split_text_with_overlap(content_block):
-                        if len(sub_text) >= MIN_CHUNK_CHARACTERS:
+                if len(content_block) >= eff_min:
+                    for sub_text in _split_text_with_overlap(content_block, max_chars=eff_max, overlap=eff_ovl):
+                        if len(sub_text) >= eff_min:
                             chunks.append(
                                 DocumentChunkCreate(
                                     document_type="cv_document",
@@ -244,7 +265,7 @@ class DocumentChunkerService:
             else:
                 skills_text = f"[{ctx_prefix}] Kỹ năng: {skills_data}"
 
-            if len(skills_text) >= MIN_CHUNK_CHARACTERS:
+            if len(skills_text) >= eff_min:
                 chunks.append(
                     DocumentChunkCreate(
                         document_type="cv_document",
@@ -271,7 +292,7 @@ class DocumentChunkerService:
                     edu_parts.append(f"Học vấn: {major} tại {school} ({period})")
 
             edu_text = "\n".join(edu_parts)
-            if edu_parts and len(edu_text) >= MIN_CHUNK_CHARACTERS:
+            if edu_parts and len(edu_text) >= eff_min:
                 chunks.append(
                     DocumentChunkCreate(
                         document_type="cv_document",
@@ -289,8 +310,18 @@ class DocumentChunkerService:
         return chunks
 
     @staticmethod
-    def chunk_resume(resume: Resume) -> list[DocumentChunkCreate]:
+    def chunk_resume(
+        resume: Resume,
+        max_chars: int | None = None,
+        overlap: int | None = None,
+        min_chunk_len: int | None = None,
+    ) -> list[DocumentChunkCreate]:
         """Segment uploaded PDF/parsed Resume text into semantic chunks."""
+        def_max, def_ovl, def_min = _get_runtime_chunk_config()
+        eff_max = max_chars if max_chars is not None else def_max
+        eff_ovl = overlap if overlap is not None else def_ovl
+        eff_min = min_chunk_len if min_chunk_len is not None else def_min
+
         chunks: list[DocumentChunkCreate] = []
         chunk_idx = 0
 
@@ -300,7 +331,7 @@ class DocumentChunkerService:
 
         # Title & Summary
         title_block = f"Hồ sơ: {resume.title}\nVị trí mong muốn: {resume.desired_role or 'N/A'}\nNgành nghề: {resume.parsed_industry or 'N/A'}"
-        if len(title_block) >= MIN_CHUNK_CHARACTERS:
+        if len(title_block) >= eff_min:
             chunks.append(
                 DocumentChunkCreate(
                     document_type="resume",
@@ -333,7 +364,7 @@ class DocumentChunkerService:
             except Exception:
                 skills_text = f"[{ctx_prefix}] Kỹ năng: {skills_raw}"
 
-            if len(skills_text) >= MIN_CHUNK_CHARACTERS:
+            if len(skills_text) >= eff_min:
                 chunks.append(
                     DocumentChunkCreate(
                         document_type="resume",
@@ -356,8 +387,8 @@ class DocumentChunkerService:
                     for item in exp_data:
                         text_item = str(item)
                         content_block = f"[{ctx_prefix}] Kinh nghiệm làm việc: {text_item}"
-                        for sub_text in _split_text_with_overlap(content_block):
-                            if len(sub_text) >= MIN_CHUNK_CHARACTERS:
+                        for sub_text in _split_text_with_overlap(content_block, max_chars=eff_max, overlap=eff_ovl):
+                            if len(sub_text) >= eff_min:
                                 chunks.append(
                                     DocumentChunkCreate(
                                         document_type="resume",
@@ -383,9 +414,9 @@ class DocumentChunkerService:
             )
             for s in sections:
                 cleaned = s.strip()
-                if len(cleaned) >= MIN_CHUNK_CHARACTERS:
-                    for sub_text in _split_text_with_overlap(cleaned):
-                        if len(sub_text) >= MIN_CHUNK_CHARACTERS:
+                if len(cleaned) >= eff_min:
+                    for sub_text in _split_text_with_overlap(cleaned, max_chars=eff_max, overlap=eff_ovl):
+                        if len(sub_text) >= eff_min:
                             chunks.append(
                                 DocumentChunkCreate(
                                     document_type="resume",
@@ -403,8 +434,18 @@ class DocumentChunkerService:
         return chunks
 
     @staticmethod
-    def chunk_job(job: Job) -> list[DocumentChunkCreate]:
+    def chunk_job(
+        job: Job,
+        max_chars: int | None = None,
+        overlap: int | None = None,
+        min_chunk_len: int | None = None,
+    ) -> list[DocumentChunkCreate]:
         """Segment a Job listing into semantic requirement and responsibility chunks."""
+        def_max, def_ovl, def_min = _get_runtime_chunk_config()
+        eff_max = max_chars if max_chars is not None else def_max
+        eff_ovl = overlap if overlap is not None else def_ovl
+        eff_min = min_chunk_len if min_chunk_len is not None else def_min
+
         chunks: list[DocumentChunkCreate] = []
         chunk_idx = 0
 
@@ -417,66 +458,69 @@ class DocumentChunkerService:
             f"Mô tả chung: {job.description}"
         ).strip()
 
-        for sub_text in _split_text_with_overlap(overview_text):
-            chunks.append(
-                DocumentChunkCreate(
-                    document_type="job",
-                    document_id=job.id,
-                    company_id=job.company_id,
-                    user_id=job.employer_id,
-                    section_type="summary",
-                    chunk_index=chunk_idx,
-                    content=sub_text,
-                    metadata_json=json.dumps({
-                        "job_title": job.title,
-                        "location": job.location,
-                        "experience_level": str(job.experience_level),
-                    }, ensure_ascii=False),
+        for sub_text in _split_text_with_overlap(overview_text, max_chars=eff_max, overlap=eff_ovl):
+            if len(sub_text) >= eff_min:
+                chunks.append(
+                    DocumentChunkCreate(
+                        document_type="job",
+                        document_id=job.id,
+                        company_id=job.company_id,
+                        user_id=job.employer_id,
+                        section_type="summary",
+                        chunk_index=chunk_idx,
+                        content=sub_text,
+                        metadata_json=json.dumps({
+                            "job_title": job.title,
+                            "location": job.location,
+                            "experience_level": str(job.experience_level),
+                        }, ensure_ascii=False),
+                    )
                 )
-            )
-            chunk_idx += 1
+                chunk_idx += 1
 
         # 2. Requirements (Technical & Soft Skills)
         if job.requirements:
             req_prefix = f"Yêu cầu chuyên môn cho vị trí {job.title}:\n"
-            for sub_text in _split_text_with_overlap(req_prefix + job.requirements):
-                chunks.append(
-                    DocumentChunkCreate(
-                        document_type="job",
-                        document_id=job.id,
-                        company_id=job.company_id,
-                        user_id=job.employer_id,
-                        section_type="requirement",
-                        chunk_index=chunk_idx,
-                        content=sub_text,
-                        metadata_json=json.dumps({
-                            "job_title": job.title,
-                            "section": "requirements",
-                        }, ensure_ascii=False),
+            for sub_text in _split_text_with_overlap(req_prefix + job.requirements, max_chars=eff_max, overlap=eff_ovl):
+                if len(sub_text) >= eff_min:
+                    chunks.append(
+                        DocumentChunkCreate(
+                            document_type="job",
+                            document_id=job.id,
+                            company_id=job.company_id,
+                            user_id=job.employer_id,
+                            section_type="requirement",
+                            chunk_index=chunk_idx,
+                            content=sub_text,
+                            metadata_json=json.dumps({
+                                "job_title": job.title,
+                                "section": "requirements",
+                            }, ensure_ascii=False),
+                        )
                     )
-                )
-                chunk_idx += 1
+                    chunk_idx += 1
 
         # 3. Benefits & Culture
         if job.benefits:
             benefit_prefix = f"Quyền lợi và đãi ngộ vị trí {job.title}:\n"
-            for sub_text in _split_text_with_overlap(benefit_prefix + job.benefits):
-                chunks.append(
-                    DocumentChunkCreate(
-                        document_type="job",
-                        document_id=job.id,
-                        company_id=job.company_id,
-                        user_id=job.employer_id,
-                        section_type="benefit",
-                        chunk_index=chunk_idx,
-                        content=sub_text,
-                        metadata_json=json.dumps({
-                            "job_title": job.title,
-                            "section": "benefits",
-                        }, ensure_ascii=False),
+            for sub_text in _split_text_with_overlap(benefit_prefix + job.benefits, max_chars=eff_max, overlap=eff_ovl):
+                if len(sub_text) >= eff_min:
+                    chunks.append(
+                        DocumentChunkCreate(
+                            document_type="job",
+                            document_id=job.id,
+                            company_id=job.company_id,
+                            user_id=job.employer_id,
+                            section_type="benefit",
+                            chunk_index=chunk_idx,
+                            content=sub_text,
+                            metadata_json=json.dumps({
+                                "job_title": job.title,
+                                "section": "benefits",
+                            }, ensure_ascii=False),
+                        )
                     )
-                )
-                chunk_idx += 1
+                    chunk_idx += 1
 
         return chunks
 

@@ -18,6 +18,9 @@ export const RAGAlgorithmTuningCard: React.FC<RAGAlgorithmTuningCardProps> = ({
   const [alphaDense, setAlphaDense] = useState<number>(0.7);
   const [minScore, setMinScore] = useState<number>(0.55);
   const [topK, setTopK] = useState<number>(20);
+  const [chunkSize, setChunkSize] = useState<number>(1200);
+  const [chunkOverlap, setChunkOverlap] = useState<number>(120);
+  const [minChunkLength, setMinChunkLength] = useState<number>(40);
   const [maintenanceMsg, setMaintenanceMsg] = useState<string>("");
   const [savedSuccess, setSavedSuccess] = useState(false);
 
@@ -26,6 +29,9 @@ export const RAGAlgorithmTuningCard: React.FC<RAGAlgorithmTuningCardProps> = ({
       setAlphaDense(config.hybrid_alpha_dense);
       setMinScore(config.default_min_score);
       setTopK(config.default_top_k);
+      setChunkSize(config.chunk_size ?? 1200);
+      setChunkOverlap(config.chunk_overlap ?? 120);
+      setMinChunkLength(config.min_chunk_length ?? 40);
       setMaintenanceMsg(config.maintenance_message);
     }
   }, [config]);
@@ -44,6 +50,9 @@ export const RAGAlgorithmTuningCard: React.FC<RAGAlgorithmTuningCardProps> = ({
       hybrid_alpha_sparse: alphaSparse,
       default_min_score: minScore,
       default_top_k: topK,
+      chunk_size: chunkSize,
+      chunk_overlap: chunkOverlap,
+      min_chunk_length: minChunkLength,
       maintenance_message: maintenanceMsg,
     });
     setSavedSuccess(true);
@@ -182,7 +191,84 @@ export const RAGAlgorithmTuningCard: React.FC<RAGAlgorithmTuningCardProps> = ({
           </div>
         </div>
 
-        {/* 3. Maintenance Message */}
+        {/* 3. Chunking Engine Parametrization (Pillar 1) */}
+        <div className="p-4 bg-blue-50/50 rounded-xl border border-blue-200/80 space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-blue-900 uppercase tracking-wider">
+              Động cơ Phân mảnh Ngữ nghĩa (Chunking Engine Parameters)
+            </span>
+            <span className="text-[11px] font-medium text-blue-700 bg-blue-100/70 px-2.5 py-0.5 rounded-full">
+              Chiến thuật: Semantic Sections
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+            <div className="bg-white p-3 rounded-lg border border-blue-100 shadow-2xs">
+              <div className="flex justify-between items-center mb-1">
+                <label className="text-[11px] font-bold text-slate-700">Chunk Size (Ký tự)</label>
+                <span className="text-xs font-mono font-bold text-blue-700">{chunkSize}</span>
+              </div>
+              <input
+                type="range"
+                min="200"
+                max="3000"
+                step="50"
+                value={chunkSize}
+                onChange={(e) => setChunkSize(parseInt(e.target.value, 10))}
+                className="w-full accent-blue-600 cursor-pointer h-1.5 bg-slate-200 rounded"
+              />
+              <div className="flex justify-between text-[10px] text-slate-600 mt-1">
+                <span>200</span>
+                <span>Khuyến nghị: 1200</span>
+                <span>3000</span>
+              </div>
+            </div>
+
+            <div className="bg-white p-3 rounded-lg border border-blue-100 shadow-2xs">
+              <div className="flex justify-between items-center mb-1">
+                <label className="text-[11px] font-bold text-slate-700">Chunk Overlap (Gối đầu)</label>
+                <span className="text-xs font-mono font-bold text-blue-700">{chunkOverlap}</span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="500"
+                step="10"
+                value={chunkOverlap}
+                onChange={(e) => setChunkOverlap(parseInt(e.target.value, 10))}
+                className="w-full accent-blue-600 cursor-pointer h-1.5 bg-slate-200 rounded"
+              />
+              <div className="flex justify-between text-[10px] text-slate-600 mt-1">
+                <span>0</span>
+                <span>Khuyến nghị: 120</span>
+                <span>500</span>
+              </div>
+            </div>
+
+            <div className="bg-white p-3 rounded-lg border border-blue-100 shadow-2xs">
+              <div className="flex justify-between items-center mb-1">
+                <label className="text-[11px] font-bold text-slate-700">Min Length (Lọc rác)</label>
+                <span className="text-xs font-mono font-bold text-blue-700">{minChunkLength}</span>
+              </div>
+              <input
+                type="range"
+                min="10"
+                max="200"
+                step="5"
+                value={minChunkLength}
+                onChange={(e) => setMinChunkLength(parseInt(e.target.value, 10))}
+                className="w-full accent-blue-600 cursor-pointer h-1.5 bg-slate-200 rounded"
+              />
+              <div className="flex justify-between text-[10px] text-slate-600 mt-1">
+                <span>10</span>
+                <span>Khuyến nghị: 40</span>
+                <span>200</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 4. Maintenance Message */}
         <div>
           <label className="block text-xs font-bold text-slate-700 mb-1">
             Thông điệp khi bảo trì (Maintenance Announcement)

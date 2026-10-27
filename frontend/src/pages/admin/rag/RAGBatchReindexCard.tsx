@@ -54,9 +54,9 @@ export const RAGBatchReindexCard: React.FC<RAGBatchReindexCardProps> = ({
           </label>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
             {[
-              { id: "all", label: "Toàn bộ tài nguyên", desc: "CV + File + Jobs" },
-              { id: "resume", label: "CV Builder", desc: "Hồ sơ ứng viên tạo trên web" },
-              { id: "cv_document", label: "File CV đính kèm", desc: "PDF / DOCX phân tích" },
+              { id: "all", label: "Toàn bộ tài nguyên", desc: "CV Builder + PDF + Jobs" },
+              { id: "cv_document", label: "CV Builder", desc: "Hồ sơ tạo trực tiếp trên web" },
+              { id: "resume", label: "File CV đính kèm", desc: "PDF / DOCX phân tích tự động" },
               { id: "job", label: "Tin tuyển dụng", desc: "JDs đang hoạt động" },
             ].map((item) => (
               <button
