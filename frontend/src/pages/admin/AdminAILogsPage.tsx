@@ -152,6 +152,19 @@ function KPICard({
   );
 }
 
+// ── Table Column Definition ───────────────────────────────────────────────────
+
+const TABLE_COLUMNS = [
+  { header: "Thời gian", className: "px-4 py-3 text-left w-[160px]" },
+  { header: "Tính năng", className: "px-4 py-3 text-left min-w-[150px]" },
+  { header: "Trạng thái", className: "px-4 py-3 text-center w-[110px]" },
+  { header: "Latency", className: "px-4 py-3 text-right w-[110px]" },
+  { header: "Input Tokens", className: "px-4 py-3 text-right w-[125px]" },
+  { header: "Output Tokens", className: "px-4 py-3 text-right w-[125px]" },
+  { header: "Chi phí", className: "px-4 py-3 text-right w-[115px]" },
+  { header: "Lỗi", className: "px-4 py-3 text-left min-w-[150px]" },
+] as const;
+
 // ── Log Row ────────────────────────────────────────────────────────────────────
 
 function LogRow({ log }: { log: AICallLog }) {
@@ -171,20 +184,28 @@ function LogRow({ log }: { log: AICallLog }) {
     <motion.tr
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="border-b border-slate-100 hover:bg-slate-50 transition-colors text-sm"
+      className="border-b border-slate-100 hover:bg-slate-50/80 transition-colors text-sm"
     >
-      <td className="px-4 py-3 text-slate-400 whitespace-nowrap text-xs">{timeStr}</td>
-      <td className="px-4 py-3 font-semibold text-slate-800">{FEATURE_LABELS[log.feature] ?? log.feature}</td>
-      <td className="px-4 py-3">
-        <span className={`text-[10px] font-bold border rounded-full px-2 py-0.5 ${statusColors[log.status] ?? "bg-slate-100 border-slate-200 text-slate-600"}`}>
+      <td className="px-4 py-3 text-slate-500 whitespace-nowrap text-xs text-left w-[160px]">{timeStr}</td>
+      <td className="px-4 py-3 font-semibold text-slate-800 text-left min-w-[150px]">{FEATURE_LABELS[log.feature] ?? log.feature}</td>
+      <td className="px-4 py-3 text-center w-[110px]">
+        <span className={`inline-flex items-center justify-center text-[10px] font-bold border rounded-full px-2.5 py-0.5 ${statusColors[log.status] ?? "bg-slate-100 border-slate-200 text-slate-600"}`}>
           {STATUS_LABELS[log.status] ?? log.status}
         </span>
       </td>
-      <td className="px-4 py-3 text-right text-slate-600 tabular-nums">{log.duration_ms != null ? `${log.duration_ms} ms` : "—"}</td>
-      <td className="px-4 py-3 text-right text-slate-600 tabular-nums">{log.input_tokens != null ? log.input_tokens.toLocaleString() : "—"}</td>
-      <td className="px-4 py-3 text-right text-slate-600 tabular-nums">{log.output_tokens != null ? log.output_tokens.toLocaleString() : "—"}</td>
-      <td className="px-4 py-3 text-right font-bold text-slate-800 tabular-nums">{log.cost_usd != null ? `$${log.cost_usd.toFixed(5)}` : "—"}</td>
-      <td className="px-4 py-3 max-w-[180px] truncate text-red-500 text-xs">{log.error_message ?? ""}</td>
+      <td className="px-4 py-3 text-right text-slate-600 tabular-nums w-[110px]">{log.duration_ms != null ? `${log.duration_ms.toLocaleString()} ms` : "—"}</td>
+      <td className="px-4 py-3 text-right text-slate-600 tabular-nums w-[125px]">{log.input_tokens != null ? log.input_tokens.toLocaleString() : "—"}</td>
+      <td className="px-4 py-3 text-right text-slate-600 tabular-nums w-[125px]">{log.output_tokens != null ? log.output_tokens.toLocaleString() : "—"}</td>
+      <td className="px-4 py-3 text-right font-bold text-slate-800 tabular-nums w-[115px]">{log.cost_usd != null ? `$${log.cost_usd.toFixed(5)}` : "—"}</td>
+      <td className="px-4 py-3 min-w-[150px] text-xs text-left">
+        {log.error_message ? (
+          <span className="text-red-500 font-medium truncate block max-w-[240px]" title={log.error_message}>
+            {log.error_message}
+          </span>
+        ) : (
+          <span className="text-slate-300 font-mono select-none">—</span>
+        )}
+      </td>
     </motion.tr>
   );
 }
@@ -463,15 +484,22 @@ export function AdminAILogsPage() {
             <div className="p-6"><EmptyState title="Chưa có log nào" description="Hệ thống sẽ ghi nhận khi AI được gọi từ các tính năng tuyển dụng." /></div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-left">
+              <table className="w-full">
                 <thead>
-                  <tr className="border-b border-slate-100 bg-slate-50">
-                    {["Thời gian", "Tính năng", "Trạng thái", "Latency", "Input tokens", "Output tokens", "Chi phí", "Lỗi"].map((h) => (
-                      <th key={h} className="px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                  <tr className="border-b border-slate-200/80 bg-slate-50/80">
+                    {TABLE_COLUMNS.map((col) => (
+                      <th
+                        key={col.header}
+                        className={`${col.className} text-xs font-bold text-slate-500 uppercase tracking-wide whitespace-nowrap`}
+                      >
+                        {col.header}
+                      </th>
                     ))}
                   </tr>
                 </thead>
-                <tbody>{logs.map((log) => <LogRow key={log.id} log={log} />)}</tbody>
+                <tbody className="divide-y divide-slate-100">
+                  {logs.map((log) => <LogRow key={log.id} log={log} />)}
+                </tbody>
               </table>
             </div>
           )}
