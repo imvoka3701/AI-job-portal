@@ -27,16 +27,26 @@ Dự án sở hữu bộ kiểm thử tự động toàn diện được tích h
 | | Sinh câu hỏi phỏng vấn bám JD | `tests/test_ai.py` | `test_generate_interview_questions_success` | Trả về 200 OK, danh sách câu hỏi kỹ thuật |
 | | Soạn email tuyển dụng cá nhân hóa | `tests/test_ai.py` | `test_generate_email_success` | Trả về 200 OK, subject và body chuẩn tone |
 | | Gợi ý lộ trình sự nghiệp AI | `tests/test_ai.py` | `test_roadmap_success` | Trả về 200 OK, các bước phát triển 6-12 tháng |
+| | Xuất CSV báo cáo AI Logs tiếng Việt | `tests/test_ai_export_security.py` | `test_export_csv_headers_and_encoding` | Trả về 200 OK, UTF-8 BOM, format tiếng Việt chuẩn |
+| | Escape ngắt dòng và dấu ngoặc kép | `tests/test_ai_export_security.py` | `test_export_csv_escapes_multiline_and_quotes` | Trả về 200 OK, tuân thủ nghiêm ngặt RFC 4180 |
 | **2. TRƯỜNG HỢP SAI (Negative Path)** | Chặn truy cập trái phép CV người khác | `tests/test_ai.py` | `test_authorize_resume_access_unauthorized` | Bắt lỗi **403 Forbidden** (Multi-tenant check) |
 | | Chặn HR công ty A xem CV công ty B | `tests/test_ai.py` | `test_employer_cannot_access_other_company_cv`| Bắt lỗi **403 Forbidden** (Bảo vệ đa doanh nghiệp) |
 | | Chặn request không có JWT Token | `tests/test_auth.py` | `test_unauthenticated_request` | Bắt lỗi **401 Unauthorized** |
 | | Chặn Prompt Injection / Jailbreak | `tests/test_prompt_armor.py` | `test_prompt_armor_blocks_injection` | Bắt lỗi **400 Bad Request** kèm threat_type |
 | | Chặn nộp hồ sơ trùng lặp | `tests/test_applications.py` | `test_duplicate_application_prevention` | Bắt lỗi **409 Conflict** (Chống spam ứng tuyển) |
+| | Chặn trạng thái log AI không hợp lệ | `tests/test_ai_export_security.py` | `test_invalid_status_parameter` | Bắt lỗi **400 Bad Request** với danh sách hợp lệ |
+| | Chặn khoảng ngày đảo ngược | `tests/test_ai_export_security.py` | `test_invalid_date_range_reversed` | Bắt lỗi **400 Bad Request** (from_date > to_date) |
+| | Chặn giới hạn limit ngoài biên | `tests/test_ai_export_security.py` | `test_invalid_limit_bounds` | Bắt lỗi **422 Unprocessable Entity** (limit 1-10000) |
 | **3. TRƯỜNG HỢP BIÊN (Edge/Boundary)** | CV rỗng (Không có text hoặc kỹ năng) | `tests/test_ai.py` | `test_match_empty_resume` (Line 272) | Trả về score 0.0 an toàn, không crash hệ thống |
 | | Gửi request dồn dập vượt Rate Limit | `tests/test_rate_limiter.py` | `test_rate_limiter_sliding_window_burst` | Chặn request thứ 21 với **429 Too Many Requests** |
 | | Mô phỏng mạng chập chờn Timeout | `tests/test_deepseek_client.py`| `test_timeout_handling` | Chuyển đổi thành **504 Gateway Timeout** |
 | | Mô phỏng LLM trả về JSON vỡ | `tests/test_deepseek_client.py`| `test_malformed_json_fallback` | Kích hoạt Fallback an toàn, mã lỗi **502 Bad Gateway** |
 | | Kích hoạt Circuit Breaker | `tests/test_deepseek_client.py`| `test_circuit_breaker_trips_after_5_failures` | Mạch Open sau 5 lỗi, từ chối ngay trong 0ms |
+| | CSDL rỗng khi xuất báo cáo | `tests/test_ai_export_security.py` | `test_empty_database_returns_valid_csv_header` | Trả về 200 OK, đúng 1 dòng header + BOM, 0 data |
+| | Giá trị Tokens rỗng / null / 0 | `tests/test_ai_export_security.py` | `test_zero_and_null_tokens_boundary` | Trả về 200 OK, xử lý chuỗi rỗng an toàn |
+| | Độ dài lỗi tối đa cột CSDL | `tests/test_ai_export_security.py` | `test_max_column_error_message_length` | Trả về 200 OK, 500 ký tự tiếng Việt không lỗi |
+| **4. BẢO MẬT LỖ HỔNG (Security / CWE)** | Phòng chống CSV / Formula Injection | `tests/test_ai_export_security.py` | `test_csv_formula_injection_prevention_cwe_1236_in_api` | Khử toàn bộ ký tự `=`, `+`, `-`, `@`, `\t` bằng dấu `'` |
+| | Unit test bộ lọc sanitize_csv_cell | `tests/test_ai_export_security.py` | `test_csv_cell_sanitizer_logic` | Vô hiệu hóa mã độc trước khi mở trên Excel |
 
 ---
 
