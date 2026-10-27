@@ -400,11 +400,13 @@ export const CandidateDashboard = () => {
   // ── Derived stats ──────────────────────────────────────────────────────
   const totalCVs = resumes.length + cvDocuments.length;
   const totalApplications = applications.length;
-  const validScores = applications.filter((a) => a.ai_matching_score && a.ai_matching_score > 0);
+  const validScores = applications.filter(
+    (a) => typeof a.ai_matching_score === "number" && a.ai_matching_score > 0
+  );
   const avgAIScore =
     validScores.length > 0
       ? Math.round(validScores.reduce((acc, a) => acc + (a.ai_matching_score || 0), 0) / validScores.length)
-      : totalCVs > 0 ? 88 : 0;
+      : null;
 
   // Filtered Applications by Tab & Pagination
   const filteredApplications = applications.filter((app) => {
@@ -569,13 +571,35 @@ export const CandidateDashboard = () => {
               </div>
             </button>
 
-            <Link to="/ai/matching" className="p-4 rounded-2xl bg-slate-50 hover:bg-emerald-50/60 border border-slate-200/80 hover:border-emerald-300 flex items-center gap-3.5 transition-all group">
+            <Link
+              to="/ai/matching"
+              className="p-4 rounded-2xl bg-slate-50 hover:bg-emerald-50/60 border border-slate-200/80 hover:border-emerald-300 flex items-center gap-3.5 transition-all group"
+              title={
+                avgAIScore !== null
+                  ? `Điểm khớp AI trung bình tính từ ${validScores.length} đơn ứng tuyển thực tế`
+                  : totalApplications > 0
+                  ? "Đang chờ AI phân tích điểm khớp cho các đơn ứng tuyển"
+                  : "Chưa có đơn ứng tuyển. Bấm để thử đo độ khớp CV với các JD tuyển dụng"
+              }
+            >
               <div className="w-11 h-11 rounded-xl bg-emerald-100 group-hover:bg-emerald-200 text-[#00B86B] flex items-center justify-center font-black shrink-0 transition-colors">
                 <Target size={20} />
               </div>
               <div>
-                <span className="text-2xl font-black text-slate-900 group-hover:text-emerald-700 leading-none transition-colors">{avgAIScore}%</span>
-                <p className="text-[11px] text-slate-500 font-bold mt-1 uppercase tracking-wider">Điểm AI Khớp TB →</p>
+                {avgAIScore !== null ? (
+                  <span className="text-2xl font-black text-slate-900 group-hover:text-emerald-700 leading-none transition-colors">
+                    {avgAIScore}%
+                  </span>
+                ) : (
+                  <span className="text-2xl font-black text-slate-400 leading-none">--</span>
+                )}
+                <p className="text-[11px] text-slate-500 font-bold mt-1 uppercase tracking-wider group-hover:text-emerald-700">
+                  {avgAIScore !== null
+                    ? "Điểm AI Khớp TB →"
+                    : totalApplications > 0
+                    ? "Đang tính điểm..."
+                    : "Chưa ứng tuyển →"}
+                </p>
               </div>
             </Link>
 
@@ -1329,6 +1353,8 @@ export const CandidateDashboard = () => {
                   setCvActiveTab("pdf");
                   document.getElementById("cv-upload-dropzone")?.scrollIntoView({ behavior: "smooth", block: "center" });
                 }}
+                onEvaluateResume={handleEvaluateResume}
+                isEvaluatingResume={evaluatingResumeId === (resumes.length > 0 ? resumes[0].id : null)}
               />
             </div>
 

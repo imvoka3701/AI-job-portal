@@ -37,6 +37,26 @@ router = APIRouter(prefix="/resumes", tags=["Resumes"])
 ALLOWED_CONTENT_TYPES = {"application/pdf"}
 
 
+async def _auto_evaluate_resume_background(resume_id: int) -> None:
+    """Background task to run AI evaluation automatically upon resume creation."""
+    from app.database import SessionLocal
+
+    with SessionLocal() as db:
+        try:
+            resume = crud_resume.get_by_id(db, resume_id=resume_id)
+            if not resume or not resume.raw_text:
+                return
+            if resume.ai_evaluation_json:
+                return  # Already evaluated
+            evaluation = await cv_evaluator_service.evaluate(resume_text=resume.raw_text, db=db)
+            crud_resume.update(
+                db, resume=resume, obj_in={"ai_evaluation_json": evaluation.model_dump_json()}
+            )
+            logger.info("Auto AI evaluation succeeded in background for resume %s", resume_id)
+        except Exception as exc:
+            logger.warning("Auto AI evaluation background task failed for resume %s: %s", resume_id, exc)
+
+
 @router.post(
     "/upload",
     response_model=ResumeRead,
@@ -184,6 +204,7 @@ async def upload_resume(
     )
     resume = crud_resume.create(db, obj_in=resume_in, user_id=current_user.id)
     background_tasks.add_task(rag_service.index_document_background, document_type="resume", document_id=resume.id)
+    background_tasks.add_task(_auto_evaluate_resume_background, resume_id=resume.id)
     logger.info(
         "Resume created: id=%s user=%s file=%s text_len=%s validated=True industry=%s",
         resume.id,
@@ -248,6 +269,7 @@ async def create_resume(
 
     resume = crud_resume.create(db, obj_in=data, user_id=current_user.id)
     background_tasks.add_task(rag_service.index_document_background, document_type="resume", document_id=resume.id)
+    background_tasks.add_task(_auto_evaluate_resume_background, resume_id=resume.id)
     return ResumeRead.model_validate(resume)
 
 

@@ -11,6 +11,8 @@ interface RadarChartWidgetProps {
   cvDocument?: CvDocument | null;
   skillAnalysis?: Record<string, unknown> | null;
   onScrollToUpload?: () => void;
+  onEvaluateResume?: (resumeId: number) => Promise<void>;
+  isEvaluatingResume?: boolean;
 }
 
 interface RadarDataPoint {
@@ -37,9 +39,11 @@ export const RadarChartWidget = ({
   cvDocument,
   skillAnalysis,
   onScrollToUpload,
+  onEvaluateResume,
+  isEvaluatingResume = false,
 }: RadarChartWidgetProps) => {
   // Trích xuất dữ liệu năng lực thực tế từ CV (Không hardcode)
-  const { data, hasRealData, industryName, weakestSkill } = useMemo(() => {
+  const { data, hasRealData, isAiEvaluated, industryName, weakestSkill } = useMemo(() => {
     // 1. Ưu tiên dữ liệu đánh giá chi tiết từ prop hoặc resume.ai_evaluation_json
     let rawAnalysis: Record<string, unknown> | null = skillAnalysis || null;
 
@@ -80,6 +84,7 @@ export const RadarChartWidget = ({
         return {
           data: points,
           hasRealData: true,
+          isAiEvaluated: true,
           industryName: resume?.parsed_industry || "Chuyên môn",
           weakestSkill: sorted[0],
         };
@@ -113,39 +118,22 @@ export const RadarChartWidget = ({
       }
     }
 
-    // 4. Nếu có kỹ năng thực tế: tính toán điểm dựa trên thâm niên hồ sơ
+    // 4. Có kỹ năng thực tế nhưng CHƯA CHẠY ĐÁNH GIÁ AI
+    // Minh bạch tuyệt đối: Không sinh điểm ngẫu nhiên/giả mạo
     if (extractedSkills.length >= 3) {
-      const level = (resume?.parsed_experience_level || "").toLowerCase();
-      let baseScore = 75;
-      if (level.includes("senior") || level.includes("lead") || level.includes("director")) {
-        baseScore = 86;
-      } else if (level.includes("middle") || level.includes("mid")) {
-        baseScore = 76;
-      } else if (level.includes("junior")) {
-        baseScore = 66;
-      } else if (level.includes("intern") || level.includes("fresher")) {
-        baseScore = 58;
-      }
+      const points: RadarDataPoint[] = extractedSkills.slice(0, 6).map((skill) => ({
+        subject: truncateLabel(skill, 18),
+        fullName: skill,
+        A: 50,
+        fullMark: 100,
+      }));
 
-      const points: RadarDataPoint[] = extractedSkills.slice(0, 6).map((skill, index) => {
-        // Độ biến thiên tự nhiên có quy luật theo kỹ năng
-        const seed = skill.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
-        const variance = (seed % 15) - 7;
-        const score = Math.min(95, Math.max(40, baseScore + variance - index * 2));
-        return {
-          subject: truncateLabel(skill, 18),
-          fullName: skill,
-          A: score,
-          fullMark: 100,
-        };
-      });
-
-      const sorted = [...points].sort((a, b) => a.A - b.A);
       return {
         data: points,
         hasRealData: true,
+        isAiEvaluated: false,
         industryName: resume?.parsed_industry || "Chuyên môn",
-        weakestSkill: sorted[0],
+        weakestSkill: null,
       };
     }
 
@@ -153,6 +141,7 @@ export const RadarChartWidget = ({
     return {
       data: [],
       hasRealData: false,
+      isAiEvaluated: false,
       industryName: "Chưa có hồ sơ",
       weakestSkill: null,
     };
@@ -170,7 +159,9 @@ export const RadarChartWidget = ({
               <h2 className="text-sm font-black text-slate-900">Radar Năng Lực (AI)</h2>
               <p className="text-[11px] text-slate-500 font-medium">
                 {hasRealData
-                  ? `Phân tích từ ${data.length} kỹ năng thực tế trong hồ sơ`
+                  ? isAiEvaluated
+                    ? `Phân tích từ ${data.length} kỹ năng thực tế qua AI`
+                    : `Đã nhận diện ${data.length} kỹ năng từ CV · Chờ AI chấm điểm`
                   : "Chưa có dữ liệu phân tích năng lực"}
               </p>
             </div>
@@ -180,11 +171,17 @@ export const RadarChartWidget = ({
             variant="default"
             className={
               hasRealData
-                ? "text-[10px] font-bold text-emerald-800 bg-emerald-50 border-emerald-200"
+                ? isAiEvaluated
+                  ? "text-[10px] font-bold text-emerald-800 bg-emerald-50 border-emerald-200"
+                  : "text-[10px] font-bold text-amber-800 bg-amber-50 border-amber-200"
                 : "text-[10px] font-bold text-slate-600 bg-slate-100 border-slate-200"
             }
           >
-            {hasRealData ? `Hồ sơ: ${industryName}` : "Chờ phân tích"}
+            {hasRealData
+              ? isAiEvaluated
+                ? `Hồ sơ: ${industryName}`
+                : "Chờ AI chấm điểm"
+              : "Chờ phân tích"}
           </Badge>
         </div>
       </CardHeader>
@@ -238,36 +235,53 @@ export const RadarChartWidget = ({
               </ResponsiveContainer>
             </div>
 
-            <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between gap-2 text-xs">
-              <div className="min-w-0 flex-1">
-                <p
-                  className="text-slate-600 font-medium text-[11px] truncate"
-                  title={
-                    weakestSkill
-                      ? `Cần cải thiện ${weakestSkill.fullName || weakestSkill.subject} (${weakestSkill.A}%)?`
-                      : "Muốn nâng cao kỹ năng?"
-                  }
+            {!isAiEvaluated && onEvaluateResume && resume?.id ? (
+              <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between gap-2 text-xs">
+                <span className="text-[11px] text-slate-500 font-medium">
+                  Chưa có điểm AI cho 6 kỹ năng này
+                </span>
+                <Button
+                  size="sm"
+                  onClick={() => onEvaluateResume(resume.id)}
+                  disabled={isEvaluatingResume}
+                  className="shrink-0 h-7 text-[11px] font-bold bg-[#00B86B] hover:bg-emerald-700 text-white gap-1 rounded-xl shadow-xs"
                 >
-                  <span className="text-amber-600 font-bold mr-1">⚡ Cải thiện:</span>
-                  {weakestSkill
-                    ? `${weakestSkill.fullName || weakestSkill.subject} (${weakestSkill.A}%)`
-                    : "Nâng cao kỹ năng chuyên môn"}
-                </p>
+                  <Sparkles size={12} className="text-amber-300" />
+                  <span>{isEvaluatingResume ? "AI đang chấm..." : "Chấm điểm AI ngay"}</span>
+                </Button>
               </div>
-              <Link
-                to={
-                  weakestSkill
-                    ? `/ai/roadmap?targetRole=${encodeURIComponent(weakestSkill.fullName || weakestSkill.subject)}`
-                    : "/ai/roadmap"
-                }
-                className="shrink-0 whitespace-nowrap inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100/80 px-2.5 py-1 rounded-lg border border-emerald-200/60 transition-colors shadow-2xs"
-                title="Tạo lộ trình học bù kỹ năng bằng AI"
-              >
-                <Sparkles size={12} className="text-amber-500 shrink-0" />
-                <span>Mở Lộ Trình Học</span>
-                <ArrowUpRight size={12} className="shrink-0" />
-              </Link>
-            </div>
+            ) : (
+              <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between gap-2 text-xs">
+                <div className="min-w-0 flex-1">
+                  <p
+                    className="text-slate-600 font-medium text-[11px] truncate"
+                    title={
+                      weakestSkill
+                        ? `Cần cải thiện ${weakestSkill.fullName || weakestSkill.subject} (${weakestSkill.A}%)?`
+                        : "Muốn nâng cao kỹ năng?"
+                    }
+                  >
+                    <span className="text-amber-600 font-bold mr-1">⚡ Cải thiện:</span>
+                    {weakestSkill
+                      ? `${weakestSkill.fullName || weakestSkill.subject} (${weakestSkill.A}%)`
+                      : "Nâng cao kỹ năng chuyên môn"}
+                  </p>
+                </div>
+                <Link
+                  to={
+                    weakestSkill
+                      ? `/ai/roadmap?targetRole=${encodeURIComponent(weakestSkill.fullName || weakestSkill.subject)}`
+                      : "/ai/roadmap"
+                  }
+                  className="shrink-0 whitespace-nowrap inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100/80 px-2.5 py-1 rounded-lg border border-emerald-200/60 transition-colors shadow-2xs"
+                  title="Tạo lộ trình học bù kỹ năng bằng AI"
+                >
+                  <Sparkles size={12} className="text-amber-500 shrink-0" />
+                  <span>Mở Lộ Trình Học</span>
+                  <ArrowUpRight size={12} className="shrink-0" />
+                </Link>
+              </div>
+            )}
           </>
         ) : (
           /* Trạng thái minh bạch khi ứng viên chưa tải lên CV hoặc CV chưa có đủ kỹ năng */
