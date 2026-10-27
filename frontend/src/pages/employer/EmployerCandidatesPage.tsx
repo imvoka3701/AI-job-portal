@@ -971,6 +971,7 @@ export function EmployerCandidatesPage() {
         candidateName={emailTarget?.candidateName ?? ""}
         candidateEmail={emailTarget?.candidateEmail}
         jobTitle={emailTarget?.jobTitle}
+        companyName={companyContext?.company.name || user?.company_name || user?.full_name}
         matchScore={emailTarget?.matchScore}
         result={emailResult}
         loading={emailLoading}

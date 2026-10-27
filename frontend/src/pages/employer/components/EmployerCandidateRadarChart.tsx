@@ -39,30 +39,20 @@ function extractRequiredSkills(text: string | null): string[] {
     .slice(0, 6);
 }
 
-// Demo fallback data used when there's no AI evaluation yet
-const DEMO_RADAR_DATA = [
-  { skill: "Technical Skills", candidate: 7.5, requirement: 9 },
-  { skill: "Problem Solving", candidate: 8,   requirement: 8 },
-  { skill: "Communication",   candidate: 6.5, requirement: 7 },
-  { skill: "Leadership",      candidate: 5,   requirement: 6 },
-  { skill: "Domain Knowledge",candidate: 8.5, requirement: 9 },
-  { skill: "Adaptability",    candidate: 7,   requirement: 7 },
-];
-
 export function EmployerCandidateRadarChart({
   skillAnalysis,
   jobRequirements,
   jobTitle,
 }: EmployerCandidateRadarChartProps) {
-  const hasRealData = skillAnalysis !== null;
+  const hasRealData = skillAnalysis !== null && Object.keys(skillAnalysis).length > 0;
 
   const data = useMemo(() => {
-    if (!hasRealData) return DEMO_RADAR_DATA;
+    if (!hasRealData) return [];
     const requiredSkills = extractRequiredSkills(jobRequirements);
     const analyzedSkills = Object.keys(skillAnalysis!);
     const axes = Array.from(new Set([...requiredSkills, ...analyzedSkills])).slice(0, 6);
 
-    if (axes.length === 0) return DEMO_RADAR_DATA;
+    if (axes.length === 0) return [];
 
     return axes.map((skill) => ({
       skill,
@@ -70,10 +60,40 @@ export function EmployerCandidateRadarChart({
       requirement: extractRequiredSkills(jobRequirements).some(
         (item) => item.toLowerCase() === skill.toLowerCase(),
       )
-        ? 9  // realistic target instead of always 10
+        ? 9 // realistic target instead of always 10
         : 6, // baseline expectation even for unlisted skills
     }));
   }, [jobRequirements, skillAnalysis, hasRealData]);
+
+  if (!hasRealData || data.length === 0) {
+    return (
+      <Card className="border-gray-200 shadow-sm">
+        <CardHeader>
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">So sánh Kỹ năng vs JD</h3>
+            <p className="text-xs text-gray-500 mt-0.5">
+              Phân tích độ tương thích giữa kỹ năng ứng viên và yêu cầu tuyển dụng
+            </p>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="h-[280px] w-full flex flex-col items-center justify-center text-center p-6 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
+            <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400 mb-3">
+              <Sparkles className="w-6 h-6 text-slate-400" />
+            </div>
+            <h4 className="text-sm font-bold text-slate-800 mb-1">
+              Chưa có dữ liệu đánh giá kỹ năng
+            </h4>
+            <p className="text-xs text-slate-500 max-w-sm leading-relaxed">
+              Hồ sơ ứng viên này chưa được AI trích xuất và chấm điểm kỹ năng. Vui lòng bấm{" "}
+              <span className="text-primary font-bold">Đánh giá CV (AI)</span> hoặc{" "}
+              <span className="text-violet-600 font-bold">Phân tích Skill Gap</span> để đối chiếu năng lực thực tế với JD.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className="border-gray-200 shadow-sm">
@@ -82,17 +102,9 @@ export function EmployerCandidateRadarChart({
           <div>
             <h3 className="text-lg font-semibold text-gray-900">So sánh Kỹ năng vs JD</h3>
             <p className="text-xs text-gray-500 mt-0.5">
-              {hasRealData
-                ? `Phân tích từ kết quả đánh giá CV — ${jobTitle ?? "vị trí đã chọn"}`
-                : "Demo preview — Chạy AI Đánh giá CV để xem kết quả thực tế"}
+              Phân tích từ kết quả đánh giá CV — {jobTitle ?? "vị trí đã chọn"}
             </p>
           </div>
-          {!hasRealData && (
-            <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-lg">
-              <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-              Preview
-            </div>
-          )}
         </div>
       </CardHeader>
       <CardContent>
@@ -129,18 +141,16 @@ export function EmployerCandidateRadarChart({
                 dataKey="candidate"
                 stroke="#2563eb"
                 fill="#2563eb"
-                fillOpacity={hasRealData ? 0.22 : 0.1}
+                fillOpacity={0.22}
                 strokeWidth={2}
-                strokeDasharray={hasRealData ? undefined : "4 4"}
               />
               <Radar
                 name="requirement"
                 dataKey="requirement"
                 stroke="#10b981"
                 fill="#10b981"
-                fillOpacity={hasRealData ? 0.16 : 0.08}
+                fillOpacity={0.16}
                 strokeWidth={2}
-                strokeDasharray={hasRealData ? undefined : "4 4"}
               />
             </RadarChart>
           </ResponsiveContainer>

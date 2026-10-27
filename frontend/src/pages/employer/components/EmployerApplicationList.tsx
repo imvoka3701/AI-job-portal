@@ -248,22 +248,8 @@ export function EmployerApplicationList({
         const raw = typeof selectedApplication.resume.ai_evaluation_json === "string"
           ? JSON.parse(selectedApplication.resume.ai_evaluation_json)
           : selectedApplication.resume.ai_evaluation_json;
-        if (raw?.skill_analysis) return raw.skill_analysis;
-      } catch {
-        // ignore
-      }
-    }
-    if (selectedApplication.resume.parsed_skills) {
-      try {
-        const skills = typeof selectedApplication.resume.parsed_skills === "string"
-          ? JSON.parse(selectedApplication.resume.parsed_skills)
-          : selectedApplication.resume.parsed_skills;
-        if (Array.isArray(skills) && skills.length > 0) {
-          const dict: Record<string, number> = {};
-          skills.slice(0, 6).forEach((s: string, idx: number) => {
-            dict[s] = Math.max(7, 9.5 - idx * 0.4);
-          });
-          return dict;
+        if (raw?.skill_analysis && Object.keys(raw.skill_analysis).length > 0) {
+          return raw.skill_analysis;
         }
       } catch {
         // ignore

@@ -23,6 +23,7 @@ interface EmailDraftModalProps {
   candidateName: string;
   candidateEmail?: string;
   jobTitle?: string;
+  companyName?: string;
   matchScore?: number | null;
   isOpen: boolean;
   result: GenerateEmailResult | null;
@@ -34,8 +35,9 @@ interface EmailDraftModalProps {
 
 export function EmailDraftModal({
   candidateName,
-  candidateEmail = "candidate@example.com",
+  candidateEmail = "",
   jobTitle = "Vị trí tuyển dụng",
+  companyName = "Doanh nghiệp",
   matchScore,
   isOpen,
   result,
@@ -55,29 +57,23 @@ export function EmailDraftModal({
   const copiedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Sync result to form.
-  // Cố ý chỉ phụ thuộc [result, candidateName, jobTitle]: effect này dùng để đồng bộ
-  // nội dung từ kết quả AI, hoặc nạp template mặc định KHI CHƯA có kết quả (lúc mở modal).
-  // selectedType/selectedTone đã được xử lý riêng qua handleTypeChange/handleToneChange;
-  // nếu thêm chúng vào deps, khi đã có `result` mà người dùng đổi tone/type thì effect sẽ
-  // ghi đè template do handler nạp bằng nội dung `result` — sai nghiệp vụ. Vì vậy giữ nguyên deps.
   useEffect(() => {
     if (result) {
       setSubject(result.subject ?? "");
       setBody(result.body ?? "");
       setCopied(false);
     } else {
-      // Default initial templates when starting
       loadDefaultTemplate(selectedType, selectedTone);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [result, candidateName, jobTitle]);
+  }, [result, candidateName, jobTitle, companyName]);
 
   useEffect(() => () => {
     if (copiedTimer.current) clearTimeout(copiedTimer.current);
   }, []);
 
   const loadDefaultTemplate = (type: EmailType, tone: EmailTone) => {
-    const compName = "TechCorp VN";
+    const compName = companyName || "Doanh nghiệp";
     const divider = "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━";
 
     if (type === "invite") {
@@ -86,17 +82,15 @@ export function EmailDraftModal({
         setBody(
           `Chào ${candidateName} 👋,\n\n` +
           `Cảm ơn bạn đã quan tâm và gửi CV ứng tuyển vị trí ${jobTitle} tại ${compName}.\n\n` +
-          `Đội ngũ tuyển dụng cực kỳ ấn tượng với kinh nghiệm của bạn. Chúng tôi trân trọng mời bạn tham gia buổi phỏng vấn trực tiếp để cùng trao đổi chi tiết hơn về cơ hội hợp tác:\n\n` +
-          `📅 Thời gian: [Nhập ngày giờ, VD: 14:00 - Thứ Năm, 20/08/2026]\n` +
-          `📍 Hình thức: Phỏng vấn Online qua Google Meet\n` +
-          `🔗 Link tham dự: [Google Meet Link]\n` +
-          `👥 Người phỏng vấn: Trưởng bộ phận Kỹ thuật & Phòng Nhân sự\n\n` +
-          `Bạn vui lòng phản hồi (Reply) email này trước 17:00 ngày mai để xác nhận lịch hẹn nhé.\n\n` +
+          `Đội ngũ tuyển dụng rất ấn tượng với kinh nghiệm của bạn. Chúng tôi trân trọng mời bạn tham gia buổi phỏng vấn để cùng trao đổi chi tiết hơn về cơ hội hợp tác:\n\n` +
+          `📅 Thời gian: [Nhập ngày giờ phỏng vấn]\n` +
+          `📍 Hình thức: Phỏng vấn Online qua Google Meet / Trực tiếp tại văn phòng\n` +
+          `🔗 Link tham dự: [Google Meet Link nếu Online]\n` +
+          `👥 Người phỏng vấn: Hội đồng Tuyển dụng & Bộ phận Chuyên môn\n\n` +
+          `Bạn vui lòng phản hồi (Reply) email này để xác nhận lịch hẹn nhé.\n\n` +
           `Hẹn gặp lại bạn!\n\n` +
           `${divider}\n` +
-          `Bộ phận Tuyển dụng | ${compName}\n` +
-          `🌐 Website: https://aijobportal.vn\n` +
-          `🏢 Địa chỉ: Tầng 10, Tòa nhà Tech, Hà Nội`
+          `Bộ phận Tuyển dụng | ${compName}\n`
         );
       } else if (tone === "concise") {
         setSubject(`[${compName}] Mời Phỏng vấn: ${jobTitle} - ${candidateName}`);
