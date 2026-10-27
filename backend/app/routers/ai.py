@@ -222,7 +222,12 @@ async def suggest_cv_summary(
     started = time.monotonic()
     try:
         result = await cv_suggestion_service.suggest_summary(
-            current_text=data.current_text, target_role=data.target_role, language=data.language
+            current_text=data.current_text,
+            target_role=data.target_role,
+            language=data.language,
+            db=db,
+            user_id=current_user.id,
+            cv_document_id=data.cv_document_id,
         )
         ai_audit.log_success(
             user_id=current_user.id,
@@ -274,6 +279,9 @@ async def rewrite_cv_experience(
             target_role=data.target_role,
             language=data.language,
             job_context=job_context,
+            db=db,
+            user_id=current_user.id,
+            cv_document_id=data.cv_document_id,
         )
         ai_audit.log_success(
             user_id=current_user.id,
@@ -324,6 +332,9 @@ async def suggest_cv_skills(
             target_role=data.target_role,
             job_context=job_context,
             language=data.language,
+            db=db,
+            user_id=current_user.id,
+            cv_document_id=data.cv_document_id,
         )
     except Exception as exc:
         logger.exception("CV skills suggestion failed for document %s", document.id)

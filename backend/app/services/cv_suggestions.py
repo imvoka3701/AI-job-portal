@@ -7,8 +7,10 @@ from time import perf_counter
 from typing import TypeVar
 
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
 
 from app.config import settings
+from app.models.ai_call_log import AIFeature
 from app.schemas.ai import (
     CvExperienceSuggestionResponse,
     CvSkillsSuggestionResponse,
@@ -33,7 +35,16 @@ class CvSuggestionService:
             cleaned = fenced.group(1).strip()
         return response_model.model_validate(json.loads(cleaned))
 
-    async def _request(self, *, task: str, instruction: str, response_model: type[T]) -> T:
+    async def _request(
+        self,
+        *,
+        task: str,
+        instruction: str,
+        response_model: type[T],
+        db: Session | None = None,
+        user_id: int | None = None,
+        related_id: int | None = None,
+    ) -> T:
         last_error: Exception | None = None
         for attempt in range(1 + MAX_RETRIES):
             started_at = perf_counter()
@@ -47,6 +58,10 @@ class CvSuggestionService:
                         {"role": "user", "content": instruction},
                     ],
                     model=settings.LLM_MODEL,
+                    feature=AIFeature.CV_EVALUATE,
+                    user_id=user_id,
+                    related_id=related_id,
+                    db=db,
                 )
                 content = response.get("choices", [])[0].get("message", {}).get("content", "")
                 if not content:
@@ -72,7 +87,14 @@ class CvSuggestionService:
         raise normalize_ai_error(last_error)
 
     async def suggest_summary(
-        self, *, current_text: str, target_role: str, language: str
+        self,
+        *,
+        current_text: str,
+        target_role: str,
+        language: str,
+        db: Session | None = None,
+        user_id: int | None = None,
+        cv_document_id: int | None = None,
     ) -> CvSummarySuggestionResponse:
         return await self._request(
             task="summary",
@@ -81,10 +103,21 @@ class CvSuggestionService:
                 f"Nội dung hiện tại (có thể rỗng): {current_text}. Không thêm số liệu hoặc kinh nghiệm không có trong nội dung."
             ),
             response_model=CvSummarySuggestionResponse,
+            db=db,
+            user_id=user_id,
+            related_id=cv_document_id,
         )
 
     async def rewrite_experience(
-        self, *, experience_text: str, target_role: str, language: str, job_context: str = ""
+        self,
+        *,
+        experience_text: str,
+        target_role: str,
+        language: str,
+        job_context: str = "",
+        db: Session | None = None,
+        user_id: int | None = None,
+        cv_document_id: int | None = None,
     ) -> CvExperienceSuggestionResponse:
         job_hint = f" Ngữ cảnh công việc mục tiêu: {job_context[:400]}." if job_context else ""
         return await self._request(
@@ -94,10 +127,21 @@ class CvSuggestionService:
                 f"Nội dung gốc: {experience_text}. Chỉ dùng thông tin đã cung cấp, không bịa số liệu."
             ),
             response_model=CvExperienceSuggestionResponse,
+            db=db,
+            user_id=user_id,
+            related_id=cv_document_id,
         )
 
     async def suggest_skills(
-        self, *, current_skills: list[str], target_role: str, job_context: str, language: str
+        self,
+        *,
+        current_skills: list[str],
+        target_role: str,
+        job_context: str,
+        language: str,
+        db: Session | None = None,
+        user_id: int | None = None,
+        cv_document_id: int | None = None,
     ) -> CvSkillsSuggestionResponse:
         return await self._request(
             task="skills",
@@ -106,6 +150,9 @@ class CvSuggestionService:
                 f"Kỹ năng hiện có: {current_skills}. Context công việc: {job_context}. Chỉ đề xuất kỹ năng liên quan, không khẳng định người dùng đã có kỹ năng đó."
             ),
             response_model=CvSkillsSuggestionResponse,
+            db=db,
+            user_id=user_id,
+            related_id=cv_document_id,
         )
 
 

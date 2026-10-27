@@ -5,6 +5,7 @@ Docs: DESIGN_AI_ADMIN_CONTROL.md Section 6.
 """
 
 import logging
+import time
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -12,6 +13,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import desc, func
 from sqlalchemy.orm import Session
 
+from app.config import settings
 from app.core.dependencies import require_role
 from app.core.rate_limiter import rate_limit
 from app.crud.admin_audit_log import crud_admin_audit_log
@@ -19,6 +21,7 @@ from app.database import get_db
 from app.models.ai_call_log import AICallLog, AICallStatus, AIFeature
 from app.models.ai_prompt_config import AIPromptConfig
 from app.models.user import User, UserRole
+from app.services.deepseek_client import deepseek_client
 from app.services.prompt_loader import HARDCODED_FALLBACK_PROMPTS
 
 logger = logging.getLogger(__name__)
@@ -102,6 +105,15 @@ class AIStatsOut(BaseModel):
     by_feature: list[AIStatsByFeature]
 
 
+class AIBalanceOut(BaseModel):
+    is_available: bool
+    currency: str = "USD"
+    total_balance: float = 0.0
+    granted_balance: float = 0.0
+    topped_up_balance: float = 0.0
+    error: str | None = None
+
+
 # ── Helper ────────────────────────────────────────────────────────────────────
 
 
@@ -126,6 +138,19 @@ def _enrich_prompt(prompt: AIPromptConfig, db: Session) -> AIPromptConfigOut:
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
+
+
+@router.get(
+    "/balance",
+    response_model=AIBalanceOut,
+    summary="Kiem tra so du tai khoan DeepSeek truc tiep (chi Admin)",
+)
+async def get_ai_balance(
+    current_user: User = Depends(require_role(UserRole.ADMIN)),
+) -> AIBalanceOut:
+    """Check live token balance and topped-up amount directly from DeepSeek platform."""
+    balance_data = await deepseek_client.get_balance()
+    return AIBalanceOut(**balance_data)
 
 
 @router.get(
@@ -222,9 +247,7 @@ async def test_prompt(
     The endpoint composes effective_system = persona + EMAIL_TYPE_SYSTEM_RULES[email_type]
     so the test faithfully reflects the actual runtime behaviour, including reject safety rules.
     """
-    import time
 
-    from app.config import settings
     from app.services.deepseek_client import deepseek_client
     from app.services.email_generator import EMAIL_TYPE_SYSTEM_RULES
 
@@ -283,6 +306,10 @@ async def test_prompt(
             ],
             model=settings.LLM_MODEL,
             response_format=None,  # Plain text for preview
+            feature=feature,
+            user_id=current_user.id,
+            db=db,
+            use_cache=False,
         )
         ai_response = (
             response.get("choices", [{}])[0]

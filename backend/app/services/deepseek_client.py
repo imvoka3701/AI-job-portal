@@ -235,6 +235,53 @@ class DeepseekClient:
                         except Exception as log_exc:
                             logger.warning("Failed to write AI call log: %s", log_exc)
 
+    async def get_balance(self) -> dict[str, Any]:
+        """Fetch live account balance from DeepSeek platform API."""
+        if not settings.DEEPSEEK_API_KEY:
+            return {
+                "is_available": False,
+                "total_balance": 0.0,
+                "currency": "USD",
+                "error": "DEEPSEEK_API_KEY chưa được cấu hình",
+            }
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                res = await client.get(
+                    f"{self.base_url}/user/balance",
+                    headers={
+                        "Accept": "application/json",
+                        "Authorization": f"Bearer {settings.DEEPSEEK_API_KEY}",
+                    },
+                )
+                if res.status_code == 200:
+                    data = res.json()
+                    balance_infos = data.get("balance_infos", [])
+                    if balance_infos:
+                        info = balance_infos[0]
+                        return {
+                            "is_available": data.get("is_available", True),
+                            "currency": info.get("currency", "USD"),
+                            "total_balance": float(info.get("total_balance", 0.0)),
+                            "granted_balance": float(info.get("granted_balance", 0.0)),
+                            "topped_up_balance": float(info.get("topped_up_balance", 0.0)),
+                        }
+                    return {"is_available": True, "total_balance": 0.0, "currency": "USD"}
+                return {
+                    "is_available": False,
+                    "total_balance": 0.0,
+                    "currency": "USD",
+                    "error": f"HTTP {res.status_code}: {res.text[:200]}",
+                }
+        except Exception as exc:
+            logger.warning("Failed to fetch DeepSeek balance: %s", exc)
+            return {
+                "is_available": False,
+                "total_balance": 0.0,
+                "currency": "USD",
+                "error": str(exc),
+            }
+
 
 deepseek_client = DeepseekClient()
+
 

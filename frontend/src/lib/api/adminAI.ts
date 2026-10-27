@@ -138,3 +138,17 @@ export async function getAIStats(): Promise<AIStatsResponse> {
   const { data } = await apiClient.get<AIStatsResponse>("/admin/ai/stats");
   return data;
 }
+
+export interface AIBalanceResponse {
+  is_available: boolean;
+  currency: string;
+  total_balance: number;
+  granted_balance: number;
+  topped_up_balance: number;
+  error?: string | null;
+}
+
+export async function getAIBalance(): Promise<AIBalanceResponse> {
+  const { data } = await apiClient.get<AIBalanceResponse>("/admin/ai/balance");
+  return data;
+}

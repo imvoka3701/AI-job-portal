@@ -7,6 +7,7 @@ import { MemoryRouter } from 'react-router-dom';
 vi.mock('@/lib/api/adminAI', () => ({
   getAIStats: vi.fn(),
   getAICallLogs: vi.fn(),
+  getAIBalance: vi.fn(),
 }));
 
 vi.mock('framer-motion', () => ({
@@ -27,6 +28,13 @@ window.ResizeObserver = ResizeObserver;
 describe('AdminAILogsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    (adminAI.getAIBalance as any).mockResolvedValue({
+      is_available: true,
+      currency: 'USD',
+      total_balance: 0.54,
+      granted_balance: 0.0,
+      topped_up_balance: 0.54,
+    });
   });
 
   it('renders loading skeletons initially', () => {

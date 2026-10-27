@@ -171,7 +171,7 @@ class TestTestPrompt:
             "app.services.deepseek_client.DeepseekClient.create_chat_completion",
             new_callable=AsyncMock,
             return_value=fake_response,
-        ):
+        ) as mock_create:
             r = client.post(
                 "/admin/ai/prompts/cv_evaluate/test",
                 json={"system_prompt": "You are a CV expert."},
@@ -182,6 +182,12 @@ class TestTestPrompt:
         assert data["feature"] == "cv_evaluate"
         assert "Test AI response" in data["ai_response"]
         assert data["duration_ms"] >= 0
+        # Verify logging params are forwarded
+        assert mock_create.called
+        _, kwargs = mock_create.call_args
+        assert kwargs.get("feature") == AIFeature.CV_EVALUATE
+        assert kwargs.get("db") is not None
+        assert kwargs.get("user_id") == admin.id
 
     def test_non_admin_cannot_test(self, client, db_session):
         user = _create_user(
@@ -415,3 +421,38 @@ class TestStats:
         headers = _login(client, user.email)
         r = client.get("/admin/ai/stats", headers=headers)
         assert r.status_code == 403
+
+
+class TestAIBalance:
+    def test_admin_can_fetch_balance(self, client, db_session):
+        admin = _create_user(
+            db_session, email="admin-balance@ai-test.example.com", role=UserRole.ADMIN
+        )
+        headers = _login(client, admin.email)
+        mock_balance = {
+            "is_available": True,
+            "currency": "USD",
+            "total_balance": 0.54,
+            "granted_balance": 0.00,
+            "topped_up_balance": 0.54,
+        }
+        with patch(
+            "app.services.deepseek_client.DeepseekClient.get_balance",
+            new_callable=AsyncMock,
+            return_value=mock_balance,
+        ):
+            r = client.get("/admin/ai/balance", headers=headers)
+        assert r.status_code == 200
+        data = r.json()
+        assert data["is_available"] is True
+        assert data["total_balance"] == 0.54
+        assert data["currency"] == "USD"
+
+    def test_non_admin_cannot_fetch_balance(self, client, db_session):
+        user = _create_user(
+            db_session, email="cand-balance@ai-test.example.com", role=UserRole.CANDIDATE
+        )
+        headers = _login(client, user.email)
+        r = client.get("/admin/ai/balance", headers=headers)
+        assert r.status_code == 403
+

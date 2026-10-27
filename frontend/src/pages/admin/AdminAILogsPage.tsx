@@ -20,14 +20,17 @@ import {
   RefreshCw,
   Minus,
   ScrollText,
+  Wallet,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { SEOMeta } from "@/components/seo/SEOMeta";
 import {
+  getAIBalance,
   getAICallLogs,
   getAIStats,
+  type AIBalanceResponse,
   type AICallLog,
   type AIFeature,
   type AILogFilters,
@@ -193,6 +196,9 @@ export function AdminAILogsPage() {
   const [statsLoading, setStatsLoading] = useState(true);
   const [statsError, setStatsError] = useState(false);
 
+  const [balance, setBalance] = useState<AIBalanceResponse | null>(null);
+  const [balanceLoading, setBalanceLoading] = useState(true);
+
   const [logs, setLogs] = useState<AICallLog[]>([]);
   const [total, setTotal] = useState(0);
   const [logsLoading, setLogsLoading] = useState(true);
@@ -203,6 +209,18 @@ export function AdminAILogsPage() {
   const [chartData, setChartData] = useState<BarChartPoint[]>([]);
 
   // ── Fetch ──────────────────────────────────────────────────────────────────
+
+  const fetchBalance = useCallback(async () => {
+    setBalanceLoading(true);
+    try {
+      const data = await getAIBalance();
+      setBalance(data);
+    } catch {
+      setBalance(null);
+    } finally {
+      setBalanceLoading(false);
+    }
+  }, []);
 
   const fetchStats = useCallback(async () => {
     setStatsLoading(true);
@@ -238,6 +256,7 @@ export function AdminAILogsPage() {
     }
   }, [filters]);
 
+  useEffect(() => { fetchBalance(); }, [fetchBalance]);
   useEffect(() => { fetchStats(); }, [fetchStats]);
   useEffect(() => { fetchLogs(); }, [fetchLogs]);
 
@@ -245,7 +264,7 @@ export function AdminAILogsPage() {
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
-  function handleRefresh() { fetchStats(); fetchLogs(); }
+  function handleRefresh() { fetchBalance(); fetchStats(); fetchLogs(); }
 
   const hasActiveFilter = !!(filters.feature || filters.status || filters.from_date || filters.to_date);
 
@@ -257,8 +276,6 @@ export function AdminAILogsPage() {
   const prevDayCostEst = stats ? stats.total_cost_week_usd / 7 : 0;
 
   // ── Render ─────────────────────────────────────────────────────────────────
-
-
 
   return (
     <>
@@ -285,6 +302,15 @@ export function AdminAILogsPage() {
           </div>
 
           <div className="flex items-center gap-3 flex-wrap">
+            {balance && (
+              <div className="px-3.5 py-2 bg-emerald-50 border border-emerald-200/80 rounded-xl flex items-center gap-2.5 text-xs shadow-xs">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="text-emerald-800 font-semibold">DeepSeek Cloud:</span>
+                <span className="font-mono font-extrabold text-emerald-900">
+                  ${balance.total_balance.toFixed(2)} {balance.currency}
+                </span>
+              </div>
+            )}
             {stats && (
               <div className="px-3.5 py-2 bg-white border border-slate-200 rounded-xl flex items-center gap-2.5 text-xs shadow-xs">
                 <span className="text-slate-500">Chi phí tháng này:</span>
@@ -305,7 +331,18 @@ export function AdminAILogsPage() {
         </div>
 
         {/* KPI Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <KPICard
+            label="Số dư Ví DeepSeek"
+            value={balance ? `$${balance.total_balance.toFixed(2)}` : (balanceLoading ? "..." : "—")}
+            sub={balance ? `Đã nạp: $${balance.topped_up_balance.toFixed(2)} (Live Sync)` : "Cloud API Balance"}
+            trendCurrent={balance?.total_balance ?? 0}
+            trendPrevious={balance?.total_balance ?? 0}
+            icon={Wallet}
+            iconBg="bg-blue-50"
+            iconText="text-blue-600"
+            loading={balanceLoading}
+          />
           <KPICard
             label="Calls hôm nay"
             value={String(stats?.total_calls_today ?? "—")}
