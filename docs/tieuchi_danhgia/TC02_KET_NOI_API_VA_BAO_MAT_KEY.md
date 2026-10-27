@@ -154,6 +154,6 @@ def mask_secrets(text: str) -> str:
 
 ### 6. KẾT LUẬN TIÊU CHÍ 02
 * Kết nối thành công mô hình **DeepSeek V3** theo giao thức chuẩn công nghiệp **OpenAI Chat Completions**.
-* Có cơ chế đo đếm token và tính toán chi phí thời gian thực lưu vào CSDL.
+* Có cơ chế đo đếm token, tự động tính toán chi phí thời gian thực lưu vào CSDL và tích hợp API đối soát số dư ví đám mây trực tiếp (`https://api.deepseek.com/user/balance`).
 * Bảo vệ an toàn tuyệt đối API Key thông qua biến môi trường, quy tắc gitignore và bộ lọc che giấu bí mật `mask_secrets()`.
 * **Mức độ đáp ứng:** **100% - ĐẠT XUẤT SẮC**.

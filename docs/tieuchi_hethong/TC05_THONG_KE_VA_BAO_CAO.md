@@ -106,7 +106,25 @@ Báo cáo chuyên sâu dành cho Quản trị viên theo dõi sức khỏe hệ 
 
 ---
 
-#### C. Dashboard Theo dõi Tiến độ Ứng tuyển (Ứng viên)
+#### C. Dashboard Giám sát Chi phí AI & Đối soát Số dư Cloud (Admin Console)
+*Vị trí mã nguồn:* `frontend/src/pages/admin/AdminAILogsPage.tsx` & `backend/app/routers/admin_ai.py`
+
+Hệ thống cung cấp màn hình quản trị chi phí và lưu lượng token chuyên sâu:
+1. **Đối soát số dư đám mây thời gian thực (Live Cloud Balance Reconciliation):**
+   * Tích hợp trực tiếp với API của DeepSeek Platform (`GET /admin/ai/balance`), hiển thị trực quan:
+     * **Số dư khả dụng hiện tại:** `$0.54 USD` kèm hiệu ứng pulse trạng thái kết nối Cloud.
+     * **Tổng số tiền đã nạp:** `$0.54 USD` hỗ trợ đối soát chéo 1-1 với hóa đơn platform.
+2. **Bộ thẻ chỉ số KPI Token & Cuộc gọi (AI Economics KPI Cards):**
+   * **Calls hôm nay & Xu hướng:** Đếm tổng số cuộc gọi AI trong ngày và so sánh với mức trung bình tuần.
+   * **Chi phí hôm nay & Chi phí tháng:** Tự động tính toán chi phí USD phát sinh theo công thức token Input/Output của DeepSeek V3.
+   * **Tỉ lệ lỗi (Error Rate %):** Cảnh báo khi tỷ lệ lỗi vượt ngưỡng an toàn (> 5%).
+3. **Bảng dữ liệu cuộc gọi AI phân giải cao (High-precision Log Table):**
+   * Ghi nhận đầy đủ: Thời gian, Tính năng, Trạng thái (Thành công/Thất bại/Thử lại OK), Độ trễ (ms), Input tokens, Output tokens, Chi phí USD, và Thông báo lỗi.
+   * Bố cục chuẩn mực B2B SaaS: Đồng bộ 100% căn lề giữa Header và Body, hỗ trợ bộ lọc đa chiều theo ngày và tính năng.
+
+---
+
+#### D. Dashboard Theo dõi Tiến độ Ứng tuyển (Ứng viên)
 *Vị trí mã nguồn:* `frontend/src/pages/candidate/CandidateDashboard.tsx`
 * Báo cáo cá nhân hóa giúp ứng viên nắm bắt:
   * Số lượng đơn ứng tuyển đã nộp và trạng thái phản hồi mới nhất từ nhà tuyển dụng.
