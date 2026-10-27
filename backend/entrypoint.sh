@@ -155,6 +155,11 @@ echo "  Workers: $(nproc 2>/dev/null || echo 2)"
 echo "  User: appuser (non-root)"
 echo "========================================"
 
+# Ensure upload directories exist and appuser has full write permissions
+mkdir -p /app/uploads/resumes /app/uploads/avatars
+chown -R appuser:appuser /app/uploads
+chmod -R 777 /app/uploads
+
 # D3.1: Multi-worker for production throughput
 # D3.3: Graceful shutdown to complete in-flight requests
 # A1.8: Drop privileges from root → appuser for runtime security
