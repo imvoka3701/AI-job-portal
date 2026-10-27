@@ -7,6 +7,20 @@ from typing import Any, Iterable
 # UTF-8 Byte Order Mark to ensure Excel correctly decodes Vietnamese diacritics
 UTF8_BOM = "\ufeff"
 
+# Dangerous prefix characters that trigger spreadsheet formulas/macro execution (CWE-1236)
+DANGEROUS_CSV_PREFIXES = ("=", "+", "-", "@", "\t", "\r")
+
+
+def sanitize_csv_cell(val: Any) -> Any:
+    """Sanitize string values to prevent CSV / Formula Injection (CWE-1236).
+
+    If a text cell starts with dangerous formula triggering characters (=, +, -, @, \\t, \\r),
+    prepend a single quote (') so spreadsheet processors (Excel, Calc) treat it strictly as text.
+    """
+    if isinstance(val, str) and val.startswith(DANGEROUS_CSV_PREFIXES):
+        return f"'{val}"
+    return val
+
 STATUS_LABELS: dict[str, str] = {
     "pending": "Chờ duyệt",
     "reviewing": "Đang xem xét",
@@ -59,20 +73,20 @@ def generate_candidates_csv(rows: Iterable[dict[str, Any]]) -> str:
 
         writer.writerow(
             [
-                row.get("application_id", ""),
-                row.get("candidate_name", ""),
-                row.get("candidate_email", ""),
-                row.get("candidate_phone") or "—",
-                row.get("job_title", ""),
-                row.get("department_name") or "Chưa phân bổ",
-                row.get("applied_at", ""),
-                status_label,
+                sanitize_csv_cell(str(row.get("application_id", "") or "")),
+                sanitize_csv_cell(str(row.get("candidate_name", "") or "")),
+                sanitize_csv_cell(str(row.get("candidate_email", "") or "")),
+                sanitize_csv_cell(str(row.get("candidate_phone") or "—")),
+                sanitize_csv_cell(str(row.get("job_title", "") or "")),
+                sanitize_csv_cell(str(row.get("department_name") or "Chưa phân bổ")),
+                sanitize_csv_cell(str(row.get("applied_at", "") or "")),
+                sanitize_csv_cell(status_label),
                 ai_score_str,
-                row.get("ai_feedback") or "—",
-                rec_label,
-                row.get("recommendation_note") or "—",
-                row.get("current_round_name") or "—",
-                row.get("interview_scheduled_at") or "—",
+                sanitize_csv_cell(str(row.get("ai_feedback") or "—")),
+                sanitize_csv_cell(rec_label),
+                sanitize_csv_cell(str(row.get("recommendation_note") or "—")),
+                sanitize_csv_cell(str(row.get("current_round_name") or "—")),
+                sanitize_csv_cell(str(row.get("interview_scheduled_at") or "—")),
             ]
         )
 
@@ -223,18 +237,18 @@ def generate_ai_call_logs_csv(logs: Iterable[Any]) -> str:
 
         writer.writerow(
             [
-                getattr(log, "id", ""),
-                created_str,
-                feat_label,
-                status_label,
+                sanitize_csv_cell(str(getattr(log, "id", "") or "")),
+                sanitize_csv_cell(created_str),
+                sanitize_csv_cell(feat_label),
+                sanitize_csv_cell(status_label),
                 getattr(log, "duration_ms", "") if getattr(log, "duration_ms", None) is not None else "",
                 inp if inp is not None else "",
                 outp if outp is not None else "",
                 total_tokens,
                 cost_str,
-                getattr(log, "user_id", "") or "",
-                getattr(log, "related_id", "") or "",
-                getattr(log, "error_message", "") or "",
+                sanitize_csv_cell(str(getattr(log, "user_id", "") or "")),
+                sanitize_csv_cell(str(getattr(log, "related_id", "") or "")),
+                sanitize_csv_cell(str(getattr(log, "error_message", "") or "")),
             ]
         )
 

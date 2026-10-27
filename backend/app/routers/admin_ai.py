@@ -422,6 +422,11 @@ def export_logs_csv(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Trạng thái log '{log_status}' không hợp lệ. Các trạng thái được hỗ trợ: {', '.join(valid_statuses)}",
             )
+    if from_date and to_date and from_date > to_date:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Thời gian bắt đầu (from_date) không được lớn hơn thời gian kết thúc (to_date)",
+        )
     if from_date:
         q = q.filter(AICallLog.created_at >= from_date)
     if to_date:
