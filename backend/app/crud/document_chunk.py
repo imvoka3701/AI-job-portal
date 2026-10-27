@@ -166,10 +166,13 @@ class CRUDDocumentChunk:
                 filters.append("section_type = ANY(:section_types)")
                 params["section_types"] = section_types
 
-            # Exclude draft CV documents from public/employer search
+            # Exclude draft CV documents and unvalidated resumes from public/employer search
             if exclude_drafts and user_id is None:
                 filters.append(
                     "(document_type != 'cv_document' OR document_id IN (SELECT id FROM cv_documents WHERE status = 'published'))"
+                )
+                filters.append(
+                    "(document_type != 'resume' OR document_id IN (SELECT id FROM resumes WHERE is_validated = TRUE))"
                 )
 
             where_clause = " AND ".join(filters)
@@ -290,15 +293,26 @@ class CRUDDocumentChunk:
                 query = query.filter(DocumentChunk.section_type.in_(section_types))
             if exclude_drafts and user_id is None:
                 from app.models.cv_document import CvDocument, CvDocumentStatus
+                from app.models.resume import Resume
+
                 published_cv_ids = {
                     row[0]
                     for row in db.query(CvDocument.id)
                     .filter(CvDocument.status == CvDocumentStatus.PUBLISHED.value)
                     .all()
                 }
+                validated_resume_ids = {
+                    row[0]
+                    for row in db.query(Resume.id)
+                    .filter(Resume.is_validated.is_(True))
+                    .all()
+                }
                 query = query.filter(
                     (DocumentChunk.document_type != "cv_document")
                     | (DocumentChunk.document_id.in_(published_cv_ids))
+                ).filter(
+                    (DocumentChunk.document_type != "resume")
+                    | (DocumentChunk.document_id.in_(validated_resume_ids))
                 )
 
             # Simple substring matching

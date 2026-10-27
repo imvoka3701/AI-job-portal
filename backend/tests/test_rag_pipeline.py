@@ -629,4 +629,127 @@ def test_employer_talent_search_isolates_company_applicants(client: TestClient, 
         assert item["application_status"] == "shortlisted"
 
 
+# --- 7. RAG & Chunking Guardrail Tests ---
+
+def test_cv_document_validation_guardrail_rejects_empty_or_stub():
+    # 1. Empty content_json
+    empty_cv = CvDocument(id=9901, user_id=1, title="Draft Empty", content_json={})
+    is_valid, reason = document_chunker.validate_cv_document_for_rag(empty_cv)
+    assert not is_valid
+    assert "rỗng" in reason
+
+    # 2. Stub content_json with only a name and no skills/experience
+    stub_cv = CvDocument(
+        id=9902,
+        user_id=1,
+        title="Stub CV",
+        content_json={"personal": {"full_name": "Test User"}},
+    )
+    is_valid, reason = document_chunker.validate_cv_document_for_rag(stub_cv)
+    assert not is_valid
+    assert "chưa có đủ kỹ năng" in reason
+
+    # 3. Valid rich CV
+    valid_cv = CvDocument(
+        id=9903,
+        user_id=1,
+        title="Valid CV",
+        content_json={
+            "personal": {"full_name": "Nguyễn Văn Chuyên", "headline": "Backend Engineer"},
+            "skills": ["Python", "FastAPI", "PostgreSQL"],
+            "experience": [
+                {
+                    "company": "FPT Software",
+                    "role": "Software Engineer",
+                    "description": "Phát triển hệ thống backend phân tán xử lý lưu lượng cao.",
+                }
+            ],
+        },
+    )
+    is_valid, reason = document_chunker.validate_cv_document_for_rag(valid_cv)
+    assert is_valid
+
+
+def test_rag_service_skips_unvalidated_resume_and_cleans_stale_chunks(db_session: Session):
+    from app.models.resume import Resume
+
+    cand = User(
+        email="unvalidated_cand@example.com",
+        hashed_password="pw",
+        full_name="Unvalidated Candidate",
+        role=UserRole.CANDIDATE,
+    )
+    db_session.add(cand)
+    db_session.commit()
+    db_session.refresh(cand)
+
+    resume = Resume(
+        user_id=cand.id,
+        title="Invalid Invoice Or Spam PDF",
+        desired_role="N/A",
+        raw_text="Hóa đơn thanh toán số 12345 tổng tiền 500,000 VND",
+        is_validated=False,
+    )
+    db_session.add(resume)
+    db_session.commit()
+    db_session.refresh(resume)
+
+    # Attempt to index unvalidated resume
+    indexed_count = rag_service.index_document(db_session, document_type="resume", document_id=resume.id)
+    assert indexed_count == 0
+
+    # Ensure no chunks were stored
+    chunks = crud_document_chunk.get_chunks_for_document(db_session, document_type="resume", document_id=resume.id)
+    assert len(chunks) == 0
+
+
+def test_hybrid_search_strictly_excludes_unvalidated_resumes(db_session: Session):
+    from app.models.resume import Resume
+
+    cand = User(
+        email="cand_hidden@example.com",
+        hashed_password="pw",
+        full_name="Hidden Candidate",
+        role=UserRole.CANDIDATE,
+    )
+    db_session.add(cand)
+    db_session.commit()
+    db_session.refresh(cand)
+
+    # Resume is NOT validated
+    resume = Resume(
+        user_id=cand.id,
+        title="Python Engineer Unvalidated",
+        desired_role="Python Engineer",
+        raw_text="Chuyên gia lập trình Python FastAPI PostgreSQL và pgvector",
+        is_validated=False,
+    )
+    db_session.add(resume)
+    db_session.commit()
+    db_session.refresh(resume)
+
+    # Force insert a chunk directly to simulate legacy/stale data in DB
+    chunk = DocumentChunk(
+        document_type="resume",
+        document_id=resume.id,
+        user_id=cand.id,
+        section_type="skills",
+        chunk_index=0,
+        content="Chuyên gia lập trình Python FastAPI PostgreSQL",
+    )
+    db_session.add(chunk)
+    db_session.commit()
+
+    # Search with exclude_drafts=True
+    results = crud_document_chunk.hybrid_search(
+        db_session,
+        query_text="Python FastAPI",
+        document_type="resume",
+        exclude_drafts=True,
+    )
+    # The unvalidated resume must NOT appear in search results
+    res_ids = [r.document_id for r in results if r.document_type == "resume"]
+    assert resume.id not in res_ids
+
+
 

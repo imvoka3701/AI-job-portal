@@ -83,6 +83,13 @@ class RAGService:
             if not cv_doc:
                 logger.warning("cv_document #%s not found for RAG indexing", document_id)
                 return 0
+            is_valid, reason = document_chunker.validate_cv_document_for_rag(cv_doc)
+            if not is_valid:
+                logger.warning("cv_document #%s rejected from RAG indexing: %s", document_id, reason)
+                crud_document_chunk.delete_chunks_for_document(
+                    db, document_type="cv_document", document_id=document_id
+                )
+                return 0
             chunks_data = document_chunker.chunk_cv_document(cv_doc)
 
         elif document_type == "resume":
@@ -92,6 +99,9 @@ class RAGService:
                 return 0
             if not resume.is_validated:
                 logger.warning("resume #%s is not validated as standard CV, skipping RAG indexing", document_id)
+                crud_document_chunk.delete_chunks_for_document(
+                    db, document_type="resume", document_id=document_id
+                )
                 return 0
             chunks_data = document_chunker.chunk_resume(resume)
 
@@ -106,6 +116,9 @@ class RAGService:
             raise ValueError(f"Unsupported document_type: {document_type}")
 
         if not chunks_data:
+            crud_document_chunk.delete_chunks_for_document(
+                db, document_type=document_type, document_id=document_id
+            )
             return 0
 
         # Generate dense embeddings for each chunk
