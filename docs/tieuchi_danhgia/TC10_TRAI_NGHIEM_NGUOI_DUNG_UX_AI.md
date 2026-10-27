@@ -39,7 +39,7 @@ Tại [frontend/src/pages/employer/EmployerCandidatesPage.tsx](file:///d:/ai-job
 ```
 
 #### B. Ứng viên: Trợ lý CV Copilot dạng Drawer trượt
-Tại [frontend/src/pages/candidate/cv-builder/components/CandidateCVCopilotDrawer.tsx](file:///d:/ai-job-portal/frontend/src/pages/candidate/cv-builder/components/CandidateCVCopilotDrawer.tsx):
+Tại [frontend/src/components/candidate/copilot/CandidateCVCopilotDrawer.tsx](file:///d:/ai-job-portal/frontend/src/components/candidate/copilot/CandidateCVCopilotDrawer.tsx):
 * Khi ứng viên đang tự tay soạn thảo CV, thay vì phải chuyển tab sang ChatGPT, ứng viên chỉ cần bấm nút "CV Copilot" ở góc phải màn hình.
 * Một Side Drawer trượt êm ái xuất hiện bên cạnh form soạn thảo, tự động đọc nội dung phần đang viết và đưa ra gợi ý viết lại mục Kinh nghiệm hoặc bổ sung kỹ năng chuẩn ATS. Người dùng bấm "Áp dụng", nội dung tự động điền vào form mà không làm mất trạng thái đang soạn.
 
@@ -56,6 +56,13 @@ const PIPELINE_STEPS: PipelineStep[] = [
 ```
 > **Phân định rõ ràng:** Điểm `aiMatchingScore` được hiển thị ở một Badge phụ mang tính tư vấn ("Độ phù hợp AI gợi ý: 85%"), tách biệt hoàn toàn với thanh tiến trình tuyển dụng do doanh nghiệp điều phối.
 
+#### D. Quản trị viên (Admin): Trung tâm Giám sát AI & Đối soát Trực quan (Enterprise Standard)
+Tại [frontend/src/pages/admin/AdminAILogsPage.tsx](file:///d:/ai-job-portal/frontend/src/pages/admin/AdminAILogsPage.tsx) và [frontend/src/pages/admin/AIPromptsPage.tsx](file:///d:/ai-job-portal/frontend/src/pages/admin/AIPromptsPage.tsx):
+* **Biểu đồ trực quan Stacked Bar Chart:** Phân định rõ số lượt gọi AI thành công (`#00B86B`) và thất bại (`#ef4444`) theo từng tính năng, loại bỏ hoàn toàn các con số khó hiểu của log thô.
+* **Thẻ KPI Real-time:** Hiển thị số dư ví DeepSeek Cloud (`$0.54 USD` - Live Sync kèm hiệu ứng pulse), lưu lượng gọi trong ngày, ước tính chi phí và tỷ lệ lỗi.
+* **Thử nghiệm Prompt an toàn (Live Test):** Cho phép Quản trị viên thử prompt với dữ liệu mẫu và xem trước kết quả JSON trước khi lưu, bảo đảm không gây gián đoạn môi trường vận hành thực tế.
+* **Xuất báo cáo phục vụ kiểm toán (CSV Export):** Tích hợp nút xuất CSV chuẩn UTF-8 BOM hiển thị tiếng Việt sắc nét trên Excel, cho phép lọc linh hoạt theo thời gian, tính năng và trạng thái.
+
 ---
 
 ### 4. NGUYÊN TẮC MINH BẠCH & TRÁNH NHẦM LẪN (HUMAN-IN-THE-LOOP)
@@ -65,12 +72,20 @@ const PIPELINE_STEPS: PipelineStep[] = [
 | **AI không tự ý ra quyết định** | AI không bao giờ tự động chuyển trạng thái đơn ứng tuyển sang `Accepted` hay `Rejected`. Mọi hành động chuyển cột Kanban đều đòi hỏi thao tác kéo-thả hoặc click của HR. |
 | **AI không tự động gửi email** | Module AI Email Generator chỉ sinh ra bản nháp (Draft). Người dùng bắt buộc phải xem lại, có thể chỉnh sửa và tự tay nhấn nút "Xác nhận gửi". |
 | **Nhận diện thị giác khác biệt** | Các thành phần do AI sinh ra luôn có viền sáng Gradient hoặc màu tím/indigo đặc trưng và icon `Sparkles`, khác biệt với các nút chức năng quản trị CRUD thông thường (màu xám/xanh dương). |
-| **Cảnh báo thường trực** | Banner cảnh báo trách nhiệm pháp lý xuất hiện tại chân trang mọi kết quả AI: *"Kết quả mang tính chất tham khảo. Quyết định cuối cùng do con người thực hiện."* |
+| **Banner cảnh báo trách nhiệm pháp lý đa ngữ cảnh** | Component [frontend/src/components/ui/AIDisclaimerBanner.tsx](file:///d:/ai-job-portal/frontend/src/components/ui/AIDisclaimerBanner.tsx) tự động hiển thị thông điệp cảnh báo phù hợp với từng nghiệp vụ (xem chi tiết bên dưới). |
+
+*Chi tiết 6 ngữ cảnh cảnh báo minh bạch của `AIDisclaimerBanner`:*
+1. **Đánh giá CV (`evaluation`):** *"Đánh giá này do AI tạo ra và chỉ mang tính tham khảo. Điểm số phản ánh phân tích văn bản, không thay thế nhận xét của nhà tuyển dụng. Quyết định tuyển dụng cuối cùng do con người thực hiện."*
+2. **Câu hỏi phỏng vấn (`questions`):** *"Câu hỏi phỏng vấn được AI gợi ý dựa trên JD và CV — không phải đánh giá toàn diện về ứng viên. Người phỏng vấn cần điều chỉnh phù hợp và ra quyết định độc lập."*
+3. **Soạn thảo email (`email`):** *"Email này là bản nháp do AI soạn. Vui lòng đọc kỹ, chỉnh sửa nội dung và xác nhận thông tin trước khi gửi cho ứng viên. AI không gửi email thay bạn."*
+4. **Tóm tắt CV (`summary`):** *"Tóm tắt này do AI phân tích văn bản CV và JD — có thể bỏ sót ngữ cảnh hoặc kinh nghiệm thực tế. Luôn xem xét toàn bộ hồ sơ trước khi đưa ra quyết định."*
+5. **Gợi ý viết CV (`cv`):** *"Gợi ý nội dung CV được tạo bởi AI dựa trên thông tin bạn nhập. AI không bịa thêm kinh nghiệm hay số liệu — bạn cần xem trước và xác nhận trước khi chèn vào CV."*
+6. **So khớp tuyển dụng (`matching`):** *"Điểm phù hợp là kết quả so sánh văn bản tự động, chỉ mang tính tham khảo. AI không đánh giá được kinh nghiệm thực tế hay văn hóa làm việc. Quyết định tuyển dụng do con người thực hiện."*
 
 ---
 
 ### 5. KẾT LUẬN TIÊU CHÍ 10
-* Các chức năng AI được nhúng mượt mà vào hành trình người dùng của cả Ứng viên và Nhà tuyển dụng (In-context & Ergonomic).
-* Đảm bảo tính minh bạch tối đa, không gây nhầm lẫn giữa đề xuất của máy tính và quyết định của con người.
-* Tuân thủ triệt để nguyên tắc **Human-in-the-Loop** trong môi trường B2B chuyên nghiệp.
+* Các chức năng AI được nhúng mượt mà vào hành trình người dùng của cả Ứng viên, Nhà tuyển dụng và Quản trị viên (In-context & Ergonomic).
+* Đảm bảo tính minh bạch tối đa nhờ hệ thống `AIDisclaimerBanner` đa ngữ cảnh, phân định rạch ròi giữa khuyến nghị hỗ trợ của thuật toán và quyền quyết định tối hậu của con người.
+* Tuân thủ triệt để nguyên tắc **Human-in-the-Loop** trong toàn bộ nền tảng B2B SaaS hiện đại.
 * **Mức độ đáp ứng:** **100% - ĐẠT XUẤT SẮC**.
