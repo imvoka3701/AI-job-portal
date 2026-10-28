@@ -374,16 +374,18 @@ export function EmployerApplicationList({
           <div className="flex flex-col gap-3 border-b border-gray-200 px-5 py-4 bg-white">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div className="flex items-center gap-3">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                  className="hidden lg:inline-flex items-center gap-1.5 font-semibold text-xs border-slate-200 shadow-2xs hover:bg-slate-100 h-8 px-2.5"
-                  title={isSidebarOpen ? "Thu gọn danh sách Job để mở rộng bảng ứng viên" : "Mở danh sách Job"}
-                >
-                  <PanelLeftClose className={cn("w-4 h-4 text-slate-600 transition-transform", !isSidebarOpen && "rotate-180")} />
-                  <span>{isSidebarOpen ? "Thu gọn Job" : "Mở danh sách Job"}</span>
-                </Button>
+                {!isSidebarOpen && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsSidebarOpen(true)}
+                    className="hidden lg:inline-flex items-center gap-1.5 font-semibold text-xs border-slate-200 shadow-2xs hover:bg-slate-100 h-8 px-2.5 rounded-lg"
+                    title="Mở danh sách Job"
+                  >
+                    <PanelLeftClose className="w-4 h-4 text-slate-600 rotate-180" />
+                    <span>Mở danh sách Job</span>
+                  </Button>
+                )}
                 <div>
                   <h2 className="text-lg font-semibold text-gray-900">
                     {selectedJobId ? `Ứng viên: ${selectedJobTitle}` : "Chọn một job để xem ứng viên"}
