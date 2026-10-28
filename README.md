@@ -172,6 +172,21 @@ Hệ thống được trang bị bộ ba thành phần bảo vệ tối cao ngă
 
 ---
 
+## 👥 4.5. Cơ Chế Multi-Agent SDLC (.agents/)
+
+Dự án áp dụng mô hình phát triển phần mềm **Multi-Agent (4 Agent chuyên biệt)** phối hợp chặt chẽ theo chuẩn SDLC hiện đại, lưu trữ trực tiếp trong thư mục .agents/rules/personas/:
+
+| Agent File | Vai Trò (Persona) | Trách Nhiệm Kỹ Thuật Chính |
+| :--- | :--- | :--- |
+| 1_backend_architect.md | **Senior Backend & DB Architect** | FastAPI RESTful API, PostgreSQL schema, pgvector HNSW index, JWT RBAC, Pydantic v2. |
+| 2_frontend_architect.md | **Senior Frontend & UI/UX Architect** | React 19, TypeScript Strict Mode, Tailwind CSS, Shadcn UI, Kanban Pipeline, Responsive. |
+| 3_ai_rag_specialist.md | **AI & RAG System Specialist** | DeepSeek/OpenAI integration, 384-dim Embedding, Semantic Chunking (500 chars / 50 overlap), Prompt Armor. |
+| 4_qa_security_engineer.md | **Lead QA & Security Tester** | Pytest 73+ test cases, Vitest, OWASP Top 10, Magic Bytes validation, Multi-tenancy IDOR defense. |
+
+Khi thành viên khác clone dự án về và mở trên **Google Antigravity**, **Cursor** hoặc **VS Code**, các Agent này sẽ tự động được nhận diện để hỗ trợ phát triển và đối soát nghiệp vụ.
+
+---
+
 ## 🚀 5. Khởi Chạy Nhanh (1-Minute Quickstart)
 
 ### Yêu cầu hệ thống:
